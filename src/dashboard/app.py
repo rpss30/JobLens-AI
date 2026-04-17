@@ -9,6 +9,7 @@ sys.path.append(str(ROOT_DIR))
 import pandas as pd
 import streamlit as st
 import altair as alt
+import plotly.graph_objects as go
 
 from src.processing.job_processor import process_jobs
 from src.matching.match_engine import (
@@ -240,19 +241,108 @@ def create_skill_importance_heatmap(weighted_top_skills_df: pd.DataFrame):
 
 
 def create_top_skills_bubble_chart(top_skills_df: pd.DataFrame):
-    """Create bubble chart for most frequent required skills."""
-    return (
-        alt.Chart(top_skills_df)
-        .mark_circle(size=500)
-        .encode(
-            x=alt.X("skill:N", title="Skill"),
-            y=alt.Y("count:Q", title="Frequency"),
-            size=alt.Size("count:Q", title="Frequency"),
-            tooltip=["skill", "count"],
-        )
-        .properties(height=280)
+    """Create a packed-style bubble chart for top required skills."""
+    if top_skills_df.empty:
+        return None
+
+    chart_df = top_skills_df.head(10).copy()
+    chart_df = chart_df.sort_values(by="count", ascending=False).reset_index(drop=True)
+
+    positions = [
+        (0.0, 0.0),
+        (1.45, 0.15),
+        (-1.35, 0.2),
+        (0.1, 1.25),
+        (-0.35, -1.2),
+        (1.45, -1.0),
+        (-1.55, -1.0),
+        (0.95, 1.35),
+        (-0.95, 1.35),
+        (0.0, -1.9),
+    ]
+
+    chart_df["x"] = [positions[i][0] for i in range(len(chart_df))]
+    chart_df["y"] = [positions[i][1] for i in range(len(chart_df))]
+
+    max_count = chart_df["count"].max()
+    chart_df["bubble_size"] = chart_df["count"].apply(
+        lambda count: 45 + (count / max_count) * 105
     )
 
+    chart_df["label"] = chart_df.apply(
+        lambda row: f"<b>{row['skill']}</b><br>{row['count']} jobs",
+        axis=1,
+    )
+
+    bubble_colors = [
+        "#2563EB",
+        "#16A34A",
+        "#F97316",
+        "#9333EA",
+        "#DC2626",
+        "#0891B2",
+        "#CA8A04",
+        "#4F46E5",
+        "#DB2777",
+        "#059669",
+    ]
+
+    chart_df["color"] = [
+        bubble_colors[i % len(bubble_colors)]
+        for i in range(len(chart_df))
+    ]
+
+    fig = go.Figure()
+
+    fig.add_trace(
+        go.Scatter(
+            x=chart_df["x"],
+            y=chart_df["y"],
+            mode="markers+text",
+            marker=dict(
+                size=chart_df["bubble_size"],
+                color=chart_df["color"],
+                opacity=0.9,
+                line=dict(width=1, color="rgba(255,255,255,0.7)"),
+            ),
+            text=chart_df["label"],
+            textposition="middle center",
+            textfont=dict(
+                size=13,
+                color="white",
+            ),
+            hovertemplate=(
+                "<b>%{customdata[0]}</b><br>"
+                "Appears in %{customdata[1]} matching jobs"
+                "<extra></extra>"
+            ),
+            customdata=chart_df[["skill", "count"]],
+        )
+    )
+
+    fig.update_layout(
+        height=430,
+        margin=dict(l=5, r=5, t=5, b=5),
+        showlegend=False,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        xaxis=dict(
+            showgrid=False,
+            zeroline=False,
+            visible=False,
+            range=[-2.4, 2.4],
+        ),
+        yaxis=dict(
+            showgrid=False,
+            zeroline=False,
+            visible=False,
+            range=[-2.5, 2.0],
+            scaleanchor="x",
+            scaleratio=1,
+        ),
+    )
+
+    return fig
 
 def create_role_distribution_chart(filtered_jobs: pd.DataFrame):
     """Create horizontal role distribution chart."""
@@ -451,10 +541,8 @@ def main() -> None:
         st.dataframe(top_skills_df, use_container_width=True)
 
         if not top_skills_df.empty:
-            st.altair_chart(
-                create_top_skills_bubble_chart(top_skills_df),
-                use_container_width=True,
-            )
+            top_skills_fig = create_top_skills_bubble_chart(top_skills_df)
+            st.plotly_chart(top_skills_fig, use_container_width=True)
 
     with right_col:
         st.subheader("Role-Specific Skill Importance")

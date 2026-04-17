@@ -8,6 +8,7 @@ sys.path.append(str(ROOT_DIR))
 
 import pandas as pd
 import streamlit as st
+import altair as alt
 
 from src.processing.job_processor import process_jobs
 from src.matching.match_engine import (
@@ -144,9 +145,143 @@ def show_role_summary_cards(role_scores_df: pd.DataFrame) -> None:
                 delta=f"{row['matched_weight']} / {row['total_possible_weight']} pts",
             )
 
+def create_role_match_chart(role_scores_df: pd.DataFrame):
+    """Create horizontal bar chart for weighted role match scores."""
+    chart_df = role_scores_df.sort_values(
+        by="weighted_match_score",
+        ascending=True,
+    )
+
+    return (
+        alt.Chart(chart_df)
+        .mark_bar()
+        .encode(
+            x=alt.X("weighted_match_score:Q", title="Weighted Match Score (%)"),
+            y=alt.Y("role_category:N", sort=None, title="Role Category"),
+            tooltip=[
+                "role_category",
+                "sample_size",
+                "weighted_match_score",
+                "unweighted_match_score",
+                "matched_weight",
+                "total_possible_weight",
+            ],
+        )
+        .properties(height=280)
+    )
+
+
+def create_weighted_vs_unweighted_chart(role_scores_df: pd.DataFrame):
+    """Compare weighted and unweighted match scores."""
+    chart_df = role_scores_df[
+        ["role_category", "weighted_match_score", "unweighted_match_score"]
+    ].melt(
+        id_vars="role_category",
+        var_name="score_type",
+        value_name="score",
+    )
+
+    chart_df["score_type"] = chart_df["score_type"].replace({
+        "weighted_match_score": "Weighted",
+        "unweighted_match_score": "Unweighted",
+    })
+
+    return (
+        alt.Chart(chart_df)
+        .mark_bar()
+        .encode(
+            x=alt.X("score:Q", title="Score (%)"),
+            y=alt.Y("role_category:N", title="Role Category"),
+            color=alt.Color("score_type:N", title="Score Type"),
+            tooltip=["role_category", "score_type", "score"],
+        )
+        .properties(height=300)
+    )
+
+
+def create_learning_priority_chart(learning_priorities_df: pd.DataFrame):
+    """Create horizontal chart for recommended learning priorities."""
+    chart_df = learning_priorities_df.head(10).sort_values(
+        by="total_priority_score",
+        ascending=True,
+    )
+
+    return (
+        alt.Chart(chart_df)
+        .mark_bar()
+        .encode(
+            x=alt.X("total_priority_score:Q", title="Priority Score"),
+            y=alt.Y("skill:N", sort=None, title="Skill"),
+            tooltip=["skill", "roles_missing_for", "total_priority_score"],
+        )
+        .properties(height=320)
+    )
+
+
+def create_skill_importance_heatmap(weighted_top_skills_df: pd.DataFrame):
+    """Create heatmap for role-specific skill importance."""
+    return (
+        alt.Chart(weighted_top_skills_df)
+        .mark_rect()
+        .encode(
+            x=alt.X("skill:N", title="Skill"),
+            y=alt.Y("role_category:N", title="Role Category"),
+            color=alt.Color("role_weight:Q", title="Role Weight"),
+            tooltip=[
+                "role_category",
+                "skill",
+                "count",
+                "role_weight",
+                "weighted_importance",
+            ],
+        )
+        .properties(height=260)
+    )
+
+
+def create_top_skills_bubble_chart(top_skills_df: pd.DataFrame):
+    """Create bubble chart for most frequent required skills."""
+    return (
+        alt.Chart(top_skills_df)
+        .mark_circle(size=500)
+        .encode(
+            x=alt.X("skill:N", title="Skill"),
+            y=alt.Y("count:Q", title="Frequency"),
+            size=alt.Size("count:Q", title="Frequency"),
+            tooltip=["skill", "count"],
+        )
+        .properties(height=280)
+    )
+
+
+def create_role_distribution_chart(filtered_jobs: pd.DataFrame):
+    """Create horizontal role distribution chart."""
+    role_counts_df = (
+        filtered_jobs["role_category"]
+        .value_counts()
+        .reset_index()
+    )
+
+    role_counts_df.columns = ["role_category", "job_count"]
+
+    role_counts_df = role_counts_df.sort_values(
+        by="job_count",
+        ascending=True,
+    )
+
+    return (
+        alt.Chart(role_counts_df)
+        .mark_bar()
+        .encode(
+            x=alt.X("job_count:Q", title="Job Count"),
+            y=alt.Y("role_category:N", sort=None, title="Role Category"),
+            tooltip=["role_category", "job_count"],
+        )
+        .properties(height=260)
+    )
 
 def main() -> None:
-    st.title("🔎 JobLens AI")
+    st.title("JobLens AI")
     st.caption("Personalized job market intelligence for role fit, skill gaps, and learning priorities.")
 
     with st.expander("How JobLens AI calculates match scores"):
@@ -277,8 +412,17 @@ def main() -> None:
         st.dataframe(score_table, use_container_width=True)
 
         st.caption("Weighted score uses role-specific skill importance. Unweighted score treats all skills equally.")
-        st.bar_chart(
-            role_scores_df.set_index("role_category")["weighted_match_score"]
+        st.altair_chart(
+            create_role_match_chart(role_scores_df),
+            use_container_width=True,
+        )
+
+        st.subheader("Weighted vs Unweighted Comparison")
+        st.caption("Shows how role-specific weighting changes the match score.")
+
+        st.altair_chart(
+            create_weighted_vs_unweighted_chart(role_scores_df),
+            use_container_width=True,
         )
 
     with right_col:
@@ -292,8 +436,9 @@ def main() -> None:
                 use_container_width=True,
             )
 
-            st.bar_chart(
-                learning_priorities_df.head(10).set_index("skill")["total_priority_score"]
+            st.altair_chart(
+                create_learning_priority_chart(learning_priorities_df),
+                use_container_width=True,
             )
 
     st.divider()
@@ -306,7 +451,10 @@ def main() -> None:
         st.dataframe(top_skills_df, use_container_width=True)
 
         if not top_skills_df.empty:
-            st.bar_chart(top_skills_df.set_index("skill")["count"])
+            st.altair_chart(
+                create_top_skills_bubble_chart(top_skills_df),
+                use_container_width=True,
+            )
 
     with right_col:
         st.subheader("Role-Specific Skill Importance")
@@ -314,8 +462,9 @@ def main() -> None:
         st.dataframe(weighted_top_skills_df, use_container_width=True)
 
         if not weighted_top_skills_df.empty:
-            st.bar_chart(
-                weighted_top_skills_df.set_index("skill")["weighted_importance"]
+            st.altair_chart(
+                create_skill_importance_heatmap(weighted_top_skills_df),
+                use_container_width=True,
             )
 
     st.divider()
@@ -335,7 +484,10 @@ def main() -> None:
             ),
             use_container_width=True,
         )
-        st.bar_chart(role_counts)
+        st.altair_chart(
+            create_role_distribution_chart(filtered_jobs),
+            use_container_width=True,
+        )
 
     st.divider()
 

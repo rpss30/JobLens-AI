@@ -20,6 +20,13 @@ def frequency_to_weight(frequency: float) -> int:
         return 2
     return 1
 
+def get_max_weight_for_sample_size(total_jobs: int) -> int:
+    """Limit max skill weight when a role category has too few jobs."""
+    if total_jobs <= 2:
+        return 3
+    if total_jobs <= 4:
+        return 4
+    return 5
 
 def build_role_skill_weights(df: pd.DataFrame) -> dict[str, dict[str, int]]:
     """
@@ -41,7 +48,7 @@ def build_role_skill_weights(df: pd.DataFrame) -> dict[str, dict[str, int]]:
             if not isinstance(skills, list):
                 continue
 
-            # Use set so one skill is counted once per job.
+            # Count each skill only once per job using sets
             unique_skills = {normalize_skill(skill) for skill in skills}
 
             for skill in unique_skills:
@@ -49,9 +56,14 @@ def build_role_skill_weights(df: pd.DataFrame) -> dict[str, dict[str, int]]:
 
         weights = {}
 
+        max_weight = get_max_weight_for_sample_size(total_jobs)
+
         for skill, count in skill_job_counts.items():
             frequency = count / total_jobs
-            weights[skill] = frequency_to_weight(frequency)
+            raw_weight = frequency_to_weight(frequency)
+
+            # Smoothing to prevent tiny samples from giving every skill max weight
+            weights[skill] = min(raw_weight, max_weight)
 
         role_weights[role_category] = weights
 
@@ -276,6 +288,7 @@ def score_roles(df: pd.DataFrame, user_skills: list[str]) -> pd.DataFrame:
 
         role_scores.append({
             "role_category": role_category,
+            "sample_size": len(group),
             "weighted_match_score": weighted_score,
             "unweighted_match_score": unweighted_score,
             "matched_weight": matched_weight,

@@ -48,6 +48,7 @@ for profile_name, skills in test_profiles.items():
         scores[
             [
                 "role_category",
+                "sample_size",
                 "weighted_match_score",
                 "unweighted_match_score",
                 "matched_weight",

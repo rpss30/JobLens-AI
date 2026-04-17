@@ -29,25 +29,46 @@ def extract_skills(description: str) -> list[str]:
 
 
 def categorize_role(title: str, description: str) -> str:
-    """Assign a simple role category based on title and description."""
-    text = normalize_text(title + " " + description)
+    """Assign a role category using title first, then description."""
+    title_text = normalize_text(title)
+    full_text = normalize_text(title + " " + description)
 
-    if any(word in text for word in ["machine learning", "ml engineer", "ai engineer", "pytorch", "tensorflow", "nlp"]):
+    # Title-based rules first because they are more reliable.
+    if any(word in title_text for word in ["machine learning", "ml engineer", "ml platform", "ai engineer"]):
         return "AI/ML"
 
-    if any(word in text for word in ["data scientist", "statistics", "scikit-learn", "model"]):
+    if "data scientist" in title_text:
         return "Data Science"
 
-    if any(word in text for word in ["data engineer", "etl", "spark", "airflow", "data warehouse"]):
+    if "data engineer" in title_text:
         return "Data Engineering"
 
-    if any(word in text for word in ["cloud", "aws", "lambda", "ec2", "s3", "terraform"]):
+    if any(word in title_text for word in ["cloud engineer", "aws cloud", "devops", "platform engineer"]):
         return "Cloud/AWS"
 
-    if any(word in text for word in ["backend", "software engineer", "rest api", "java", "node"]):
+    if any(word in title_text for word in ["backend developer", "software engineer", "developer"]):
         return "Software Engineering"
 
-    if any(word in text for word in ["analyst", "tableau", "power bi", "dashboard", "business"]):
+    if any(word in title_text for word in ["analyst", "business intelligence", "product analyst"]):
+        return "Analytics"
+
+    # Fallback description-based rules.
+    if any(word in full_text for word in ["machine learning", "pytorch", "tensorflow", "nlp", "embeddings"]):
+        return "AI/ML"
+
+    if any(word in full_text for word in ["data scientist", "statistics", "scikit-learn"]):
+        return "Data Science"
+
+    if any(word in full_text for word in ["data engineer", "etl", "spark", "airflow", "data warehouse"]):
+        return "Data Engineering"
+
+    if any(word in full_text for word in ["cloud", "aws", "lambda", "ec2", "s3", "terraform"]):
+        return "Cloud/AWS"
+
+    if any(word in full_text for word in ["backend", "software engineer", "rest api", "java", "node"]):
+        return "Software Engineering"
+
+    if any(word in full_text for word in ["analyst", "tableau", "power bi", "dashboard", "business"]):
         return "Analytics"
 
     return "Other"

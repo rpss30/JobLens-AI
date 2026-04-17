@@ -42,6 +42,18 @@ TECH_SKILLS = [
     "model monitoring",
     "etl",
     "data warehousing",
+    "dashboards",
+    "business analytics",
+    "model evaluation",
+    "cloud deployment",
+    "dbt",
+    "linux",
+    "automation scripts",
+    "data modeling",
+    "product metrics",
+    "monitoring",
+    "machine learning",
+    "model evaluation",
 ]
 
 BASE_SKILL_IMPORTANCE = {

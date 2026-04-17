@@ -2,6 +2,7 @@
 
 import sys
 from pathlib import Path
+from streamlit_tags import st_tags
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 sys.path.append(str(ROOT_DIR))
@@ -370,6 +371,15 @@ def create_role_distribution_chart(filtered_jobs: pd.DataFrame):
         .properties(height=260)
     )
 
+def get_tag_placeholder(session_key: str, default_tags: list[str], placeholder: str) -> str:
+    """Show placeholder only when the tag input is empty."""
+    current_tags = st.session_state.get(session_key, default_tags)
+
+    if current_tags:
+        return ""
+
+    return placeholder
+
 def main() -> None:
     st.markdown(
         """
@@ -418,6 +428,46 @@ def main() -> None:
             font-family: "Material Symbols Rounded", "Material Symbols Outlined",
                         "Material Icons", sans-serif !important;
         }
+
+        .tag-chip {
+            padding: 9px 12px;
+            margin-bottom: 7px;
+            border-radius: 999px;
+            background: rgba(37, 99, 235, 0.12);
+            border: 1px solid rgba(37, 99, 235, 0.28);
+            color: var(--text-color);
+            font-size: 14px;
+            font-weight: 600;
+            line-height: 1.2;
+        }
+
+        section[data-testid="stSidebar"] button {
+            border-radius: 999px;
+        }
+
+        div[data-baseweb="tag"] {
+            background-color: rgba(148, 163, 184, 0.16) !important;
+            border: 1px solid rgba(148, 163, 184, 0.35) !important;
+            border-radius: 999px !important;
+            color: var(--text-color) !important;
+            font-weight: 500 !important;
+            padding: 6px 10px !important;
+        }
+
+        div[data-baseweb="tag"] span {
+            color: var(--text-color) !important;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display",
+                        "SF Pro Text", "Helvetica Neue", Arial, sans-serif !important;
+        }
+
+        div[data-baseweb="tag"] svg {
+            color: var(--text-color) !important;
+            opacity: 0.65 !important;
+        }
+
+        div[data-baseweb="tag"]:hover {
+            background-color: rgba(148, 163, 184, 0.24) !important;
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -442,11 +492,35 @@ def main() -> None:
 
     with st.sidebar:
         st.header("Your Search")
+        
+        default_target_roles = [
+            "Machine Learning Engineer",
+            "Data Scientist",
+            "AWS Cloud Engineer",
+            "Backend Developer",
+        ]
 
-        target_roles_input = st.text_area(
-            "Target Roles",
-            value="Machine Learning Engineer\nData Scientist\nAWS Cloud Engineer\nBackend Developer",
-            help="Enter one target role per line.",
+        target_roles = st_tags(
+            label="Target Roles",
+            text=get_tag_placeholder(
+                session_key="target_roles_tags",
+                default_tags=default_target_roles,
+                placeholder="e.g. Data Scientist",
+            ),
+            value=default_target_roles,
+            suggestions=[
+                "Machine Learning Engineer",
+                "Data Scientist",
+                "AWS Cloud Engineer",
+                "Backend Developer",
+                "Data Engineer",
+                "Product Analyst",
+                "Software Engineer",
+                "AI Engineer",
+                "ML Platform Engineer",
+            ],
+            maxtags=10,
+            key="target_roles_tags",
         )
 
         location = st.text_input(
@@ -461,11 +535,45 @@ def main() -> None:
         )
 
         st.header("Your Skills")
+        
+        default_user_skills = [
+            "Python",
+            "SQL",
+            "AWS",
+            "Pandas",
+            "Docker",
+            "React",
+        ]
 
-        current_skills_input = st.text_area(
-            "Current Skills",
-            value="Python\nSQL\nAWS\nPandas\nDocker\nReact",
-            help="Enter one skill per line.",
+        user_skills = st_tags(
+            label="Current Skills",
+            text=get_tag_placeholder(
+                session_key="user_skills_tags",
+                default_tags=default_user_skills,
+                placeholder="e.g. Python",
+            ),
+            value=default_user_skills,
+            suggestions=[
+                "Python",
+                "SQL",
+                "AWS",
+                "Pandas",
+                "NumPy",
+                "scikit-learn",
+                "PyTorch",
+                "TensorFlow",
+                "Docker",
+                "Kubernetes",
+                "Spark",
+                "Airflow",
+                "PostgreSQL",
+                "React",
+                "TypeScript",
+                "Tableau",
+                "Power BI",
+            ],
+            maxtags=20,
+            key="user_skills_tags",
         )
 
         analyze_button = st.button("Analyze Jobs", use_container_width=True)
@@ -473,18 +581,6 @@ def main() -> None:
         if st.button("Clear Cache", use_container_width=True):
             st.cache_data.clear()
             st.rerun()
-
-    target_roles = [
-        role.strip()
-        for role in target_roles_input.splitlines()
-        if role.strip()
-    ]
-
-    user_skills = [
-        skill.strip()
-        for skill in current_skills_input.splitlines()
-        if skill.strip()
-    ]
 
     if not analyze_button:
         st.info("Enter your target roles and skills, then click **Analyze Jobs**.")

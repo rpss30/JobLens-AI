@@ -1,22 +1,26 @@
 # src/matching/match_engine.py
 
 import pandas as pd
+from src.config.skills import BASE_SKILL_IMPORTANCE
 
 
 def normalize_skill(skill: str) -> str:
     """Normalize skill names for comparison."""
     return skill.strip().lower()
 
+def get_base_skill_importance(skill: str) -> int:
+    """Fallback importance for small datasets."""
+    return BASE_SKILL_IMPORTANCE.get(normalize_skill(skill), 2)
 
 def frequency_to_weight(frequency: float) -> int:
     """Convert skill frequency into an importance weight from 1 to 5."""
-    if frequency >= 0.80:
+    if frequency >= 0.75:
         return 5
-    if frequency >= 0.60:
+    if frequency >= 0.50:
         return 4
-    if frequency >= 0.40:
+    if frequency >= 0.30:
         return 3
-    if frequency >= 0.20:
+    if frequency >= 0.15:
         return 2
     return 1
 
@@ -61,9 +65,13 @@ def build_role_skill_weights(df: pd.DataFrame) -> dict[str, dict[str, int]]:
         for skill, count in skill_job_counts.items():
             frequency = count / total_jobs
             raw_weight = frequency_to_weight(frequency)
+            base_weight = get_base_skill_importance(skill)
+
+            # Blend market frequency with base importance to prevent all weights from becoming equal
+            blended_weight = round((0.7 * raw_weight) + (0.3 * base_weight))
 
             # Smoothing to prevent tiny samples from giving every skill max weight
-            weights[skill] = min(raw_weight, max_weight)
+            weights[skill] = min(blended_weight, max_weight)
 
         role_weights[role_category] = weights
 

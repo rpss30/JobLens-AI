@@ -1,13 +1,13 @@
 # src/dashboard/app.py
 
-import pandas as pd
-import streamlit as st
-
 import sys
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 sys.path.append(str(ROOT_DIR))
+
+import pandas as pd
+import streamlit as st
 
 from src.processing.job_processor import process_jobs
 from src.matching.match_engine import (
@@ -31,7 +31,7 @@ st.set_page_config(
 
 @st.cache_data
 def load_processed_jobs() -> pd.DataFrame:
-    """Load and process job data once for the dashboard."""
+    """Load and process job data once."""
     return process_jobs(
         input_path=RAW_DATA_PATH,
         output_path=PROCESSED_DATA_PATH,
@@ -48,14 +48,17 @@ def filter_jobs(
     filtered_df = df.copy()
 
     if target_roles:
-        role_keywords = [role.strip().lower() for role in target_roles if role.strip()]
+        role_keywords = [
+            role.strip().lower()
+            for role in target_roles
+            if role.strip()
+        ]
 
-        if role_keywords:
-            filtered_df = filtered_df[
-                filtered_df["clean_title"].apply(
-                    lambda title: any(keyword in title for keyword in role_keywords)
-                )
-            ]
+        filtered_df = filtered_df[
+            filtered_df["clean_title"].apply(
+                lambda title: any(keyword in title for keyword in role_keywords)
+            )
+        ]
 
     if location:
         location_lower = location.strip().lower()
@@ -73,7 +76,7 @@ def filter_jobs(
 
 
 def get_top_companies(df: pd.DataFrame, top_n: int = 10) -> pd.DataFrame:
-    """Return companies with the most matching job postings."""
+    """Return companies with the most matching jobs."""
     company_counts = df["company"].value_counts().head(top_n)
 
     return pd.DataFrame({
@@ -82,58 +85,96 @@ def get_top_companies(df: pd.DataFrame, top_n: int = 10) -> pd.DataFrame:
     })
 
 
-def get_missing_skills_summary(role_scores_df: pd.DataFrame) -> pd.DataFrame:
-    """Count missing skills across role categories."""
-    missing_skills = []
+def get_learning_priorities(role_scores_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Rank missing skills by importance across role categories.
+
+    priority_score = role-specific weight summed across all roles where missing
+    """
+    rows = []
 
     for _, row in role_scores_df.iterrows():
+        role_category = row["role_category"]
         role_weights = row["role_skill_weights"]
 
         for skill in row["missing_skills"]:
-            missing_skills.append({
+            weight = role_weights.get(skill, 1)
+
+            rows.append({
                 "skill": skill,
-                "role_category": row["role_category"],
-                "weight": role_weights.get(skill, 1),
+                "role_category": role_category,
+                "weight": weight,
+                "priority_score": weight,
             })
 
-    if not missing_skills:
-        return pd.DataFrame(columns=["skill", "role_category", "weight"])
+    if not rows:
+        return pd.DataFrame(
+            columns=["skill", "roles_missing_for", "total_priority_score"]
+        )
 
-    return (
-        pd.DataFrame(missing_skills)
-        .sort_values(by="weight", ascending=False)
+    priorities_df = pd.DataFrame(rows)
+
+    grouped_df = (
+        priorities_df
+        .groupby("skill")
+        .agg(
+            roles_missing_for=("role_category", lambda roles: ", ".join(sorted(set(roles)))),
+            total_priority_score=("priority_score", "sum"),
+        )
+        .reset_index()
+        .sort_values(by="total_priority_score", ascending=False)
     )
+
+    return grouped_df
+
+
+def show_role_summary_cards(role_scores_df: pd.DataFrame) -> None:
+    """Show top role matches as metric cards."""
+    st.subheader("Best Role Matches")
+
+    top_roles = role_scores_df.head(3)
+
+    cols = st.columns(3)
+
+    for col, (_, row) in zip(cols, top_roles.iterrows()):
+        with col:
+            st.metric(
+                label=row["role_category"],
+                value=f"{row['weighted_match_score']}%",
+                delta=f"{row['matched_weight']} / {row['total_possible_weight']} pts",
+            )
 
 
 def main() -> None:
     st.title("🔎 JobLens AI")
-    st.subheader("Personalized Job Market Intelligence Platform")
+    st.caption("Personalized job market intelligence for role fit, skill gaps, and learning priorities.")
 
-    st.write(
-        "Enter your target roles, location, and current skills to see role match scores, "
-        "in-demand skills, hiring companies, and skill gaps."
-    )
+    with st.expander("How JobLens AI calculates match scores"):
+        st.write(
+            """
+            JobLens AI extracts skills from job postings, groups jobs into role categories,
+            and calculates role-specific skill weights based on how often each skill appears
+            within that category.
+
+            The weighted match score gives more importance to skills that are more common
+            within a specific role category. This avoids treating every skill equally.
+            """
+        )
 
     jobs_df = load_processed_jobs()
 
     with st.sidebar:
-        st.header("Your Profile")
+        st.header("Your Search")
 
         target_roles_input = st.text_area(
             "Target Roles",
-            value="Machine Learning Engineer\nData Scientist\nAWS Cloud Engineer",
-            help="Enter one role per line.",
+            value="Machine Learning Engineer\nData Scientist\nAWS Cloud Engineer\nBackend Developer",
+            help="Enter one target role per line.",
         )
 
         location = st.text_input(
             "Location",
             value="Toronto ON",
-        )
-
-        current_skills_input = st.text_area(
-            "Current Skills",
-            value="Python\nSQL\nAWS\nReact\nPandas",
-            help="Enter one skill per line.",
         )
 
         experience_level = st.selectbox(
@@ -142,7 +183,19 @@ def main() -> None:
             index=1,
         )
 
-        analyze_button = st.button("Analyze Jobs")
+        st.header("Your Skills")
+
+        current_skills_input = st.text_area(
+            "Current Skills",
+            value="Python\nSQL\nAWS\nPandas\nDocker\nReact",
+            help="Enter one skill per line.",
+        )
+
+        analyze_button = st.button("Analyze Jobs", use_container_width=True)
+
+        if st.button("Clear Cache", use_container_width=True):
+            st.cache_data.clear()
+            st.rerun()
 
     target_roles = [
         role.strip()
@@ -156,157 +209,197 @@ def main() -> None:
         if skill.strip()
     ]
 
-    if analyze_button:
-        filtered_jobs = filter_jobs(
-            df=jobs_df,
-            target_roles=target_roles,
-            location=location,
-            experience_level=experience_level,
+    if not analyze_button:
+        st.info("Enter your target roles and skills, then click **Analyze Jobs**.")
+        return
+
+    filtered_jobs = filter_jobs(
+        df=jobs_df,
+        target_roles=target_roles,
+        location=location,
+        experience_level=experience_level,
+    )
+
+    if filtered_jobs.empty:
+        st.warning("No matching jobs found. Try broadening your target roles or location.")
+        return
+
+    role_skill_weights = build_role_skill_weights(filtered_jobs)
+    role_scores_df = score_roles(filtered_jobs, user_skills)
+
+    top_skills_df = get_top_skills(filtered_jobs, top_n=10)
+    weighted_top_skills_df = get_role_weighted_top_skills(
+        filtered_jobs,
+        role_skill_weights,
+        top_n=10,
+    )
+    top_companies_df = get_top_companies(filtered_jobs, top_n=10)
+    learning_priorities_df = get_learning_priorities(role_scores_df)
+
+    avg_weighted_score = round(role_scores_df["weighted_match_score"].mean(), 2)
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
+        st.metric("Matching Jobs", len(filtered_jobs))
+
+    with col2:
+        st.metric("Role Categories", filtered_jobs["role_category"].nunique())
+
+    with col3:
+        st.metric("Average Match", f"{avg_weighted_score}%")
+
+    with col4:
+        st.metric("Current Skills", len(user_skills))
+
+    st.divider()
+
+    show_role_summary_cards(role_scores_df)
+
+    st.divider()
+
+    left_col, right_col = st.columns([1.2, 1])
+
+    with left_col:
+        st.subheader("Role Match Scores")
+
+        score_table = role_scores_df[
+            [
+                "role_category",
+                "sample_size",
+                "weighted_match_score",
+                "unweighted_match_score",
+                "matched_weight",
+                "total_possible_weight",
+            ]
+        ]
+
+        st.dataframe(score_table, use_container_width=True)
+
+        st.caption("Weighted score uses role-specific skill importance. Unweighted score treats all skills equally.")
+        st.bar_chart(
+            role_scores_df.set_index("role_category")["weighted_match_score"]
         )
 
-        if filtered_jobs.empty:
-            st.warning("No matching jobs found. Try broadening your target roles or location.")
-            return
+    with right_col:
+        st.subheader("Recommended Skills to Learn")
 
-        role_skill_weights = build_role_skill_weights(filtered_jobs)
-
-        role_scores_df = score_roles(filtered_jobs, user_skills)
-        top_skills_df = get_top_skills(filtered_jobs, top_n=10)
-        weighted_top_skills_df = get_role_weighted_top_skills(
-            filtered_jobs,
-            role_skill_weights,
-            top_n=10,
-        )
-        top_companies_df = get_top_companies(filtered_jobs, top_n=10)
-        missing_skills_df = get_missing_skills_summary(role_scores_df)
-
-        total_jobs = len(filtered_jobs)
-        avg_match_score = round(role_scores_df["weighted_match_score"].mean(), 2)
-
-        col1, col2, col3 = st.columns(3)
-
-        with col1:
-            st.metric("Matching Jobs", total_jobs)
-
-        with col2:
-            st.metric("Average Role Match", f"{avg_match_score}%")
-
-        with col3:
-            st.metric("Unique Role Categories", filtered_jobs["role_category"].nunique())
-
-        st.divider()
-
-        left_col, right_col = st.columns(2)
-
-        with left_col:
-            st.subheader("Role Match Scores")
+        if learning_priorities_df.empty:
+            st.success("No major missing skills found for your selected roles.")
+        else:
             st.dataframe(
-                role_scores_df[
-                    [
-                        "role_category",
-                        "weighted_match_score",
-                        "unweighted_match_score",
-                        "matched_weight",
-                        "total_possible_weight",
-                    ]
-                ],
+                learning_priorities_df.head(10),
                 use_container_width=True,
             )
 
             st.bar_chart(
-                role_scores_df.set_index("role_category")["weighted_match_score"]
+                learning_priorities_df.head(10).set_index("skill")["total_priority_score"]
             )
 
-        with right_col:
-            st.subheader("Top Required Skills")
-            st.caption("Ranked by frequency in matching job descriptions.")
-            st.dataframe(top_skills_df, use_container_width=True)
+    st.divider()
 
-            if not top_skills_df.empty:
-                st.bar_chart(
-                    top_skills_df.set_index("skill")["count"]
-                )
+    left_col, right_col = st.columns(2)
 
-            st.subheader("Role-Specific Weighted Skill Importance")
-            st.caption("Ranked using skill frequency and importance within each role category.")
-            st.dataframe(weighted_top_skills_df, use_container_width=True)
+    with left_col:
+        st.subheader("Top Required Skills")
+        st.caption("Most frequent skills across matching job postings.")
+        st.dataframe(top_skills_df, use_container_width=True)
 
-            if not weighted_top_skills_df.empty:
-                st.bar_chart(
-                    weighted_top_skills_df.set_index("skill")["weighted_importance"]
-                )
+        if not top_skills_df.empty:
+            st.bar_chart(top_skills_df.set_index("skill")["count"])
 
-        st.divider()
+    with right_col:
+        st.subheader("Role-Specific Skill Importance")
+        st.caption("Skills ranked by role-specific frequency and importance.")
+        st.dataframe(weighted_top_skills_df, use_container_width=True)
 
-        left_col, right_col = st.columns(2)
-
-        with left_col:
-            st.subheader("Missing Skills")
-            if missing_skills_df.empty:
-                st.success("You already match the required skills well.")
-            else:
-                st.dataframe(
-                    missing_skills_df.head(10),
-                    use_container_width=True,
-                )
-
-        with right_col:
-            st.subheader("Top Hiring Companies")
-            st.dataframe(
-                top_companies_df,
-                use_container_width=True,
+        if not weighted_top_skills_df.empty:
+            st.bar_chart(
+                weighted_top_skills_df.set_index("skill")["weighted_importance"]
             )
 
-        st.divider()
+    st.divider()
 
-        st.subheader("Matching Job Postings")
+    left_col, right_col = st.columns(2)
+
+    with left_col:
+        st.subheader("Top Hiring Companies")
+        st.dataframe(top_companies_df, use_container_width=True)
+
+    with right_col:
+        st.subheader("Role Distribution")
+        role_counts = filtered_jobs["role_category"].value_counts()
         st.dataframe(
-            filtered_jobs[
-                [
-                    "title",
-                    "company",
-                    "location",
-                    "role_category",
-                    "skills_text",
-                ]
-            ],
+            role_counts.reset_index().rename(
+                columns={"index": "role_category", "role_category": "job_count"}
+            ),
             use_container_width=True,
         )
+        st.bar_chart(role_counts)
 
-        st.divider()
+    st.divider()
 
-        st.subheader("Detailed Role Skill Gaps")
+    st.subheader("Detailed Role Breakdown")
 
-        for _, row in role_scores_df.iterrows():
-            with st.expander(
-                f"{row['role_category']} — {row['weighted_match_score']}% weighted match"
-            ):
-                st.write("**Matched Skills:**")
+    for _, row in role_scores_df.iterrows():
+        with st.expander(
+            f"{row['role_category']} — {row['weighted_match_score']}% weighted match"
+        ):
+            col_a, col_b = st.columns(2)
+
+            with col_a:
+                st.write("**Matched Skills**")
                 if row["matched_skills"]:
                     st.write(", ".join(row["matched_skills"]))
                 else:
                     st.write("No matched skills yet.")
 
-                st.write("**Missing Skills, ordered by role-specific importance:**")
+                st.write("**Missing Skills**")
                 if row["missing_skills"]:
                     st.write(", ".join(row["missing_skills"]))
                 else:
                     st.write("No major missing skills.")
 
-                st.write("**Role-Specific Skill Weights:**")
+            with col_b:
+                st.write("**Role-Specific Skill Weights**")
+
                 weights_df = pd.DataFrame(
                     [
                         {"skill": skill, "weight": weight}
                         for skill, weight in row["role_skill_weights"].items()
                     ]
-                ).sort_values(by="weight", ascending=False)
+                )
+
+                if not weights_df.empty:
+                    weights_df = weights_df.sort_values(
+                        by="weight",
+                        ascending=False,
+                    )
 
                 st.dataframe(weights_df, use_container_width=True)
 
                 st.write(
-                    f"**Weighted Score Breakdown:** "
+                    f"**Score Breakdown:** "
                     f"{row['matched_weight']} / {row['total_possible_weight']} points"
                 )
+
+    st.divider()
+
+    st.subheader("Matching Job Postings")
+
+    st.dataframe(
+        filtered_jobs[
+            [
+                "title",
+                "company",
+                "location",
+                "experience_level",
+                "role_category",
+                "skills_text",
+            ]
+        ],
+        use_container_width=True,
+    )
 
 
 if __name__ == "__main__":

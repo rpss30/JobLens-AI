@@ -371,6 +371,58 @@ def create_role_distribution_chart(filtered_jobs: pd.DataFrame):
     )
 
 def main() -> None:
+    st.markdown(
+        """
+        <style>
+        .stApp {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display",
+                        "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+        }
+
+        .stApp h1,
+        .stApp h2,
+        .stApp h3,
+        .stApp h4,
+        .stApp h5,
+        .stApp h6,
+        .stApp p,
+        .stApp label,
+        .stApp button,
+        .stApp input,
+        .stApp textarea,
+        .stApp select {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display",
+                        "SF Pro Text", "Helvetica Neue", Arial, sans-serif !important;
+        }
+
+        .stMarkdown,
+        .stText,
+        .stDataFrame,
+        .stMetric,
+        .stSelectbox,
+        .stTextInput,
+        .stTextArea,
+        .stButton {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display",
+                        "SF Pro Text", "Helvetica Neue", Arial, sans-serif !important;
+        }
+
+        /* Do not override Streamlit / Material icon fonts */
+        .material-icons,
+        .material-icons-outlined,
+        .material-icons-round,
+        .material-symbols-outlined,
+        .material-symbols-rounded,
+        [class*="Icon"],
+        [data-testid="stIcon"] {
+            font-family: "Material Symbols Rounded", "Material Symbols Outlined",
+                        "Material Icons", sans-serif !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
     st.title("JobLens AI")
     st.caption("Personalized job market intelligence for role fit, skill gaps, and learning priorities.")
 

@@ -1,10 +1,10 @@
 job_id,title,company,location,description,experience_level
 1,Machine Learning Engineer,RBC,Toronto ON,"Build machine learning models using Python, PyTorch, SQL, Docker, AWS, and MLflow. Work with data pipelines and model deployment.",Entry Level
-2,Data Scientist,TD Bank,Toronto ON,"Analyze customer data using Python, SQL, Pandas, scikit-learn, statistics, and data visualization. Experience with AWS is preferred.",Entry Level
-3,AWS Cloud Engineer,Deloitte,Toronto ON,"Deploy cloud infrastructure using AWS, EC2, S3, Lambda, Docker, Terraform, CloudWatch, and CI/CD pipelines.",Entry Level
-4,Backend Developer,Shopify,Toronto ON,"Build scalable backend APIs using Python, Java, SQL, Docker, REST APIs, PostgreSQL, and cloud services.",Entry Level
-5,Product Analyst,Manulife,Toronto ON,"Analyze product metrics using SQL, Python, Tableau, Excel, A/B testing, dashboards, and business analytics.",Entry Level
-6,Data Engineer,Bell,Toronto ON,"Build ETL pipelines using Python, SQL, Spark, Airflow, AWS, S3, Redshift, and data warehousing tools.",Entry Level
+2,Data Scientist,TD Bank,Vancouver BC,"Analyze customer data using Python, SQL, Pandas, scikit-learn, statistics, and data visualization. Experience with AWS is preferred.",Entry Level
+3,AWS Cloud Engineer,Deloitte,Vancouver BC,"Deploy cloud infrastructure using AWS, EC2, S3, Lambda, Docker, Terraform, CloudWatch, and CI/CD pipelines.",Entry Level
+4,Backend Developer,Shopify,Vancouver BC,"Build scalable backend APIs using Python, Java, SQL, Docker, REST APIs, PostgreSQL, and cloud services.",Entry Level
+5,Product Analyst,Manulife,Calgary AB,"Analyze product metrics using SQL, Python, Tableau, Excel, A/B testing, dashboards, and business analytics.",Entry Level
+6,Data Engineer,Bell,Calgary AB,"Build ETL pipelines using Python, SQL, Spark, Airflow, AWS, S3, Redshift, and data warehousing tools.",Entry Level
 7,AI Engineer,Cohere,Toronto ON,"Develop AI applications using Python, PyTorch, NLP, embeddings, vector databases, Docker, and cloud deployment.",Entry Level
 8,Business Intelligence Analyst,Scotiabank,Toronto ON,"Create dashboards and reports using SQL, Power BI, Tableau, Excel, and data modeling.",Entry Level
 9,Software Engineer,Amazon,Toronto ON,"Develop distributed systems using Java, Python, AWS, REST APIs, Docker, and scalable backend architecture.",Entry Level

@@ -41,9 +41,10 @@ def get_top_skills(df: pd.DataFrame, top_n: int = 10) -> pd.DataFrame:
 
     skill_counts = pd.Series(all_skills).value_counts().head(top_n)
 
-    return skill_counts.reset_index().rename(
-        columns={"index": "skill", 0: "count"}
-    )
+    return pd.DataFrame({
+        "skill": skill_counts.index,
+        "count": skill_counts.values,
+    })
 
 
 def score_roles(df: pd.DataFrame, user_skills: list[str]) -> pd.DataFrame:

@@ -2,27 +2,42 @@
 
 import sys
 from pathlib import Path
+
+import pandas as pd
+import streamlit as st
 from streamlit_tags import st_tags
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 sys.path.append(str(ROOT_DIR))
 
-import pandas as pd
-import streamlit as st
-import altair as alt
-import plotly.graph_objects as go
-
-from src.processing.job_processor import process_jobs
+from src.dashboard.charts import (
+    create_learning_priority_chart,
+    create_role_distribution_chart,
+    create_role_match_chart,
+    create_skill_importance_heatmap,
+    create_top_skills_bubble_chart,
+    create_weighted_vs_unweighted_chart,
+)
+from src.dashboard.components import (
+    show_role_explanations,
+    show_role_summary_cards,
+)
+from src.dashboard.services import (
+    filter_jobs,
+    get_job_match_details,
+    get_learning_priorities,
+    get_score_summary_metrics,
+    get_tag_placeholder,
+    get_top_companies,
+    load_processed_jobs,
+)
+from src.dashboard.styles import inject_global_styles
 from src.matching.match_engine import (
     build_role_skill_weights,
     get_role_weighted_top_skills,
     get_top_skills,
     score_roles,
 )
-
-
-RAW_DATA_PATH = "data/raw/sample_jobs.csv"
-PROCESSED_DATA_PATH = "data/processed/processed_jobs.csv"
 
 
 st.set_page_config(
@@ -32,446 +47,8 @@ st.set_page_config(
 )
 
 
-@st.cache_data
-def load_processed_jobs() -> pd.DataFrame:
-    """Load and process job data once."""
-    return process_jobs(
-        input_path=RAW_DATA_PATH,
-        output_path=PROCESSED_DATA_PATH,
-    )
-
-
-def filter_jobs(
-    df: pd.DataFrame,
-    target_roles: list[str],
-    location: str,
-    experience_level: str,
-) -> pd.DataFrame:
-    """Filter jobs based on user input."""
-    filtered_df = df.copy()
-
-    if target_roles:
-        role_keywords = [
-            role.strip().lower()
-            for role in target_roles
-            if role.strip()
-        ]
-
-        filtered_df = filtered_df[
-            filtered_df["clean_title"].apply(
-                lambda title: any(keyword in title for keyword in role_keywords)
-            )
-        ]
-
-    if location:
-        location_lower = location.strip().lower()
-        filtered_df = filtered_df[
-            filtered_df["location"].str.lower().str.contains(location_lower, na=False)
-        ]
-
-    if experience_level and experience_level != "Any":
-        filtered_df = filtered_df[
-            filtered_df["experience_level"].str.lower()
-            == experience_level.lower()
-        ]
-
-    return filtered_df
-
-
-def get_top_companies(df: pd.DataFrame, top_n: int = 10) -> pd.DataFrame:
-    """Return companies with the most matching jobs."""
-    company_counts = df["company"].value_counts().head(top_n)
-
-    return pd.DataFrame({
-        "company": company_counts.index,
-        "job_count": company_counts.values,
-    })
-
-
-def get_learning_priorities(role_scores_df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Rank missing skills by importance across role categories.
-
-    priority_score = role-specific weight summed across all roles where missing
-    """
-    rows = []
-
-    for _, row in role_scores_df.iterrows():
-        role_category = row["role_category"]
-        role_weights = row["role_skill_weights"]
-
-        for skill in row["missing_skills"]:
-            weight = role_weights.get(skill, 1)
-
-            rows.append({
-                "skill": skill,
-                "role_category": role_category,
-                "weight": weight,
-                "priority_score": weight,
-            })
-
-    if not rows:
-        return pd.DataFrame(
-            columns=["skill", "roles_missing_for", "total_priority_score"]
-        )
-
-    priorities_df = pd.DataFrame(rows)
-
-    grouped_df = (
-        priorities_df
-        .groupby("skill")
-        .agg(
-            roles_missing_for=("role_category", lambda roles: ", ".join(sorted(set(roles)))),
-            total_priority_score=("priority_score", "sum"),
-        )
-        .reset_index()
-        .sort_values(by="total_priority_score", ascending=False)
-    )
-
-    return grouped_df
-
-
-def show_role_summary_cards(role_scores_df: pd.DataFrame) -> None:
-    """Show top role matches as metric cards."""
-    st.subheader("Best Role Matches")
-
-    top_roles = role_scores_df.head(3)
-
-    cols = st.columns(3)
-
-    for col, (_, row) in zip(cols, top_roles.iterrows()):
-        with col:
-            st.metric(
-                label=row["role_category"],
-                value=f"{row['weighted_match_score']}%",
-                delta=f"{row['matched_weight']} / {row['total_possible_weight']} pts",
-            )
-
-def create_role_match_chart(role_scores_df: pd.DataFrame):
-    """Create horizontal bar chart for weighted role match scores."""
-    chart_df = role_scores_df.sort_values(
-        by="weighted_match_score",
-        ascending=True,
-    )
-
-    return (
-        alt.Chart(chart_df)
-        .mark_bar()
-        .encode(
-            x=alt.X("weighted_match_score:Q", title="Weighted Match Score (%)"),
-            y=alt.Y("role_category:N", sort=None, title="Role Category"),
-            tooltip=[
-                "role_category",
-                "sample_size",
-                "weighted_match_score",
-                "unweighted_match_score",
-                "matched_weight",
-                "total_possible_weight",
-            ],
-        )
-        .properties(height=280)
-    )
-
-
-def create_weighted_vs_unweighted_chart(role_scores_df: pd.DataFrame):
-    """Compare weighted and unweighted match scores."""
-    chart_df = role_scores_df[
-        ["role_category", "weighted_match_score", "unweighted_match_score"]
-    ].melt(
-        id_vars="role_category",
-        var_name="score_type",
-        value_name="score",
-    )
-
-    chart_df["score_type"] = chart_df["score_type"].replace({
-        "weighted_match_score": "Weighted",
-        "unweighted_match_score": "Unweighted",
-    })
-
-    return (
-        alt.Chart(chart_df)
-        .mark_bar()
-        .encode(
-            x=alt.X("score:Q", title="Score (%)"),
-            y=alt.Y("role_category:N", title="Role Category"),
-            color=alt.Color("score_type:N", title="Score Type"),
-            tooltip=["role_category", "score_type", "score"],
-        )
-        .properties(height=300)
-    )
-
-
-def create_learning_priority_chart(learning_priorities_df: pd.DataFrame):
-    """Create horizontal chart for recommended learning priorities."""
-    chart_df = learning_priorities_df.head(10).sort_values(
-        by="total_priority_score",
-        ascending=True,
-    )
-
-    return (
-        alt.Chart(chart_df)
-        .mark_bar()
-        .encode(
-            x=alt.X("total_priority_score:Q", title="Priority Score"),
-            y=alt.Y("skill:N", sort=None, title="Skill"),
-            tooltip=["skill", "roles_missing_for", "total_priority_score"],
-        )
-        .properties(height=320)
-    )
-
-
-def create_skill_importance_heatmap(weighted_top_skills_df: pd.DataFrame):
-    """Create heatmap for role-specific skill importance."""
-    return (
-        alt.Chart(weighted_top_skills_df)
-        .mark_rect()
-        .encode(
-            x=alt.X("skill:N", title="Skill"),
-            y=alt.Y("role_category:N", title="Role Category"),
-            color=alt.Color("role_weight:Q", title="Role Weight"),
-            tooltip=[
-                "role_category",
-                "skill",
-                "count",
-                "role_weight",
-                "weighted_importance",
-            ],
-        )
-        .properties(height=260)
-    )
-
-
-def create_top_skills_bubble_chart(top_skills_df: pd.DataFrame):
-    """Create a packed-style bubble chart for top required skills."""
-    if top_skills_df.empty:
-        return None
-
-    chart_df = top_skills_df.head(10).copy()
-    chart_df = chart_df.sort_values(by="count", ascending=False).reset_index(drop=True)
-
-    positions = [
-        (0.0, 0.0),
-        (1.45, 0.15),
-        (-1.35, 0.2),
-        (0.1, 1.25),
-        (-0.35, -1.2),
-        (1.45, -1.0),
-        (-1.55, -1.0),
-        (0.95, 1.35),
-        (-0.95, 1.35),
-        (0.0, -1.9),
-    ]
-
-    chart_df["x"] = [positions[i][0] for i in range(len(chart_df))]
-    chart_df["y"] = [positions[i][1] for i in range(len(chart_df))]
-
-    max_count = chart_df["count"].max()
-    chart_df["bubble_size"] = chart_df["count"].apply(
-        lambda count: 45 + (count / max_count) * 105
-    )
-
-    chart_df["label"] = chart_df.apply(
-        lambda row: f"<b>{row['skill']}</b><br>{row['count']} jobs",
-        axis=1,
-    )
-
-    bubble_colors = [
-        "#2563EB",
-        "#16A34A",
-        "#F97316",
-        "#9333EA",
-        "#DC2626",
-        "#0891B2",
-        "#CA8A04",
-        "#4F46E5",
-        "#DB2777",
-        "#059669",
-    ]
-
-    chart_df["color"] = [
-        bubble_colors[i % len(bubble_colors)]
-        for i in range(len(chart_df))
-    ]
-
-    fig = go.Figure()
-
-    fig.add_trace(
-        go.Scatter(
-            x=chart_df["x"],
-            y=chart_df["y"],
-            mode="markers+text",
-            marker=dict(
-                size=chart_df["bubble_size"],
-                color=chart_df["color"],
-                opacity=0.9,
-                line=dict(width=1, color="rgba(255,255,255,0.7)"),
-            ),
-            text=chart_df["label"],
-            textposition="middle center",
-            textfont=dict(
-                size=13,
-                color="white",
-            ),
-            hovertemplate=(
-                "<b>%{customdata[0]}</b><br>"
-                "Appears in %{customdata[1]} matching jobs"
-                "<extra></extra>"
-            ),
-            customdata=chart_df[["skill", "count"]],
-        )
-    )
-
-    fig.update_layout(
-        height=430,
-        margin=dict(l=5, r=5, t=5, b=5),
-        showlegend=False,
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        xaxis=dict(
-            showgrid=False,
-            zeroline=False,
-            visible=False,
-            range=[-2.4, 2.4],
-        ),
-        yaxis=dict(
-            showgrid=False,
-            zeroline=False,
-            visible=False,
-            range=[-2.5, 2.0],
-            scaleanchor="x",
-            scaleratio=1,
-        ),
-    )
-
-    return fig
-
-def create_role_distribution_chart(filtered_jobs: pd.DataFrame):
-    """Create horizontal role distribution chart."""
-    role_counts_df = (
-        filtered_jobs["role_category"]
-        .value_counts()
-        .reset_index()
-    )
-
-    role_counts_df.columns = ["role_category", "job_count"]
-
-    role_counts_df = role_counts_df.sort_values(
-        by="job_count",
-        ascending=True,
-    )
-
-    return (
-        alt.Chart(role_counts_df)
-        .mark_bar()
-        .encode(
-            x=alt.X("job_count:Q", title="Job Count"),
-            y=alt.Y("role_category:N", sort=None, title="Role Category"),
-            tooltip=["role_category", "job_count"],
-        )
-        .properties(height=260)
-    )
-
-def get_tag_placeholder(session_key: str, default_tags: list[str], placeholder: str) -> str:
-    """Show placeholder only when the tag input is empty."""
-    current_tags = st.session_state.get(session_key, default_tags)
-
-    if current_tags:
-        return ""
-
-    return placeholder
-
 def main() -> None:
-    st.markdown(
-        """
-        <style>
-        .stApp {
-            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display",
-                        "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
-        }
-
-        .stApp h1,
-        .stApp h2,
-        .stApp h3,
-        .stApp h4,
-        .stApp h5,
-        .stApp h6,
-        .stApp p,
-        .stApp label,
-        .stApp button,
-        .stApp input,
-        .stApp textarea,
-        .stApp select {
-            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display",
-                        "SF Pro Text", "Helvetica Neue", Arial, sans-serif !important;
-        }
-
-        .stMarkdown,
-        .stText,
-        .stDataFrame,
-        .stMetric,
-        .stSelectbox,
-        .stTextInput,
-        .stTextArea,
-        .stButton {
-            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display",
-                        "SF Pro Text", "Helvetica Neue", Arial, sans-serif !important;
-        }
-
-        /* Do not override Streamlit / Material icon fonts */
-        .material-icons,
-        .material-icons-outlined,
-        .material-icons-round,
-        .material-symbols-outlined,
-        .material-symbols-rounded,
-        [class*="Icon"],
-        [data-testid="stIcon"] {
-            font-family: "Material Symbols Rounded", "Material Symbols Outlined",
-                        "Material Icons", sans-serif !important;
-        }
-
-        .tag-chip {
-            padding: 9px 12px;
-            margin-bottom: 7px;
-            border-radius: 999px;
-            background: rgba(37, 99, 235, 0.12);
-            border: 1px solid rgba(37, 99, 235, 0.28);
-            color: var(--text-color);
-            font-size: 14px;
-            font-weight: 600;
-            line-height: 1.2;
-        }
-
-        section[data-testid="stSidebar"] button {
-            border-radius: 999px;
-        }
-
-        div[data-baseweb="tag"] {
-            background-color: rgba(148, 163, 184, 0.16) !important;
-            border: 1px solid rgba(148, 163, 184, 0.35) !important;
-            border-radius: 999px !important;
-            color: var(--text-color) !important;
-            font-weight: 500 !important;
-            padding: 6px 10px !important;
-        }
-
-        div[data-baseweb="tag"] span {
-            color: var(--text-color) !important;
-            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display",
-                        "SF Pro Text", "Helvetica Neue", Arial, sans-serif !important;
-        }
-
-        div[data-baseweb="tag"] svg {
-            color: var(--text-color) !important;
-            opacity: 0.65 !important;
-        }
-
-        div[data-baseweb="tag"]:hover {
-            background-color: rgba(148, 163, 184, 0.24) !important;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
+    inject_global_styles()
 
     st.title("JobLens AI")
     st.caption("Personalized job market intelligence for role fit, skill gaps, and learning priorities.")
@@ -492,7 +69,7 @@ def main() -> None:
 
     with st.sidebar:
         st.header("Your Search")
-        
+
         default_target_roles = [
             "Machine Learning Engineer",
             "Data Scientist",
@@ -523,10 +100,7 @@ def main() -> None:
             key="target_roles_tags",
         )
 
-        location = st.text_input(
-            "Location",
-            value="Toronto ON",
-        )
+        location = st.text_input("Location", value="Toronto ON")
 
         experience_level = st.selectbox(
             "Experience Level",
@@ -535,7 +109,7 @@ def main() -> None:
         )
 
         st.header("Your Skills")
-        
+
         default_user_skills = [
             "Python",
             "SQL",
@@ -607,27 +181,36 @@ def main() -> None:
         top_n=10,
     )
     top_companies_df = get_top_companies(filtered_jobs, top_n=10)
-    learning_priorities_df = get_learning_priorities(role_scores_df)
+    learning_priorities_df = get_learning_priorities(role_scores_df, filtered_jobs)
+    job_match_details_df = get_job_match_details(filtered_jobs, user_skills)
 
-    avg_weighted_score = round(role_scores_df["weighted_match_score"].mean(), 2)
+    summary_metrics = get_score_summary_metrics(
+        filtered_jobs=filtered_jobs,
+        role_scores_df=role_scores_df,
+        user_skills=user_skills,
+    )
 
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        st.metric("Matching Jobs", len(filtered_jobs))
+        st.metric("Matching Jobs", summary_metrics["matching_jobs"])
 
     with col2:
-        st.metric("Role Categories", filtered_jobs["role_category"].nunique())
+        st.metric("Best Role Fit", summary_metrics["best_role"])
 
     with col3:
-        st.metric("Average Match", f"{avg_weighted_score}%")
+        st.metric("Average Match", f"{summary_metrics['average_match']}%")
 
     with col4:
-        st.metric("Current Skills", len(user_skills))
+        st.metric("Current Skills", summary_metrics["current_skills"])
 
     st.divider()
 
     show_role_summary_cards(role_scores_df)
+
+    st.divider()
+
+    show_role_explanations(role_scores_df)
 
     st.divider()
 
@@ -774,16 +357,21 @@ def main() -> None:
     st.divider()
 
     st.subheader("Matching Job Postings")
+    st.caption("Each posting includes a simple skill-based fit summary using your current skills.")
 
     st.dataframe(
-        filtered_jobs[
+        job_match_details_df[
             [
                 "title",
                 "company",
                 "location",
                 "experience_level",
                 "role_category",
-                "skills_text",
+                "job_match_score",
+                "matched_skills_count",
+                "missing_skills_count",
+                "matched_skills_preview",
+                "missing_skills_preview",
             ]
         ],
         use_container_width=True,

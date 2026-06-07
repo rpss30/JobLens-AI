@@ -1,0 +1,1 @@
+Current MVP uses a curated sample dataset of job postings to simulate role-specific market analysis. Future iterations will expand to larger real-world ingestion pipelines.

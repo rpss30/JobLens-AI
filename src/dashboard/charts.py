@@ -59,10 +59,13 @@ def create_weighted_vs_unweighted_chart(role_scores_df: pd.DataFrame):
     )
 
 
-def create_learning_priority_chart(learning_priorities_df: pd.DataFrame):
-    """Create horizontal chart for recommended learning priorities."""
-    chart_df = learning_priorities_df.head(10).sort_values(
-        by="total_priority_score",
+def create_recommended_skills_chart(recommended_skills_df: pd.DataFrame):
+    """Create horizontal bar chart for recommended skills to learn."""
+    if recommended_skills_df.empty:
+        return None
+
+    chart_df = recommended_skills_df.head(10).sort_values(
+        by="score",
         ascending=True,
     )
 
@@ -70,9 +73,14 @@ def create_learning_priority_chart(learning_priorities_df: pd.DataFrame):
         alt.Chart(chart_df)
         .mark_bar()
         .encode(
-            x=alt.X("total_priority_score:Q", title="Priority Score"),
+            x=alt.X("score:Q", title="Learning Priority Score"),
             y=alt.Y("skill:N", sort=None, title="Skill"),
-            tooltip=["skill", "roles_missing_for", "total_priority_score"],
+            tooltip=[
+                alt.Tooltip("skill:N", title="Skill"),
+                alt.Tooltip("score:Q", title="Priority Score"),
+                alt.Tooltip("job_count:Q", title="Jobs Requiring Skill"),
+                alt.Tooltip("avg_weight:Q", title="Average Role Weight", format=".2f"),
+            ],
         )
         .properties(height=320)
     )

@@ -5,13 +5,13 @@ from pathlib import Path
 
 import pandas as pd
 import streamlit as st
-from streamlit_tags import st_tags
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 sys.path.append(str(ROOT_DIR))
 
 from src.dashboard.charts import (
-    create_learning_priority_chart,
+    # create_learning_priority_chart,
+    create_recommended_skills_chart,
     create_role_distribution_chart,
     create_role_match_chart,
     create_skill_importance_heatmap,
@@ -25,11 +25,14 @@ from src.dashboard.components import (
 from src.dashboard.services import (
     filter_jobs,
     get_job_match_details,
-    get_learning_priorities,
+    get_available_skills,
+    get_available_locations,
+    get_available_target_roles,
     get_score_summary_metrics,
-    get_tag_placeholder,
     get_top_companies,
     load_processed_jobs,
+    get_recommended_skills,
+    get_role_sample_context
 )
 from src.dashboard.styles import inject_global_styles
 from src.matching.match_engine import (
@@ -46,6 +49,145 @@ st.set_page_config(
     layout="wide",
 )
 
+PRESET_PROFILES = {
+    "Custom": [],
+    "Aspiring Data Scientist": [
+        "Python",
+        "SQL",
+        "Pandas",
+        "NumPy",
+        "scikit-learn",
+        "statistics",
+        "data visualization",
+    ],
+    "Aspiring ML Engineer": [
+        "Python",
+        "PyTorch",
+        "TensorFlow",
+        "scikit-learn",
+        "Docker",
+        "AWS",
+        "model deployment",
+    ],
+    "Aspiring Cloud / AWS Engineer": [
+        "AWS",
+        "EC2",
+        "S3",
+        "Lambda",
+        "Docker",
+        "Terraform",
+        "Kubernetes",
+    ],
+    "Backend Developer": [
+        "Python",
+        "REST APIs",
+        "PostgreSQL",
+        "Docker",
+        "AWS",
+    ],
+    "Analytics Candidate": [
+        "SQL",
+        "Tableau",
+        "Power BI",
+        "statistics",
+        "data visualization",
+        "A/B testing",
+    ],
+}
+
+SEARCH_PRESETS = {
+    "Custom": {
+        "target_roles": ["Machine Learning Engineer"],
+        "location": "Any",
+        "experience_level": "Entry Level",
+    },
+    "AI / ML Roles": {
+        "target_roles": [
+            "Machine Learning Engineer",
+            "AI Engineer",
+            "ML Platform Engineer",
+        ],
+        "location": "Any",
+        "experience_level": "Entry Level",
+    },
+    "Data Science Roles": {
+        "target_roles": [
+            "Data Scientist",
+            "Junior Data Scientist",
+        ],
+        "location": "Any",
+        "experience_level": "Entry Level",
+    },
+    "Cloud / AWS Roles": {
+        "target_roles": [
+            "AWS Cloud Engineer",
+            "Cloud Engineer",
+            "Junior DevOps Engineer",
+            "Platform Engineer",
+        ],
+        "location": "Any",
+        "experience_level": "Entry Level",
+    },
+    "Software Engineering Roles": {
+        "target_roles": [
+            "Backend Developer",
+            "Backend Engineer",
+            "Software Engineer",
+            "Full Stack Developer",
+        ],
+        "location": "Any",
+        "experience_level": "Entry Level",
+    },
+    "Analytics Roles": {
+        "target_roles": [
+            "Data Analyst",
+            "Product Analyst",
+            "Business Intelligence Analyst",
+            "Business Analyst",
+        ],
+        "location": "Any",
+        "experience_level": "Entry Level",
+    },
+    "Data Engineering Roles": {
+        "target_roles": [
+            "Data Engineer",
+            "Junior Data Engineer",
+            "Cloud Data Engineer",
+            "Analytics Engineer",
+        ],
+        "location": "Any",
+        "experience_level": "Entry Level",
+    },
+}
+
+def get_top_insights(
+    role_scores_df: pd.DataFrame,
+    recommended_skills_df: pd.DataFrame,
+    filtered_jobs_df: pd.DataFrame,
+) -> tuple[str, float, str, int]:
+    """
+    Returns dashboard-level summary insights.
+    """
+
+    if role_scores_df.empty:
+        return "No match", 0.0, "No skill gap", 0
+
+    best_role_row = role_scores_df.sort_values(
+        by="weighted_match_score",
+        ascending=False,
+    ).iloc[0]
+
+    best_role = best_role_row["role_category"]
+    best_score = best_role_row["weighted_match_score"]
+
+    if recommended_skills_df.empty:
+        top_missing_skill = "No major gaps"
+    else:
+        top_missing_skill = recommended_skills_df.iloc[0]["skill"]
+
+    jobs_analyzed = len(filtered_jobs_df)
+
+    return best_role, best_score, top_missing_skill, jobs_analyzed
 
 def main() -> None:
     inject_global_styles()
@@ -53,108 +195,110 @@ def main() -> None:
     st.title("JobLens AI")
     st.caption("Personalized job market intelligence for role fit, skill gaps, and learning priorities.")
 
-    with st.expander("How JobLens AI calculates match scores"):
-        st.write(
-            """
-            JobLens AI extracts skills from job postings, groups jobs into role categories,
-            and calculates role-specific skill weights based on how often each skill appears
-            within that category.
-
-            The weighted match score gives more importance to skills that are more common
-            within a specific role category. This avoids treating every skill equally.
-            """
-        )
-
     jobs_df = load_processed_jobs()
 
+    available_target_roles = get_available_target_roles(jobs_df)
+    available_skills = get_available_skills(jobs_df)
+    available_locations = get_available_locations(jobs_df)
+
+    with st.expander("Debug: dataset preview"):
+        st.write("Total jobs loaded:", len(jobs_df))
+        st.write("Columns:", list(jobs_df.columns))
+
+        if "title" in jobs_df.columns:
+            st.write("Sample titles:", jobs_df["title"].head(10).tolist())
+
+        if "clean_title" in jobs_df.columns:
+            st.write("Sample clean titles:", jobs_df["clean_title"].head(10).tolist())
+
+        if "location" in jobs_df.columns:
+            st.write("Unique locations:", jobs_df["location"].dropna().unique().tolist())
+
+        if "experience_level" in jobs_df.columns:
+            st.write(
+                "Unique experience levels:",
+                jobs_df["experience_level"].dropna().unique().tolist(),
+            )
+
     with st.sidebar:
-        st.header("Your Search")
+        st.header("Your Job Search")
 
-        default_target_roles = [
-            "Machine Learning Engineer",
-            "Data Scientist",
-            "AWS Cloud Engineer",
-            "Backend Developer",
-        ]
-
-        target_roles = st_tags(
-            label="Target Roles",
-            text=get_tag_placeholder(
-                session_key="target_roles_tags",
-                default_tags=default_target_roles,
-                placeholder="e.g. Data Scientist",
-            ),
-            value=default_target_roles,
-            suggestions=[
-                "Machine Learning Engineer",
-                "Data Scientist",
-                "AWS Cloud Engineer",
-                "Backend Developer",
-                "Data Engineer",
-                "Product Analyst",
-                "Software Engineer",
-                "AI Engineer",
-                "ML Platform Engineer",
-            ],
-            maxtags=10,
-            key="target_roles_tags",
+        search_preset = st.selectbox(
+            "Try a sample search",
+            list(SEARCH_PRESETS.keys()),
         )
 
-        location = st.text_input("Location", value="Toronto ON")
+        selected_search = SEARCH_PRESETS[search_preset]
+
+        target_role_options = sorted(
+            set(available_target_roles).union(selected_search["target_roles"])
+        )
+
+        target_roles = st.multiselect(
+            "Target roles",
+            options=target_role_options,
+            default=selected_search["target_roles"],
+        )
+
+        location_options = sorted(
+            set(available_locations).union({selected_search["location"]})
+        )
+
+        location_options = [
+            location for location in location_options
+            if location != "Any"
+        ]
+
+        location_options = ["Any"] + location_options
+
+        default_location_index = (
+            location_options.index(selected_search["location"])
+            if selected_search["location"] in location_options
+            else 0
+        )
+
+        location = st.selectbox(
+            "Location",
+            location_options,
+            index=default_location_index,
+        )
+
+        experience_level_options = ["Any", "Entry Level", "Mid Level", "Senior Level"]
+
+        default_experience_index = (
+            experience_level_options.index(selected_search["experience_level"])
+            if selected_search["experience_level"] in experience_level_options
+            else 0
+        )
 
         experience_level = st.selectbox(
-            "Experience Level",
-            options=["Any", "Entry Level", "Mid Level", "Senior"],
-            index=1,
+            "Experience level",
+            experience_level_options,
+            index=default_experience_index,
         )
 
-        st.header("Your Skills")
-
-        default_user_skills = [
-            "Python",
-            "SQL",
-            "AWS",
-            "Pandas",
-            "Docker",
-            "React",
-        ]
-
-        user_skills = st_tags(
-            label="Current Skills",
-            text=get_tag_placeholder(
-                session_key="user_skills_tags",
-                default_tags=default_user_skills,
-                placeholder="e.g. Python",
-            ),
-            value=default_user_skills,
-            suggestions=[
-                "Python",
-                "SQL",
-                "AWS",
-                "Pandas",
-                "NumPy",
-                "scikit-learn",
-                "PyTorch",
-                "TensorFlow",
-                "Docker",
-                "Kubernetes",
-                "Spark",
-                "Airflow",
-                "PostgreSQL",
-                "React",
-                "TypeScript",
-                "Tableau",
-                "Power BI",
-            ],
-            maxtags=20,
-            key="user_skills_tags",
+        profile_preset = st.selectbox(
+            "Try a sample profile",
+            list(PRESET_PROFILES.keys()),
         )
 
-        analyze_button = st.button("Analyze Jobs", use_container_width=True)
+        default_skills = (
+            PRESET_PROFILES[profile_preset]
+            if profile_preset != "Custom"
+            else ["Python", "SQL", "Pandas"]
+        )
 
-        if st.button("Clear Cache", use_container_width=True):
-            st.cache_data.clear()
-            st.rerun()
+        skill_options = sorted(
+            set(available_skills).union(default_skills)
+        )
+
+        current_skills = st.multiselect(
+            "Current skills",
+            options=skill_options,
+            default=default_skills,
+        )
+
+        analyze_button = st.button("Analyze Jobs", type="primary")
 
     if not analyze_button:
         st.info("Enter your target roles and skills, then click **Analyze Jobs**.")
@@ -168,11 +312,59 @@ def main() -> None:
     )
 
     if filtered_jobs.empty:
-        st.warning("No matching jobs found. Try broadening your target roles or location.")
+        st.warning(
+            "No matching jobs found. Try selecting a broader sample search, removing some target roles, or clearing the location filter."
+        )
         return
-
     role_skill_weights = build_role_skill_weights(filtered_jobs)
-    role_scores_df = score_roles(filtered_jobs, user_skills)
+
+    role_scores_df = score_roles(
+        filtered_jobs,
+        current_skills,
+    )
+
+    recommended_skills_df = get_recommended_skills(
+        jobs_df=filtered_jobs,
+        user_skills=current_skills,
+        role_skill_weights=role_skill_weights,
+        top_n=10,
+    )
+
+    best_role, best_score, top_missing_skill, jobs_analyzed = get_top_insights(
+        role_scores_df=role_scores_df,
+        recommended_skills_df=recommended_skills_df,
+        filtered_jobs_df=filtered_jobs,
+    )
+
+    role_sample_context_df = get_role_sample_context(filtered_jobs)
+
+    st.subheader("Your Job Market Snapshot")
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
+        st.metric("Best-fit role", best_role)
+
+    with col2:
+        st.metric("Weighted match", f"{best_score:.1f}%")
+
+    with col3:
+        st.metric("Top skill gap", top_missing_skill)
+
+    with col4:
+        st.metric("Jobs analyzed", jobs_analyzed)
+
+    with st.expander("How JobLens AI calculates match scores"):
+        st.write(
+            """
+            JobLens AI extracts skills from job postings, groups jobs into role categories,
+            and calculates role-specific skill weights based on how often each skill appears
+            within that category.
+
+            The weighted match score gives more importance to skills that are more common
+            within a specific role category. This avoids treating every skill equally.
+            """
+        )
 
     top_skills_df = get_top_skills(filtered_jobs, top_n=10)
     weighted_top_skills_df = get_role_weighted_top_skills(
@@ -181,13 +373,13 @@ def main() -> None:
         top_n=10,
     )
     top_companies_df = get_top_companies(filtered_jobs, top_n=10)
-    learning_priorities_df = get_learning_priorities(role_scores_df, filtered_jobs)
-    job_match_details_df = get_job_match_details(filtered_jobs, user_skills)
+    # learning_priorities_df = get_learning_priorities(role_scores_df, filtered_jobs)
+    job_match_details_df = get_job_match_details(filtered_jobs, current_skills)
 
     summary_metrics = get_score_summary_metrics(
         filtered_jobs=filtered_jobs,
         role_scores_df=role_scores_df,
-        user_skills=user_skills,
+        user_skills=current_skills,
     )
 
     col1, col2, col3, col4 = st.columns(4)
@@ -211,6 +403,16 @@ def main() -> None:
     st.divider()
 
     show_role_explanations(role_scores_df)
+
+    with st.expander("Role sample size context"):
+        st.caption(
+            "Shows how many postings were analyzed per role category. Larger samples make role-specific skill weights more reliable."
+        )
+        st.dataframe(
+            role_sample_context_df,
+            use_container_width=True,
+            hide_index=True,
+        )
 
     st.divider()
 
@@ -249,18 +451,24 @@ def main() -> None:
     with right_col:
         st.subheader("Recommended Skills to Learn")
 
-        if learning_priorities_df.empty:
+        if recommended_skills_df.empty:
             st.success("No major missing skills found for your selected roles.")
         else:
             st.dataframe(
-                learning_priorities_df.head(10),
+                recommended_skills_df.head(10),
                 use_container_width=True,
+                hide_index=True,
             )
 
-            st.altair_chart(
-                create_learning_priority_chart(learning_priorities_df),
-                use_container_width=True,
+            recommended_skills_chart = create_recommended_skills_chart(
+                recommended_skills_df
             )
+
+            if recommended_skills_chart is not None:
+                st.altair_chart(
+                    recommended_skills_chart,
+                    use_container_width=True,
+                )
 
     st.divider()
 
@@ -359,22 +567,28 @@ def main() -> None:
     st.subheader("Matching Job Postings")
     st.caption("Each posting includes a simple skill-based fit summary using your current skills.")
 
+    job_display_columns = [
+        "title",
+        "company",
+        "location",
+        "experience_level",
+        "role_category",
+        "job_match_score",
+        "matched_skills_count",
+        "missing_skills_count",
+        "matched_skills_preview",
+        "missing_skills_preview",
+    ]
+
+    available_job_columns = [
+        column for column in job_display_columns
+        if column in job_match_details_df.columns
+    ]
+
     st.dataframe(
-        job_match_details_df[
-            [
-                "title",
-                "company",
-                "location",
-                "experience_level",
-                "role_category",
-                "job_match_score",
-                "matched_skills_count",
-                "missing_skills_count",
-                "matched_skills_preview",
-                "missing_skills_preview",
-            ]
-        ],
+        job_match_details_df[available_job_columns],
         use_container_width=True,
+        hide_index=True,
     )
 
 

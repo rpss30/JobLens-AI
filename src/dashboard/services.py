@@ -25,7 +25,12 @@ def filter_jobs(
     location: str,
     experience_level: str,
 ) -> pd.DataFrame:
-    """Filter jobs based on user input."""
+    """
+    Filter jobs based on user input.
+
+    Filtering is intentionally flexible because sample datasets often have
+    slightly different formats for location and experience level.
+    """
     filtered_df = df.copy()
 
     if target_roles:
@@ -35,26 +40,134 @@ def filter_jobs(
             if role.strip()
         ]
 
+        def title_matches(clean_title: str) -> bool:
+            clean_title = str(clean_title).lower()
+
+            for role in role_keywords:
+                role_words = role.split()
+
+                # Full phrase match first
+                if role in clean_title:
+                    return True
+
+                # Fallback: match if at least one important role word appears
+                important_words = [
+                    word for word in role_words
+                    if word not in {"junior", "senior", "entry", "level"}
+                ]
+
+                if any(word in clean_title for word in important_words):
+                    return True
+
+            return False
+
         filtered_df = filtered_df[
-            filtered_df["clean_title"].apply(
-                lambda title: any(keyword in title for keyword in role_keywords)
+            filtered_df["clean_title"].apply(title_matches)
+        ]
+
+    if location and location != "Any":
+        location_lower = location.strip().lower()
+
+        # "Toronto, ON" should still match "Toronto" or "Toronto ON"
+        location_parts = [
+            part.strip()
+            for part in location_lower.replace(",", " ").split()
+            if part.strip()
+        ]
+
+        filtered_df = filtered_df[
+            filtered_df["location"]
+            .astype(str)
+            .str.lower()
+            .apply(
+                lambda job_location: any(
+                    part in job_location
+                    for part in location_parts
+                )
             )
         ]
 
-    if location:
-        location_lower = location.strip().lower()
-        filtered_df = filtered_df[
-            filtered_df["location"].str.lower().str.contains(location_lower, na=False)
-        ]
-
     if experience_level and experience_level != "Any":
+        selected_experience = (
+            experience_level
+            .lower()
+            .replace("-", " ")
+            .strip()
+        )
+
         filtered_df = filtered_df[
-            filtered_df["experience_level"].str.lower()
-            == experience_level.lower()
+            filtered_df["experience_level"]
+            .astype(str)
+            .str.lower()
+            .str.replace("-", " ", regex=False)
+            .str.strip()
+            .str.contains(selected_experience, na=False)
         ]
 
     return filtered_df
 
+def get_available_target_roles(df: pd.DataFrame) -> list[str]:
+    """
+    Return a sorted list of job titles available in the dataset.
+    These are used as selectable target roles in the sidebar.
+    """
+
+    if df.empty or "title" not in df.columns:
+        return []
+
+    return sorted(
+        df["title"]
+        .dropna()
+        .astype(str)
+        .unique()
+        .tolist()
+    )
+
+
+def get_available_skills(df: pd.DataFrame) -> list[str]:
+    """
+    Return a sorted list of skills extracted from the processed job dataset.
+    These are used as selectable current skills in the sidebar.
+    """
+
+    if df.empty or "extracted_skills" not in df.columns:
+        return []
+
+    skills = set()
+
+    for raw_skills in df["extracted_skills"].dropna():
+        if isinstance(raw_skills, list):
+            skill_list = raw_skills
+        elif isinstance(raw_skills, str):
+            skill_list = [
+                skill.strip()
+                for skill in raw_skills.split(",")
+                if skill.strip()
+            ]
+        else:
+            skill_list = []
+
+        for skill in skill_list:
+            skills.add(skill.strip())
+
+    return sorted(skills)
+
+def get_available_locations(df: pd.DataFrame) -> list[str]:
+    """
+    Return a sorted list of locations available in the dataset.
+    These are used as selectable location options in the sidebar.
+    """
+
+    if df.empty or "location" not in df.columns:
+        return []
+
+    return sorted(
+        df["location"]
+        .dropna()
+        .astype(str)
+        .unique()
+        .tolist()
+    )
 
 def get_top_companies(df: pd.DataFrame, top_n: int = 10) -> pd.DataFrame:
     """Return companies with the most matching jobs."""
@@ -227,3 +340,121 @@ def get_job_match_details(
         )
 
     return job_match_df
+
+def get_recommended_skills(
+    jobs_df: pd.DataFrame,
+    user_skills: list[str],
+    role_skill_weights: dict,
+    top_n: int = 10,
+) -> pd.DataFrame:
+    """
+    Recommend missing skills based on role importance and market demand.
+
+    A skill ranks higher when:
+    - it appears in more relevant jobs
+    - it has a higher role-specific weight
+    - the user does not already have it
+    """
+
+    if jobs_df.empty:
+        return pd.DataFrame(
+            columns=["skill", "score", "job_count", "avg_weight"]
+        )
+
+    user_skills_normalized = {
+        skill.lower().strip()
+        for skill in user_skills
+    }
+
+    skill_scores = {}
+
+    for _, row in jobs_df.iterrows():
+        role_category = row.get("role_category", "Other")
+        category_weights = role_skill_weights.get(role_category, {})
+
+        skills = row.get("extracted_skills", [])
+
+        if isinstance(skills, str):
+            skills = [
+                skill.strip()
+                for skill in skills.split(",")
+                if skill.strip()
+            ]
+
+        for skill in skills:
+            normalized_skill = skill.lower().strip()
+
+            if not normalized_skill:
+                continue
+
+            if normalized_skill in user_skills_normalized:
+                continue
+
+            weight = category_weights.get(normalized_skill, 1)
+
+            if normalized_skill not in skill_scores:
+                skill_scores[normalized_skill] = {
+                    "skill": skill,
+                    "score": 0,
+                    "job_count": 0,
+                    "weight_total": 0,
+                }
+
+            skill_scores[normalized_skill]["score"] += weight
+            skill_scores[normalized_skill]["job_count"] += 1
+            skill_scores[normalized_skill]["weight_total"] += weight
+
+    recommendations = []
+
+    for item in skill_scores.values():
+        item["avg_weight"] = item["weight_total"] / item["job_count"]
+        recommendations.append(item)
+
+    recommendations_df = pd.DataFrame(recommendations)
+
+    if recommendations_df.empty:
+        return pd.DataFrame(
+            columns=["skill", "score", "job_count", "avg_weight"]
+        )
+
+    recommendations_df = recommendations_df.sort_values(
+        by=["score", "job_count", "avg_weight"],
+        ascending=False,
+    ).head(top_n)
+
+    return recommendations_df[
+        ["skill", "score", "job_count", "avg_weight"]
+    ]
+
+def get_role_sample_context(jobs_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Returns how many job postings were analyzed per role category,
+    plus a simple confidence label.
+    """
+
+    if jobs_df.empty:
+        return pd.DataFrame(
+            columns=["role_category", "job_count", "confidence"]
+        )
+
+    sample_context_df = (
+        jobs_df.groupby("role_category")
+        .size()
+        .reset_index(name="job_count")
+        .sort_values("job_count", ascending=False)
+    )
+
+    def confidence_label(job_count: int) -> str:
+        if job_count >= 5:
+            return "Strong sample"
+        if job_count >= 3:
+            return "Moderate sample"
+        if job_count >= 1:
+            return "Limited sample"
+        return "No data"
+
+    sample_context_df["confidence"] = sample_context_df["job_count"].apply(
+        confidence_label
+    )
+
+    return sample_context_df

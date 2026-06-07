@@ -61,9 +61,12 @@ def filter_jobs(
 
             return False
 
-        filtered_df = filtered_df[
-            filtered_df["clean_title"].apply(title_matches)
-        ]
+        title_mask = filtered_df["clean_title"].apply(title_matches).astype(bool)
+
+        filtered_df = filtered_df[title_mask]
+
+        if filtered_df.empty:
+            return filtered_df
 
     if location and location != "Any":
         location_lower = location.strip().lower()
@@ -75,7 +78,7 @@ def filter_jobs(
             if part.strip()
         ]
 
-        filtered_df = filtered_df[
+        location_mask = (
             filtered_df["location"]
             .astype(str)
             .str.lower()
@@ -85,7 +88,13 @@ def filter_jobs(
                     for part in location_parts
                 )
             )
-        ]
+            .astype(bool)
+        )
+
+        filtered_df = filtered_df[location_mask]
+
+        if filtered_df.empty:
+            return filtered_df
 
     if experience_level and experience_level != "Any":
         selected_experience = (
@@ -198,86 +207,6 @@ def get_jobs_by_location(df: pd.DataFrame) -> pd.DataFrame:
         by="job_count",
         ascending=False,
     )
-
-def get_learning_priorities(
-    role_scores_df: pd.DataFrame,
-    filtered_jobs: pd.DataFrame,
-) -> pd.DataFrame:
-    """
-    Rank missing skills by weighted market opportunity.
-
-    priority_score = sum(role weight for missing skill across roles) * job demand
-    """
-    rows = []
-
-    skill_job_counts = {}
-
-    for _, job in filtered_jobs.iterrows():
-        job_skills_raw = job.get("extracted_skills", [])
-        job_skills = []
-
-        if isinstance(job_skills_raw, list):
-            job_skills = job_skills_raw
-        elif isinstance(job_skills_raw, str):
-            job_skills = [skill.strip() for skill in job_skills_raw.split(",") if skill.strip()]
-
-        for skill in set(job_skills):
-            skill_job_counts[skill] = skill_job_counts.get(skill, 0) + 1
-
-    for _, row in role_scores_df.iterrows():
-        role_category = row["role_category"]
-        role_weights = row["role_skill_weights"]
-
-        for skill in row["missing_skills"]:
-            weight = role_weights.get(skill, 1)
-            market_demand = skill_job_counts.get(skill, 1)
-
-            rows.append({
-                "skill": skill,
-                "role_category": role_category,
-                "weight": weight,
-                "market_demand": market_demand,
-                "priority_score": weight * market_demand,
-            })
-
-    if not rows:
-        return pd.DataFrame(
-            columns=[
-                "skill",
-                "roles_missing_for",
-                "market_demand",
-                "total_priority_score",
-            ]
-        )
-
-    priorities_df = pd.DataFrame(rows)
-
-    grouped_df = (
-        priorities_df
-        .groupby("skill")
-        .agg(
-            roles_missing_for=("role_category", lambda roles: ", ".join(sorted(set(roles)))),
-            market_demand=("market_demand", "max"),
-            total_priority_score=("priority_score", "sum"),
-        )
-        .reset_index()
-        .sort_values(by="total_priority_score", ascending=False)
-    )
-
-    return grouped_df
-
-def get_tag_placeholder(
-    session_key: str,
-    default_tags: list[str],
-    placeholder: str,
-) -> str:
-    """Show placeholder only when the tag input is empty."""
-    current_tags = st.session_state.get(session_key, default_tags)
-
-    if current_tags:
-        return ""
-
-    return placeholder
 
 def get_job_match_details(
     filtered_jobs: pd.DataFrame,

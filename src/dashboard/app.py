@@ -388,7 +388,6 @@ def main() -> None:
     )
     top_companies_df = get_top_companies(filtered_jobs, top_n=10)
     jobs_by_location_df = get_jobs_by_location(filtered_jobs)
-    # learning_priorities_df = get_learning_priorities(role_scores_df, filtered_jobs)
     job_match_details_df = get_job_match_details(filtered_jobs, current_skills)
 
     st.divider()

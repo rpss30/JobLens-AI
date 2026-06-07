@@ -361,7 +361,7 @@ def main() -> None:
 
     st.subheader("Role Fit Overview")
 
-    col1, col2, col3, col4, col5 = st.columns(5)
+    col1, col2, col3, col4, col5 = st.columns([1.35, 1.1, 1.1, 0.9, 0.9])
 
     with col1:
         st.metric("Best-fit role", best_role)

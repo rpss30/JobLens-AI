@@ -208,6 +208,40 @@ def inject_global_styles() -> None:
             font-size: 0.82rem;
         }
 
+        /* Metric card text sizing */
+        div[data-testid="stMetric"] {
+            padding-top: 0.15rem;
+            padding-bottom: 0.15rem;
+        }
+
+        div[data-testid="stMetricLabel"] p {
+            font-size: 0.9rem !important;
+            font-weight: 600 !important;
+            line-height: 1.2 !important;
+            white-space: normal !important;
+        }
+
+        div[data-testid="stMetricValue"] > div {
+            font-size: 1.55rem !important;
+            line-height: 1.25 !important;
+            white-space: normal !important;
+            overflow-wrap: anywhere !important;
+        }
+
+        /* Analyze Jobs primary button */
+        section[data-testid="stSidebar"] div.stButton > button[kind="primary"] {
+            background: #2563eb !important;
+            color: white !important;
+            border: 1px solid #2563eb !important;
+            border-radius: 999px !important;
+            font-weight: 700 !important;
+        }
+
+        section[data-testid="stSidebar"] div.stButton > button[kind="primary"]:hover {
+            background: #1d4ed8 !important;
+            border-color: #1d4ed8 !important;
+            color: white !important;
+        }
         </style>
         """,
         unsafe_allow_html=True,

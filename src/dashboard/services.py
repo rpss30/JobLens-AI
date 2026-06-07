@@ -279,31 +279,6 @@ def get_tag_placeholder(
 
     return placeholder
 
-
-def get_score_summary_metrics(
-    filtered_jobs: pd.DataFrame,
-    role_scores_df: pd.DataFrame,
-    user_skills: list[str],
-) -> dict:
-    """Build top-level summary metrics for the dashboard."""
-    best_role = (
-        role_scores_df.iloc[0]["role_category"]
-        if not role_scores_df.empty else "N/A"
-    )
-
-    avg_weighted_score = (
-        round(role_scores_df["weighted_match_score"].mean(), 2)
-        if not role_scores_df.empty else 0.0
-    )
-
-    return {
-        "matching_jobs": len(filtered_jobs),
-        "role_categories": filtered_jobs["role_category"].nunique(),
-        "average_match": avg_weighted_score,
-        "current_skills": len(user_skills),
-        "best_role": best_role,
-    }
-
 def get_job_match_details(
     filtered_jobs: pd.DataFrame,
     user_skills: list[str],

@@ -34,7 +34,6 @@ from src.dashboard.services import (
     get_jobs_by_location,
     get_recommended_skills,
     get_role_sample_context,
-    get_score_summary_metrics,
     get_top_companies,
     load_processed_jobs,
 )
@@ -362,7 +361,7 @@ def main() -> None:
 
     st.subheader("Role Fit Overview")
 
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
 
     with col1:
         st.metric("Best-fit role", best_role)
@@ -376,6 +375,9 @@ def main() -> None:
     with col4:
         st.metric("Jobs analyzed", jobs_analyzed)
 
+    with col5:
+        st.metric("Current skills", len(current_skills))
+
     show_candidate_fit_summary(candidate_summary)
 
     top_skills_df = get_top_skills(filtered_jobs, top_n=10)
@@ -388,26 +390,6 @@ def main() -> None:
     jobs_by_location_df = get_jobs_by_location(filtered_jobs)
     # learning_priorities_df = get_learning_priorities(role_scores_df, filtered_jobs)
     job_match_details_df = get_job_match_details(filtered_jobs, current_skills)
-
-    summary_metrics = get_score_summary_metrics(
-        filtered_jobs=filtered_jobs,
-        role_scores_df=role_scores_df,
-        user_skills=current_skills,
-    )
-
-    col1, col2, col3, col4 = st.columns(4)
-
-    with col1:
-        st.metric("Matching Jobs", summary_metrics["matching_jobs"])
-
-    with col2:
-        st.metric("Best Role Fit", summary_metrics["best_role"])
-
-    with col3:
-        st.metric("Average Match", f"{summary_metrics['average_match']}%")
-
-    with col4:
-        st.metric("Current Skills", summary_metrics["current_skills"])
 
     st.divider()
 

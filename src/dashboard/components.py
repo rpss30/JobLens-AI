@@ -68,3 +68,38 @@ def show_role_explanations(role_scores_df: pd.DataFrame) -> None:
                 st.write(f"Jobs analyzed: {row['sample_size']}")
                 st.write(f"Unweighted: {row['unweighted_match_score']}%")
                 st.write(f"Score: {row['matched_weight']} / {row['total_possible_weight']}")
+
+def show_candidate_fit_summary(candidate_summary: dict) -> None:
+    """Show a natural-language explanation of the candidate's fit."""
+
+    st.subheader("Candidate Fit Summary")
+
+    st.markdown(
+        f"""
+        <div class="candidate-summary-card">
+            <p class="candidate-summary-text">
+                {candidate_summary["summary"]}
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    matched_skills = candidate_summary.get("matched_skills", [])
+    missing_skills = candidate_summary.get("missing_skills", [])
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown("**Current strengths**")
+        if matched_skills:
+            st.write(", ".join(matched_skills))
+        else:
+            st.write("No major matched skills yet.")
+
+    with col2:
+        st.markdown("**Highest-impact gaps**")
+        if missing_skills:
+            st.write(", ".join(missing_skills))
+        else:
+            st.write("No major gaps found.")

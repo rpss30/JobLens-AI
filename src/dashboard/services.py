@@ -426,6 +426,97 @@ def get_recommended_skills(
         ["skill", "score", "job_count", "avg_weight"]
     ]
 
+def format_skills_for_sentence(skills: list[str], fallback: str) -> str:
+    """Format a list of skills into a natural sentence fragment."""
+
+    clean_skills = [
+        skill
+        for skill in skills
+        if isinstance(skill, str) and skill.strip()
+    ]
+
+    if not clean_skills:
+        return fallback
+
+    if len(clean_skills) == 1:
+        return clean_skills[0]
+
+    if len(clean_skills) == 2:
+        return f"{clean_skills[0]} and {clean_skills[1]}"
+
+    return f"{', '.join(clean_skills[:-1])}, and {clean_skills[-1]}"
+
+
+def get_candidate_fit_summary(
+    filtered_jobs: pd.DataFrame,
+    role_scores_df: pd.DataFrame,
+    recommended_skills_df: pd.DataFrame,
+) -> dict:
+    """
+    Build a natural-language candidate fit summary for the dashboard.
+    """
+
+    if filtered_jobs.empty:
+        return {
+            "summary": (
+                "No matching postings were found for the current filters. "
+                "Try broadening the role, location, or experience level filters."
+            ),
+            "matched_skills": [],
+            "missing_skills": [],
+        }
+
+    if role_scores_df.empty:
+        return {
+            "summary": (
+                "Matching postings were found, but there are not enough role scores "
+                "available to generate a fit summary yet."
+            ),
+            "matched_skills": [],
+            "missing_skills": [],
+        }
+
+    best_role_row = role_scores_df.sort_values(
+        by="weighted_match_score",
+        ascending=False,
+    ).iloc[0]
+
+    best_role = best_role_row["role_category"]
+    best_score = best_role_row["weighted_match_score"]
+
+    matched_skills = best_role_row.get("matched_skills", [])
+    missing_skills = best_role_row.get("missing_skills", [])
+
+    top_matched_skills = matched_skills[:4]
+
+    if not recommended_skills_df.empty and "skill" in recommended_skills_df.columns:
+        top_missing_skills = recommended_skills_df["skill"].head(3).tolist()
+    else:
+        top_missing_skills = missing_skills[:3]
+
+    matched_text = format_skills_for_sentence(
+        top_matched_skills,
+        fallback="some relevant skills",
+    )
+
+    missing_text = format_skills_for_sentence(
+        top_missing_skills,
+        fallback="no major gaps from the current filters",
+    )
+
+    summary = (
+        f"Based on {len(filtered_jobs)} matching postings, your strongest fit is "
+        f"{best_role} with a {best_score:.1f}% weighted match. "
+        f"You already match {matched_text}. "
+        f"Your highest-impact gaps are {missing_text}."
+    )
+
+    return {
+        "summary": summary,
+        "matched_skills": top_matched_skills,
+        "missing_skills": top_missing_skills,
+    }
+    
 def get_role_sample_context(jobs_df: pd.DataFrame) -> pd.DataFrame:
     """
     Returns how many job postings were analyzed per role category,

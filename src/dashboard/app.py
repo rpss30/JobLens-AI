@@ -19,20 +19,22 @@ from src.dashboard.charts import (
     create_weighted_vs_unweighted_chart,
 )
 from src.dashboard.components import (
+    show_candidate_fit_summary,
     show_role_explanations,
     show_role_summary_cards,
 )
 from src.dashboard.services import (
     filter_jobs,
-    get_job_match_details,
-    get_available_skills,
     get_available_locations,
+    get_available_skills,
     get_available_target_roles,
+    get_candidate_fit_summary,
+    get_job_match_details,
+    get_recommended_skills,
+    get_role_sample_context,
     get_score_summary_metrics,
     get_top_companies,
     load_processed_jobs,
-    get_recommended_skills,
-    get_role_sample_context
 )
 from src.dashboard.styles import inject_global_styles
 from src.matching.match_engine import (
@@ -330,6 +332,12 @@ def main() -> None:
         top_n=10,
     )
 
+    candidate_summary = get_candidate_fit_summary(
+        filtered_jobs=filtered_jobs,
+        role_scores_df=role_scores_df,
+        recommended_skills_df=recommended_skills_df,
+    )
+
     best_role, best_score, top_missing_skill, jobs_analyzed = get_top_insights(
         role_scores_df=role_scores_df,
         recommended_skills_df=recommended_skills_df,
@@ -353,6 +361,8 @@ def main() -> None:
 
     with col4:
         st.metric("Jobs analyzed", jobs_analyzed)
+
+    show_candidate_fit_summary(candidate_summary)
 
     with st.expander("How JobLens AI calculates match scores"):
         st.write(

@@ -80,6 +80,23 @@ def inject_global_styles() -> None:
         div[data-baseweb="tag"]:hover {
             background-color: rgba(148, 163, 184, 0.24) !important;
         }
+
+        .candidate-summary-card {
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(148, 163, 184, 0.28);
+            border-radius: 18px;
+            padding: 1.15rem 1.35rem;
+            margin-top: 0.75rem;
+            margin-bottom: 1.25rem;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
+        }
+
+        .candidate-summary-text {
+            font-size: 1.03rem;
+            line-height: 1.65;
+            margin: 0;
+            color: var(--text-color);
+        }
         </style>
         """,
         unsafe_allow_html=True,

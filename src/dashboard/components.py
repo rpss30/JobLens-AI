@@ -1,5 +1,7 @@
 # src/dashboard/components.py
 
+from textwrap import dedent
+
 import pandas as pd
 import streamlit as st
 
@@ -74,11 +76,13 @@ def show_candidate_fit_summary(candidate_summary: dict) -> None:
 
     st.subheader("Candidate Fit Summary")
 
+    summary_text = candidate_summary.get("summary", "")
+
     st.markdown(
         f"""
         <div class="candidate-summary-card">
             <p class="candidate-summary-text">
-                {candidate_summary["summary"]}
+                {summary_text}
             </p>
         </div>
         """,
@@ -103,3 +107,70 @@ def show_candidate_fit_summary(candidate_summary: dict) -> None:
             st.write(", ".join(missing_skills))
         else:
             st.write("No major gaps found.")
+
+def show_top_job_match_cards(
+    job_match_details_df: pd.DataFrame,
+    top_n: int = 5,
+) -> None:
+    """Show top matching job postings as product-style cards."""
+
+    st.subheader("Top Matching Jobs")
+    st.caption(
+        "These are the strongest individual job matches based on your current skills."
+    )
+
+    if job_match_details_df.empty:
+        st.info("No matching job postings available for the current filters.")
+        return
+
+    top_jobs = job_match_details_df.head(top_n)
+
+    for _, row in top_jobs.iterrows():
+        title = row.get("title", "Untitled Role")
+        company = row.get("company", "Unknown Company")
+        location = row.get("location", "Unknown Location")
+        experience_level = row.get("experience_level", "N/A")
+        role_category = row.get("role_category", "Other")
+        job_match_score = row.get("job_match_score", 0)
+
+        matched_skills = row.get("matched_skills_preview", "None")
+        missing_skills = row.get("missing_skills_preview", "None")
+        matched_count = row.get("matched_skills_count", 0)
+        missing_count = row.get("missing_skills_count", 0)
+
+        card_html = dedent(
+            f"""
+            <div class="job-card">
+                <div class="job-card-header">
+                    <div>
+                        <h3 class="job-card-title">{title}</h3>
+                        <p class="job-card-company">{company}</p>
+                    </div>
+                    <div class="job-card-score">
+                        {job_match_score}%
+                    </div>
+                </div>
+                <div class="job-card-meta">
+                    <span>{location}</span>
+                    <span>{experience_level}</span>
+                    <span>{role_category}</span>
+                </div>
+                <div class="job-card-skills">
+                    <div>
+                        <p class="job-card-label">Matched skills</p>
+                        <p class="job-card-positive">{matched_skills}</p>
+                    </div>
+                    <div>
+                        <p class="job-card-label">Missing skills</p>
+                        <p class="job-card-negative">{missing_skills}</p>
+                    </div>
+                </div>
+                <div class="job-card-footer">
+                    <span>{matched_count} matched</span>
+                    <span>{missing_count} missing</span>
+                </div>
+            </div>
+            """
+        ).strip()
+
+        st.markdown(card_html, unsafe_allow_html=True)

@@ -178,6 +178,26 @@ def get_top_companies(df: pd.DataFrame, top_n: int = 10) -> pd.DataFrame:
         "job_count": company_counts.values,
     })
 
+def get_jobs_by_location(df: pd.DataFrame) -> pd.DataFrame:
+    """Return job counts grouped by location."""
+
+    if df.empty or "location" not in df.columns:
+        return pd.DataFrame(columns=["location", "job_count"])
+
+    location_counts_df = (
+        df["location"]
+        .dropna()
+        .astype(str)
+        .value_counts()
+        .reset_index()
+    )
+
+    location_counts_df.columns = ["location", "job_count"]
+
+    return location_counts_df.sort_values(
+        by="job_count",
+        ascending=False,
+    )
 
 def get_learning_priorities(
     role_scores_df: pd.DataFrame,
@@ -505,10 +525,13 @@ def get_candidate_fit_summary(
     )
 
     summary = (
-        f"Based on {len(filtered_jobs)} matching postings, your strongest fit is "
-        f"{best_role} with a {best_score:.1f}% weighted match. "
-        f"You already match {matched_text}. "
-        f"Your highest-impact gaps are {missing_text}."
+        f"Based on <strong>{len(filtered_jobs)} matching postings</strong>, "
+        f"your strongest fit is "
+        f"<span class='summary-highlight'>{best_role}</span> "
+        f"with a <strong>{best_score:.1f}% weighted match</strong>. "
+        f"You already match <span class='summary-positive'>{matched_text}</span>. "
+        f"Your highest-impact gaps are "
+        f"<span class='summary-warning'>{missing_text}</span>."
     )
 
     return {
@@ -516,7 +539,7 @@ def get_candidate_fit_summary(
         "matched_skills": top_matched_skills,
         "missing_skills": top_missing_skills,
     }
-    
+
 def get_role_sample_context(jobs_df: pd.DataFrame) -> pd.DataFrame:
     """
     Returns how many job postings were analyzed per role category,

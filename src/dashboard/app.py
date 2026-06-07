@@ -2,7 +2,6 @@
 
 import sys
 from pathlib import Path
-
 import pandas as pd
 import streamlit as st
 
@@ -11,6 +10,7 @@ sys.path.append(str(ROOT_DIR))
 
 from src.dashboard.charts import (
     # create_learning_priority_chart,
+    create_jobs_by_location_chart,
     create_recommended_skills_chart,
     create_role_distribution_chart,
     create_role_match_chart,
@@ -22,6 +22,7 @@ from src.dashboard.components import (
     show_candidate_fit_summary,
     show_role_explanations,
     show_role_summary_cards,
+    show_top_job_match_cards,
 )
 from src.dashboard.services import (
     filter_jobs,
@@ -30,6 +31,7 @@ from src.dashboard.services import (
     get_available_target_roles,
     get_candidate_fit_summary,
     get_job_match_details,
+    get_jobs_by_location,
     get_recommended_skills,
     get_role_sample_context,
     get_score_summary_metrics,
@@ -197,30 +199,42 @@ def main() -> None:
     st.title("JobLens AI")
     st.caption("Personalized job market intelligence for role fit, skill gaps, and learning priorities.")
 
+    with st.expander("How JobLens AI calculates match scores"):
+        st.write(
+            """
+            JobLens AI extracts skills from job postings, groups jobs into role categories,
+            and calculates role-specific skill weights based on how often each skill appears
+            within that category.
+
+            The weighted match score gives more importance to skills that are more common
+            within a specific role category. This avoids treating every skill equally.
+            """
+        )
+
     jobs_df = load_processed_jobs()
 
     available_target_roles = get_available_target_roles(jobs_df)
     available_skills = get_available_skills(jobs_df)
     available_locations = get_available_locations(jobs_df)
 
-    with st.expander("Debug: dataset preview"):
-        st.write("Total jobs loaded:", len(jobs_df))
-        st.write("Columns:", list(jobs_df.columns))
+    # with st.expander("Debug: dataset preview"):
+    #     st.write("Total jobs loaded:", len(jobs_df))
+    #     st.write("Columns:", list(jobs_df.columns))
 
-        if "title" in jobs_df.columns:
-            st.write("Sample titles:", jobs_df["title"].head(10).tolist())
+    #     if "title" in jobs_df.columns:
+    #         st.write("Sample titles:", jobs_df["title"].head(10).tolist())
 
-        if "clean_title" in jobs_df.columns:
-            st.write("Sample clean titles:", jobs_df["clean_title"].head(10).tolist())
+    #     if "clean_title" in jobs_df.columns:
+    #         st.write("Sample clean titles:", jobs_df["clean_title"].head(10).tolist())
 
-        if "location" in jobs_df.columns:
-            st.write("Unique locations:", jobs_df["location"].dropna().unique().tolist())
+    #     if "location" in jobs_df.columns:
+    #         st.write("Unique locations:", jobs_df["location"].dropna().unique().tolist())
 
-        if "experience_level" in jobs_df.columns:
-            st.write(
-                "Unique experience levels:",
-                jobs_df["experience_level"].dropna().unique().tolist(),
-            )
+    #     if "experience_level" in jobs_df.columns:
+    #         st.write(
+    #             "Unique experience levels:",
+    #             jobs_df["experience_level"].dropna().unique().tolist(),
+    #         )
 
     with st.sidebar:
         st.header("Your Job Search")
@@ -346,7 +360,7 @@ def main() -> None:
 
     role_sample_context_df = get_role_sample_context(filtered_jobs)
 
-    st.subheader("Your Job Market Snapshot")
+    st.subheader("Role Fit Overview")
 
     col1, col2, col3, col4 = st.columns(4)
 
@@ -364,18 +378,6 @@ def main() -> None:
 
     show_candidate_fit_summary(candidate_summary)
 
-    with st.expander("How JobLens AI calculates match scores"):
-        st.write(
-            """
-            JobLens AI extracts skills from job postings, groups jobs into role categories,
-            and calculates role-specific skill weights based on how often each skill appears
-            within that category.
-
-            The weighted match score gives more importance to skills that are more common
-            within a specific role category. This avoids treating every skill equally.
-            """
-        )
-
     top_skills_df = get_top_skills(filtered_jobs, top_n=10)
     weighted_top_skills_df = get_role_weighted_top_skills(
         filtered_jobs,
@@ -383,6 +385,7 @@ def main() -> None:
         top_n=10,
     )
     top_companies_df = get_top_companies(filtered_jobs, top_n=10)
+    jobs_by_location_df = get_jobs_by_location(filtered_jobs)
     # learning_priorities_df = get_learning_priorities(role_scores_df, filtered_jobs)
     job_match_details_df = get_job_match_details(filtered_jobs, current_skills)
 
@@ -510,21 +513,50 @@ def main() -> None:
 
     with left_col:
         st.subheader("Top Hiring Companies")
-        st.dataframe(top_companies_df, use_container_width=True)
+        st.caption("Companies with the most postings in your filtered search.")
+        st.dataframe(
+            top_companies_df,
+            use_container_width=True,
+            hide_index=True,
+        )
 
     with right_col:
-        st.subheader("Role Distribution")
-        role_counts = filtered_jobs["role_category"].value_counts()
+        st.subheader("Jobs by Location")
+        st.caption("Where matching postings are concentrated across your selected filters.")
+
         st.dataframe(
-            role_counts.reset_index().rename(
-                columns={"index": "role_category", "role_category": "job_count"}
-            ),
+            jobs_by_location_df,
             use_container_width=True,
+            hide_index=True,
         )
-        st.altair_chart(
-            create_role_distribution_chart(filtered_jobs),
-            use_container_width=True,
-        )
+
+        location_chart = create_jobs_by_location_chart(jobs_by_location_df)
+
+        if location_chart is not None:
+            st.altair_chart(
+                location_chart,
+                use_container_width=True,
+            )
+
+    st.divider()
+
+    st.subheader("Role Distribution")
+    st.caption("Breakdown of matching postings by role category.")
+
+    role_counts = filtered_jobs["role_category"].value_counts()
+    role_distribution_df = role_counts.reset_index()
+    role_distribution_df.columns = ["role_category", "job_count"]
+
+    st.dataframe(
+        role_distribution_df,
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    st.altair_chart(
+        create_role_distribution_chart(filtered_jobs),
+        use_container_width=True,
+    )
 
     st.divider()
 
@@ -574,32 +606,35 @@ def main() -> None:
 
     st.divider()
 
-    st.subheader("Matching Job Postings")
-    st.caption("Each posting includes a simple skill-based fit summary using your current skills.")
-
-    job_display_columns = [
-        "title",
-        "company",
-        "location",
-        "experience_level",
-        "role_category",
-        "job_match_score",
-        "matched_skills_count",
-        "missing_skills_count",
-        "matched_skills_preview",
-        "missing_skills_preview",
-    ]
-
-    available_job_columns = [
-        column for column in job_display_columns
-        if column in job_match_details_df.columns
-    ]
-
-    st.dataframe(
-        job_match_details_df[available_job_columns],
-        use_container_width=True,
-        hide_index=True,
+    show_top_job_match_cards(
+        job_match_details_df=job_match_details_df,
+        top_n=5,
     )
+
+    with st.expander("View all matching jobs as a table"):
+        job_display_columns = [
+            "title",
+            "company",
+            "location",
+            "experience_level",
+            "role_category",
+            "job_match_score",
+            "matched_skills_count",
+            "missing_skills_count",
+            "matched_skills_preview",
+            "missing_skills_preview",
+        ]
+
+        available_job_columns = [
+            column for column in job_display_columns
+            if column in job_match_details_df.columns
+        ]
+
+        st.dataframe(
+            job_match_details_df[available_job_columns],
+            use_container_width=True,
+            hide_index=True,
+        )
 
 
 if __name__ == "__main__":

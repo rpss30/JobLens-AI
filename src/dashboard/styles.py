@@ -97,6 +97,117 @@ def inject_global_styles() -> None:
             margin: 0;
             color: var(--text-color);
         }
+
+        .summary-highlight {
+            display: inline-block;
+            padding: 0.08rem 0.45rem;
+            border-radius: 999px;
+            background: rgba(37, 99, 235, 0.10);
+            border: 1px solid rgba(37, 99, 235, 0.18);
+            color: #2563eb;
+            font-weight: 750;
+        }
+
+        .summary-positive {
+            color: #15803d;
+            font-weight: 750;
+        }
+
+        .summary-warning {
+            color: #b45309;
+            font-weight: 750;
+        }
+
+        .job-card {
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(148, 163, 184, 0.28);
+            border-radius: 18px;
+            padding: 1.15rem 1.25rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
+        }
+
+        .job-card-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+            align-items: flex-start;
+        }
+
+        .job-card-title {
+            font-size: 1.1rem;
+            line-height: 1.35;
+            margin: 0;
+            color: var(--text-color);
+        }
+
+        .job-card-company {
+            margin: 0.25rem 0 0 0;
+            color: rgba(100, 116, 139, 0.95);
+            font-size: 0.92rem;
+        }
+
+        .job-card-score {
+            min-width: 72px;
+            text-align: center;
+            border-radius: 999px;
+            padding: 0.35rem 0.7rem;
+            background: rgba(37, 99, 235, 0.10);
+            border: 1px solid rgba(37, 99, 235, 0.20);
+            color: #2563eb;
+            font-weight: 700;
+            font-size: 0.95rem;
+        }
+
+        .job-card-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.85rem;
+            margin-bottom: 1rem;
+        }
+
+        .job-card-meta span {
+            border-radius: 999px;
+            padding: 0.25rem 0.65rem;
+            background: rgba(148, 163, 184, 0.14);
+            border: 1px solid rgba(148, 163, 184, 0.24);
+            color: var(--text-color);
+            font-size: 0.82rem;
+            font-weight: 500;
+        }
+
+        .job-card-skills {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .job-card-label {
+            margin: 0 0 0.25rem 0;
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: rgba(100, 116, 139, 0.95);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .job-card-positive,
+        .job-card-negative {
+            margin: 0;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            color: var(--text-color);
+        }
+
+        .job-card-footer {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 1rem;
+            color: rgba(100, 116, 139, 0.95);
+            font-size: 0.82rem;
+        }
+
         </style>
         """,
         unsafe_allow_html=True,

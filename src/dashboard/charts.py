@@ -237,3 +237,28 @@ def create_role_distribution_chart(filtered_jobs: pd.DataFrame):
         )
         .properties(height=260)
     )
+
+def create_jobs_by_location_chart(location_counts_df: pd.DataFrame):
+    """Create horizontal bar chart for jobs grouped by location."""
+
+    if location_counts_df.empty:
+        return None
+
+    chart_df = location_counts_df.sort_values(
+        by="job_count",
+        ascending=True,
+    )
+
+    return (
+        alt.Chart(chart_df)
+        .mark_bar()
+        .encode(
+            x=alt.X("job_count:Q", title="Job Count"),
+            y=alt.Y("location:N", sort=None, title="Location"),
+            tooltip=[
+                alt.Tooltip("location:N", title="Location"),
+                alt.Tooltip("job_count:Q", title="Jobs"),
+            ],
+        )
+        .properties(height=260)
+    )

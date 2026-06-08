@@ -7,6 +7,9 @@ The dashboard analyzes job postings, extracts required technical skills, groups 
 Current MVP uses a curated sample dataset of job postings to simulate role-specific market analysis. Future iterations will expand to larger real-world ingestion pipelines.
 
 ---
+## Live Demo
+
+[View the live dashboard](https://joblens-ai-rpss-30.streamlit.app/)
 
 ## Demo Preview
 

@@ -1,6 +1,9 @@
 # src/database/repository.py
 
 import ast
+import re
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
@@ -66,6 +69,26 @@ def parse_skills(value: Any) -> list[str]:
 
     return []
 
+def slugify_dataset_name(value: str) -> str:
+    """
+    Convert a filename or dataset label into a safe dataset name.
+    """
+    cleaned_value = value.strip().lower()
+    cleaned_value = re.sub(r"[^a-z0-9]+", "_", cleaned_value)
+    cleaned_value = cleaned_value.strip("_")
+
+    return cleaned_value or "uploaded_dataset"
+
+
+def build_uploaded_dataset_name(filename: str) -> str:
+    """
+    Build a unique dataset name for an uploaded CSV file.
+    """
+    file_stem = Path(filename).stem
+    safe_file_stem = slugify_dataset_name(file_stem)
+    timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
+
+    return f"uploaded_{timestamp}_{safe_file_stem}"
 
 def check_database_connection() -> bool:
     try:
@@ -190,6 +213,46 @@ def seed_processed_jobs_from_dataframe(
 
         return inserted_count
 
+def list_datasets() -> list[dict[str, Any]]:
+    """
+    List datasets stored in PostgreSQL.
+    """
+    with get_db_session() as session:
+        stmt = select(
+            Dataset.name,
+            Dataset.source_type,
+            Dataset.created_at,
+        ).order_by(Dataset.created_at.desc())
+
+        rows = session.execute(stmt).all()
+
+    return [
+        {
+            "name": row.name,
+            "source_type": row.source_type,
+            "created_at": row.created_at,
+        }
+        for row in rows
+    ]
+
+
+def save_uploaded_dataset_from_dataframe(
+    df: pd.DataFrame,
+    filename: str,
+) -> str:
+    """
+    Save a processed uploaded jobs dataframe as a new PostgreSQL dataset.
+    """
+    dataset_name = build_uploaded_dataset_name(filename)
+
+    seed_processed_jobs_from_dataframe(
+        df=df,
+        dataset_name=dataset_name,
+        source_type="uploaded_csv",
+        replace_existing=False,
+    )
+
+    return dataset_name
 
 def load_processed_jobs_dataframe(dataset_name: str = "sample_jobs") -> pd.DataFrame:
     """

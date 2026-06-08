@@ -50,7 +50,9 @@ from src.matching.match_engine import (
 from src.processing.job_processor import process_jobs
 from src.database.repository import (
     check_database_connection,
+    list_datasets,
     load_processed_jobs_dataframe,
+    save_uploaded_dataset_from_dataframe,
 )
 
 
@@ -221,6 +223,39 @@ def main() -> None:
         ),
     )
 
+    persist_uploaded_dataset = st.sidebar.checkbox(
+        "Save uploaded CSV to PostgreSQL",
+        value=False,
+        help=(
+            "If enabled, a valid uploaded CSV will be processed and saved "
+            "as a reusable PostgreSQL dataset."
+        ),
+    )
+
+    selected_database_dataset = "sample_jobs"
+
+    if use_database and check_database_connection():
+        try:
+            available_database_datasets = list_datasets()
+            dataset_names = [dataset["name"] for dataset in available_database_datasets]
+
+            if dataset_names:
+                selected_database_dataset = st.sidebar.selectbox(
+                    "PostgreSQL dataset",
+                    options=dataset_names,
+                    index=dataset_names.index("sample_jobs")
+                    if "sample_jobs" in dataset_names
+                    else 0,
+                    help="Choose which saved PostgreSQL dataset to analyze.",
+                )
+            else:
+                st.sidebar.warning("No PostgreSQL datasets found.")
+        except Exception as error:
+            st.sidebar.warning("Could not load PostgreSQL dataset list.")
+
+            with st.sidebar.expander("Dataset list error details"):
+                st.code(str(error))
+
     if uploaded_jobs_file is not None:
         try:
             uploaded_raw_jobs_df = read_uploaded_jobs_csv(uploaded_jobs_file)
@@ -276,12 +311,36 @@ def main() -> None:
                     "Try using descriptions with skills such as Python, SQL, AWS, Docker, Pandas, or PyTorch."
                 )
 
+        if persist_uploaded_dataset:
+            if use_database and check_database_connection():
+                try:
+                    saved_dataset_name = save_uploaded_dataset_from_dataframe(
+                        df=jobs_df,
+                        filename=uploaded_jobs_file.name,
+                    )
+
+                    st.sidebar.success(
+                        f"Uploaded dataset saved to PostgreSQL as `{saved_dataset_name}`."
+                    )
+                except Exception as error:
+                    st.sidebar.warning(
+                        "Custom dataset loaded, but it could not be saved to PostgreSQL."
+                    )
+
+                    with st.sidebar.expander("Database save error details"):
+                        st.code(str(error))
+            else:
+                st.sidebar.warning(
+                    "Custom dataset loaded, but PostgreSQL saving was skipped because "
+                    "the database toggle is off or the database is unavailable."
+                )
+                
         st.sidebar.success("Custom job dataset loaded.")
     else:
         if use_database:
             try:
                 if check_database_connection():
-                    jobs_df = load_processed_jobs_dataframe(dataset_name="sample_jobs")
+                    jobs_df = load_processed_jobs_dataframe(dataset_name=selected_database_dataset)
 
                     if jobs_df.empty:
                         st.sidebar.warning(

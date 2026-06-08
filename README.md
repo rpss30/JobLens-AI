@@ -4,9 +4,9 @@ JobLens AI is a personalized job market intelligence dashboard that helps candid
 
 The dashboard analyzes job postings, extracts required technical skills, groups roles into market categories, calculates role-specific match scores, and recommends high-impact skills to learn next.
 
-Current MVP uses a curated sample dataset of job postings to simulate role-specific market analysis. Future iterations will expand to larger real-world ingestion pipelines.
+Current MVP uses a curated sample dataset of job postings to simulate role-specific market analysis. The app can run from the local processed CSV dataset or from a local PostgreSQL database seeded with processed job data. Future iterations will expand to larger real-world ingestion pipelines.
 
----
+
 ## Live Demo
 
 [View the live dashboard](https://joblens-ai-rpss-30.streamlit.app/)
@@ -37,7 +37,7 @@ The dashboard highlights the strongest individual job matches using card-based j
 
 The dashboard also shows market-level insights such as top required skills, role-specific skill importance, jobs by location, top hiring companies, and role distribution.
 
----
+
 
 ## Features
 
@@ -51,8 +51,11 @@ The dashboard also shows market-level insights such as top required skills, role
 - Jobs-by-location market insight
 - Role distribution and top hiring companies
 - Interactive Streamlit dashboard with controlled search presets and profile presets
+- Optional PostgreSQL-backed data loading with CSV fallback
+- Local database seeding script for processed job postings
+- Custom CSV upload validation and error handling
 
----
+
 
 ## Role Categories
 
@@ -66,7 +69,7 @@ JobLens AI currently groups jobs into the following role categories:
 - Analytics
 - Other
 
----
+
 
 ## Dataset
 
@@ -104,7 +107,7 @@ The processed dataset is generated at:
 data/processed/processed_jobs.csv
 ```
 
----
+
 
 ## How Matching Works
 
@@ -124,7 +127,7 @@ For example, Python, PyTorch, TensorFlow, model deployment, and MLflow may matte
 
 This helps avoid the "big pond problem," where a candidate appears to match a role just because they know many minor tools, even if they are missing the most important skills.
 
----
+
 
 ## Role-Specific Skill Weighting
 
@@ -139,7 +142,7 @@ For each role category, JobLens AI:
 
 This keeps the scoring system data-driven while still being simple enough to explain in a demo.
 
----
+
 
 ## Custom CSV Upload
 
@@ -170,7 +173,7 @@ data/examples/sample_upload_jobs.csv
 
 Uploaded CSVs are processed during the active Streamlit session and are not persisted as permanent storage.
 
----
+
 
 ## Tech Stack
 
@@ -179,16 +182,20 @@ Uploaded CSVs are processed during the active Streamlit session and are not pers
 - Streamlit
 - Altair
 - Plotly
+- PostgreSQL
+- SQLAlchemy
+- psycopg
+- pytest
+- GitHub Actions
+- Streamlit Cloud
 
 Planned future additions:
 
-- scikit-learn
-- PostgreSQL
 - FastAPI
 - Docker
-- AWS or Streamlit Cloud deployment
+- AWS
 
----
+
 
 ## Project Structure
 
@@ -197,11 +204,20 @@ JobLens AI
 ├── data
 │   ├── raw
 │   │   └── sample_jobs.csv
-│   └── processed
-│       └── processed_jobs.csv
+│   ├── processed
+│   │   └── processed_jobs.csv
+│   └── examples
+│       └── sample_upload_jobs.csv
+├── scripts
+│   └── seed_database.py
 ├── src
 │   ├── config
 │   │   └── skills.py
+│   ├── database
+│   │   ├── db.py
+│   │   ├── init_db.py
+│   │   ├── models.py
+│   │   └── repository.py
 │   ├── processing
 │   │   └── job_processor.py
 │   ├── matching
@@ -213,11 +229,17 @@ JobLens AI
 │       ├── services.py
 │       └── styles.py
 ├── tests
+├── .github
+│   └── workflows
+│       └── tests.yml
+├── .streamlit
+│   └── config.toml
+├── .env.example
 ├── requirements.txt
 └── README.md
 ```
 
----
+
 
 ## Running Locally
 
@@ -247,11 +269,114 @@ Run the Streamlit dashboard:
 streamlit run src/dashboard/app.py
 ```
 
----
+
+
+## Local PostgreSQL Setup
+
+JobLens AI can run with either the default processed CSV dataset or a local PostgreSQL database.
+
+The PostgreSQL integration is optional. If the database is unavailable, the Streamlit dashboard falls back to the local processed CSV file.
+
+### 1. Install PostgreSQL
+
+On macOS with Homebrew:
+
+```bash
+brew install postgresql@16
+brew services start postgresql@16
+```
+
+Check that PostgreSQL is available:
+
+```bash
+psql --version
+```
+
+### 2. Create a local database
+
+```bash
+createdb joblens_ai
+```
+
+### 3. Configure environment variables
+
+Create a `.env` file in the project root:
+
+```env
+DATABASE_URL=postgresql+psycopg://localhost:5432/joblens_ai
+```
+
+Do not commit `.env`.
+
+A safe template is included in:
+
+```text
+.env.example
+```
+
+### 4. Create database tables
+
+```bash
+python -m src.database.init_db
+```
+
+### 5. Seed the database
+
+Load the existing processed sample jobs into PostgreSQL:
+
+```bash
+python -m scripts.seed_database
+```
+
+Expected output:
+
+```text
+Database tables created successfully.
+Seeded <number> processed jobs into PostgreSQL.
+```
+
+### 6. Run the dashboard
+
+```bash
+streamlit run src/dashboard/app.py
+```
+
+In the sidebar, turn on:
+
+```text
+Use PostgreSQL database
+```
+
+If PostgreSQL is connected and seeded correctly, the sidebar will show that sample jobs were loaded from PostgreSQL. Otherwise, the app will fall back to the local processed CSV.
+
+### Database tables
+
+The current PostgreSQL schema includes:
+
+- `datasets`
+- `job_postings`
+- `processed_jobs`
+- `skills`
+- `job_skills`
+
+This keeps the current MVP simple while preparing the project for future saved datasets, skill trend snapshots, analysis history, and real job ingestion.
+
+
+## Testing
+
+Run the test suite locally:
+
+```bash
+pytest
+```
+The project includes tests for dashboard service logic, matching behavior, role-specific weighting, CSV upload validation, and database helper utilities.
+
+Tests are also run automatically through GitHub Actions on pushes and pull requests.
+
 
 ## Current Status
 
-This project is currently an MVP focused on dashboard experience, role-specific scoring, and skill-gap analysis using a curated dataset.
+This project is currently a polished MVP focused on dashboard experience, role-specific scoring, skill-gap analysis, CSV upload support, and optional PostgreSQL-backed data loading.
 
 Completed:
 
@@ -267,17 +392,25 @@ Completed:
 - Top matching job cards
 - Jobs-by-location chart
 - Role and skill visualizations
+- Custom CSV upload with validation
+- PostgreSQL database schema
+- PostgreSQL seeding script for processed jobs
+- Optional PostgreSQL dashboard loading with CSV fallback
+- pytest test suite
+- GitHub Actions test workflow
+- Streamlit Cloud deployment
 
 Not built yet:
 
 - Real job scraping or external job ingestion
-- PostgreSQL database integration
+- Saved uploaded datasets in PostgreSQL
+- Saved analysis runs
 - FastAPI backend
 - Dockerized deployment
 - Authentication or multi-user support
 - Production-grade NLP role classification
 
----
+
 
 ## Known Limitations
 
@@ -285,27 +418,28 @@ Not built yet:
 - Skill extraction is dictionary-based, so it may miss aliases or uncommon phrasing.
 - Role classification is rule-based and title-first, not ML-based yet.
 - Match scores are designed for explainability, not as a production hiring recommendation system.
+- PostgreSQL support is currently local-first and optional; uploaded CSVs are still processed only during the active Streamlit session.
 
----
+
 
 ## Future Improvements
 
 Planned next steps:
 
 - Add real job ingestion from public job sources or APIs
-- Store postings and processed skills in PostgreSQL
+- Persist uploaded datasets and saved analysis runs in PostgreSQL
 - Add FastAPI endpoints for matching and recommendations
 - Add Docker support
-- Deploy the dashboard using Streamlit Cloud or AWS
+- Add AWS deployment option beyond the current Streamlit Cloud deployment
 - Improve skill alias matching for terms like `JS`, `JavaScript`, `Node`, and `Node.js`
 - Add trend analysis for skills by role and location
 - Add downloadable candidate skill-gap reports
 
----
+
 
 ## Why This Project Matters
 
-JobLens AI is designed to be a practical new-grad portfolio project that combines data processing, analytics, dashboard design, and matching logic.
+JobLens AI is designed to be a practical portfolio project that combines data processing, analytics, dashboard design, and matching logic.
 
 It demonstrates:
 

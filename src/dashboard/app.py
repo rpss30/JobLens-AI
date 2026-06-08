@@ -418,6 +418,18 @@ def main() -> None:
         st.info("Enter your target roles and skills, then click **Analyze Jobs**.")
         return
 
+    if not target_roles:
+        st.warning(
+            "Please select at least one target role before analyzing jobs."
+        )
+        return
+
+    if not current_skills:
+        st.warning(
+            "Please select at least one current skill before analyzing jobs."
+        )
+        return
+
     filtered_jobs = filter_jobs(
         df=jobs_df,
         target_roles=target_roles,

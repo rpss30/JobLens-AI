@@ -5,6 +5,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
+
 ROOT_DIR = Path(__file__).resolve().parents[2]
 sys.path.append(str(ROOT_DIR))
 
@@ -38,12 +39,15 @@ from src.dashboard.services import (
     load_processed_jobs,
 )
 from src.dashboard.styles import inject_global_styles
+
 from src.matching.match_engine import (
     build_role_skill_weights,
     get_role_weighted_top_skills,
     get_top_skills,
     score_roles,
 )
+
+from src.processing.job_processor import process_jobs
 
 
 st.set_page_config(
@@ -198,19 +202,45 @@ def main() -> None:
     st.title("JobLens AI")
     st.caption("Personalized job market intelligence for role fit, skill gaps, and learning priorities.")
 
-    with st.expander("How JobLens AI calculates match scores"):
-        st.write(
-            """
-            JobLens AI extracts skills from job postings, groups jobs into role categories,
-            and calculates role-specific skill weights based on how often each skill appears
-            within that category.
+    uploaded_jobs_file = st.sidebar.file_uploader(
+        "Upload custom jobs CSV",
+        type=["csv"],
+        help="CSV must include title, company, location, description, and experience_level columns.",
+    )
 
-            The weighted match score gives more importance to skills that are more common
-            within a specific role category. This avoids treating every skill equally.
-            """
+    if uploaded_jobs_file is not None:
+        uploaded_raw_jobs_df = pd.read_csv(uploaded_jobs_file)
+
+        required_columns = {
+            "title",
+            "company",
+            "location",
+            "description",
+            "experience_level",
+        }
+
+        missing_columns = required_columns - set(uploaded_raw_jobs_df.columns)
+
+        if missing_columns:
+            st.error(
+                "Uploaded CSV is missing required columns: "
+                + ", ".join(sorted(missing_columns))
+            )
+            return
+
+        temp_raw_path = "data/raw/uploaded_jobs.csv"
+        temp_processed_path = "data/processed/uploaded_processed_jobs.csv"
+
+        uploaded_raw_jobs_df.to_csv(temp_raw_path, index=False)
+
+        jobs_df = process_jobs(
+            input_path=temp_raw_path,
+            output_path=temp_processed_path,
         )
 
-    jobs_df = load_processed_jobs()
+        st.sidebar.success("Custom job dataset loaded.")
+    else:
+        jobs_df = load_processed_jobs()
 
     available_target_roles = get_available_target_roles(jobs_df)
     available_skills = get_available_skills(jobs_df)

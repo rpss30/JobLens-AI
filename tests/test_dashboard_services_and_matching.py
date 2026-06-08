@@ -1,9 +1,12 @@
 import pandas as pd
+import pytest
 
 from src.dashboard.services import (
     filter_jobs,
     get_job_match_details,
     get_recommended_skills,
+    read_uploaded_jobs_csv,
+    validate_uploaded_jobs_csv,
 )
 from src.matching.match_engine import (
     build_role_skill_weights,
@@ -230,3 +233,78 @@ def test_filter_jobs_returns_empty_for_no_matches() -> None:
     )
 
     assert filtered_df.empty
+
+def test_validate_uploaded_jobs_csv_accepts_valid_file() -> None:
+    uploaded_df = pd.DataFrame(
+        [
+            {
+                "title": "Data Scientist",
+                "company": "TestCo",
+                "location": "Toronto ON",
+                "description": "Analyze data using Python, SQL, Pandas, and statistics.",
+                "experience_level": "Entry Level",
+            }
+        ]
+    )
+
+    is_valid, message = validate_uploaded_jobs_csv(uploaded_df)
+
+    assert is_valid is True
+    assert message == "Uploaded CSV is valid."
+
+
+def test_validate_uploaded_jobs_csv_rejects_missing_required_columns() -> None:
+    uploaded_df = pd.DataFrame(
+        [
+            {
+                "job_title": "Data Scientist",
+                "company": "TestCo",
+                "location": "Toronto ON",
+                "description": "Analyze data using Python and SQL.",
+            }
+        ]
+    )
+
+    is_valid, message = validate_uploaded_jobs_csv(uploaded_df)
+
+    assert is_valid is False
+    assert "missing required columns" in message
+    assert "experience_level" in message
+    assert "title" in message
+
+
+def test_validate_uploaded_jobs_csv_rejects_blank_required_values() -> None:
+    uploaded_df = pd.DataFrame(
+        [
+            {
+                "title": "Data Scientist",
+                "company": "",
+                "location": "Toronto ON",
+                "description": "Analyze data using Python and SQL.",
+                "experience_level": "Entry Level",
+            }
+        ]
+    )
+
+    is_valid, message = validate_uploaded_jobs_csv(uploaded_df)
+
+    assert is_valid is False
+    assert "blank values" in message
+    assert "company" in message
+
+def test_read_uploaded_jobs_csv_rejects_bad_csv_format(tmp_path) -> None:
+    bad_csv_path = tmp_path / "bad_csv_format.csv"
+
+    bad_csv_path.write_text(
+        "\n".join(
+            [
+                "title,company,location,description,experience_level",
+                'Data Scientist,TestCo,Toronto ON,"Analyze data using Python and SQL.",Entry Level',
+                'Cloud Engineer,CloudTest,Vancouver BC,"Build AWS infrastructure using AWS and Docker.",Entry Level,EXTRA_COLUMN',
+                'Backend Developer,APITest,Montreal QC,"Build REST APIs using Python and PostgreSQL.",Entry Level',
+            ]
+        )
+    )
+
+    with pytest.raises(pd.errors.ParserError):
+        read_uploaded_jobs_csv(bad_csv_path)

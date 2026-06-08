@@ -36,6 +36,8 @@ from src.dashboard.services import (
     get_recommended_skills,
     get_role_sample_context,
     get_top_companies,
+    validate_uploaded_jobs_csv,
+    read_uploaded_jobs_csv,
     load_processed_jobs,
 )
 from src.dashboard.styles import inject_global_styles
@@ -205,27 +207,36 @@ def main() -> None:
     uploaded_jobs_file = st.sidebar.file_uploader(
         "Upload custom jobs CSV",
         type=["csv"],
-        help="CSV must include title, company, location, description, and experience_level columns.",
+        help=(
+            "CSV must include title, company, location, description, "
+            "and experience_level columns."
+        ),
     )
 
     if uploaded_jobs_file is not None:
-        uploaded_raw_jobs_df = pd.read_csv(uploaded_jobs_file)
-
-        required_columns = {
-            "title",
-            "company",
-            "location",
-            "description",
-            "experience_level",
-        }
-
-        missing_columns = required_columns - set(uploaded_raw_jobs_df.columns)
-
-        if missing_columns:
+        try:
+            uploaded_raw_jobs_df = read_uploaded_jobs_csv(uploaded_jobs_file)
+        except pd.errors.EmptyDataError:
+            st.error("Uploaded CSV is empty. Please upload a valid jobs CSV.")
+            return
+        except pd.errors.ParserError:
             st.error(
-                "Uploaded CSV is missing required columns: "
-                + ", ".join(sorted(missing_columns))
+                "Uploaded file could not be parsed as a valid CSV. "
+                "Please check the file formatting."
             )
+            return
+        except UnicodeDecodeError:
+            st.error(
+                "Uploaded CSV could not be decoded. Please save it as UTF-8 and try again."
+            )
+            return
+
+        is_valid_upload, validation_message = validate_uploaded_jobs_csv(
+            uploaded_raw_jobs_df
+        )
+
+        if not is_valid_upload:
+            st.error(validation_message)
             return
 
         temp_raw_path = "data/raw/uploaded_jobs.csv"
@@ -237,6 +248,25 @@ def main() -> None:
             input_path=temp_raw_path,
             output_path=temp_processed_path,
         )
+
+        if jobs_df.empty:
+            st.error(
+                "Uploaded CSV was processed, but no usable job postings were found."
+            )
+            return
+
+        if "extracted_skills" in jobs_df.columns:
+            has_extracted_skills = jobs_df["extracted_skills"].apply(
+                lambda skills: bool(skills)
+                if isinstance(skills, list)
+                else bool(str(skills).strip())
+            ).any()
+
+            if not has_extracted_skills:
+                st.warning(
+                    "Custom dataset loaded, but no known skills were extracted. "
+                    "Try using descriptions with skills such as Python, SQL, AWS, Docker, Pandas, or PyTorch."
+                )
 
         st.sidebar.success("Custom job dataset loaded.")
     else:

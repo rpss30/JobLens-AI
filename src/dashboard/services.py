@@ -18,6 +18,78 @@ def load_processed_jobs() -> pd.DataFrame:
         output_path=PROCESSED_DATA_PATH,
     )
 
+def read_uploaded_jobs_csv(uploaded_file) -> pd.DataFrame:
+    """
+    Read an uploaded jobs CSV using strict parsing so malformed rows
+    are caught before validation.
+    """
+
+    return pd.read_csv(
+        uploaded_file,
+        engine="python",
+        on_bad_lines="error",
+    )
+    
+def validate_uploaded_jobs_csv(uploaded_df: pd.DataFrame) -> tuple[bool, str]:
+    """
+    Validate that an uploaded jobs CSV has the required structure
+    for the JobLens AI processing pipeline.
+    """
+
+    required_columns = {
+        "title",
+        "company",
+        "location",
+        "description",
+        "experience_level",
+    }
+
+    if uploaded_df.empty:
+        return False, "Uploaded CSV is empty. Please upload a file with at least one job posting."
+
+    missing_columns = required_columns - set(uploaded_df.columns)
+
+    if missing_columns:
+        return (
+            False,
+            "Uploaded CSV is missing required columns: "
+            + ", ".join(sorted(missing_columns)),
+        )
+
+    required_null_counts = uploaded_df[list(required_columns)].isna().sum()
+    columns_with_missing_values = required_null_counts[
+        required_null_counts > 0
+    ].index.tolist()
+
+    if columns_with_missing_values:
+        return (
+            False,
+            "Uploaded CSV has missing values in required columns: "
+            + ", ".join(sorted(columns_with_missing_values)),
+        )
+
+    empty_text_columns = []
+
+    for column in required_columns:
+        has_empty_strings = (
+            uploaded_df[column]
+            .astype(str)
+            .str.strip()
+            .eq("")
+            .any()
+        )
+
+        if has_empty_strings:
+            empty_text_columns.append(column)
+
+    if empty_text_columns:
+        return (
+            False,
+            "Uploaded CSV has blank values in required columns: "
+            + ", ".join(sorted(empty_text_columns)),
+        )
+
+    return True, "Uploaded CSV is valid."
 
 def filter_jobs(
     df: pd.DataFrame,

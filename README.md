@@ -141,6 +141,28 @@ This keeps the scoring system data-driven while still being simple enough to exp
 
 ---
 
+## Custom CSV Upload
+
+The dashboard supports uploading a custom job postings CSV.
+
+Required columns:
+
+- `title`
+- `company`
+- `location`
+- `description`
+- `experience_level`
+
+Example:
+
+```csv
+title,company,location,description,experience_level
+Data Scientist,TestCo,Toronto ON,"Analyze data using Python, SQL, Pandas, statistics, and dashboards.",Entry Level
+Cloud Engineer,CloudTest,Vancouver BC,"Build AWS infrastructure using Docker, Terraform, Lambda, S3, EC2, and CloudWatch.",Entry Level
+Backend Developer,APITest,Montreal QC,"Build REST APIs using Python, PostgreSQL, Docker, AWS, and CI/CD.",Entry Level
+
+---
+
 ## Tech Stack
 
 - Python

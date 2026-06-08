@@ -1,0 +1,176 @@
+# src/dashboard/components.py
+
+from textwrap import dedent
+
+import pandas as pd
+import streamlit as st
+
+
+def show_role_summary_cards(role_scores_df: pd.DataFrame) -> None:
+    """Show top role matches as metric cards."""
+    st.subheader("Best Role Matches")
+
+    top_roles = role_scores_df.head(3)
+    cols = st.columns(3)
+
+    for col, (_, row) in zip(cols, top_roles.iterrows()):
+        with col:
+            st.metric(
+                label=row["role_category"],
+                value=f"{row['weighted_match_score']}%",
+                delta=f"{row['matched_weight']} / {row['total_possible_weight']} pts",
+            )
+
+
+def show_role_explanations(role_scores_df: pd.DataFrame) -> None:
+    """Show compact explanation cards for the top role matches."""
+    st.subheader("Why These Roles Match")
+    st.caption("Highlights the strongest matching skills and the biggest gaps for your top role categories.")
+
+    top_roles = role_scores_df.head(3)
+
+    for _, row in top_roles.iterrows():
+        role_weights = row["role_skill_weights"]
+
+        matched_ranked = sorted(
+            row["matched_skills"],
+            key=lambda skill: role_weights.get(skill, 1),
+            reverse=True,
+        )[:5]
+
+        missing_ranked = sorted(
+            row["missing_skills"],
+            key=lambda skill: role_weights.get(skill, 1),
+            reverse=True,
+        )[:5]
+
+        with st.container():
+            st.markdown(
+                f"### {row['role_category']} — {row['weighted_match_score']}% weighted match"
+            )
+
+            col1, col2, col3 = st.columns([1.2, 1.2, 0.8])
+
+            with col1:
+                st.write("**Strong matches**")
+                if matched_ranked:
+                    st.write(", ".join(matched_ranked))
+                else:
+                    st.write("No major matches yet.")
+
+            with col2:
+                st.write("**Biggest gaps**")
+                if missing_ranked:
+                    st.write(", ".join(missing_ranked))
+                else:
+                    st.write("No major missing skills.")
+
+            with col3:
+                st.write("**Context**")
+                st.write(f"Jobs analyzed: {row['sample_size']}")
+                st.write(f"Unweighted: {row['unweighted_match_score']}%")
+                st.write(f"Score: {row['matched_weight']} / {row['total_possible_weight']}")
+
+def show_candidate_fit_summary(candidate_summary: dict) -> None:
+    """Show a natural-language explanation of the candidate's fit."""
+
+    st.subheader("Candidate Fit Summary")
+
+    summary_text = candidate_summary.get("summary", "")
+
+    st.markdown(
+        f"""
+        <div class="candidate-summary-card">
+            <p class="candidate-summary-text">
+                {summary_text}
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    matched_skills = candidate_summary.get("matched_skills", [])
+    missing_skills = candidate_summary.get("missing_skills", [])
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown("**Current strengths**")
+        if matched_skills:
+            st.write(", ".join(matched_skills))
+        else:
+            st.write("No major matched skills yet.")
+
+    with col2:
+        st.markdown("**Highest-impact gaps**")
+        if missing_skills:
+            st.write(", ".join(missing_skills))
+        else:
+            st.write("No major gaps found.")
+
+def show_top_job_match_cards(
+    job_match_details_df: pd.DataFrame,
+    top_n: int = 5,
+) -> None:
+    """Show top matching job postings as product-style cards."""
+
+    st.subheader("Top Matching Jobs")
+    st.caption(
+        "These are the strongest individual job matches based on your current skills."
+    )
+
+    if job_match_details_df.empty:
+        st.info("No matching job postings available for the current filters.")
+        return
+
+    top_jobs = job_match_details_df.head(top_n)
+
+    for _, row in top_jobs.iterrows():
+        title = row.get("title", "Untitled Role")
+        company = row.get("company", "Unknown Company")
+        location = row.get("location", "Unknown Location")
+        experience_level = row.get("experience_level", "N/A")
+        role_category = row.get("role_category", "Other")
+        job_match_score = row.get("job_match_score", 0)
+
+        matched_skills = row.get("matched_skills_preview", "None")
+        missing_skills = row.get("missing_skills_preview", "None")
+        matched_count = row.get("matched_skills_count", 0)
+        missing_count = row.get("missing_skills_count", 0)
+
+        card_html = dedent(
+            f"""
+            <div class="job-card">
+                <div class="job-card-header">
+                    <div>
+                        <h3 class="job-card-title">{title}</h3>
+                        <p class="job-card-company">{company}</p>
+                    </div>
+                    <div class="job-card-score">
+                        {job_match_score}%
+                    </div>
+                </div>
+                <div class="job-card-meta">
+                    <span>{location}</span>
+                    <span>{experience_level}</span>
+                    <span>{role_category}</span>
+                </div>
+                <div class="job-card-skills">
+                    <div>
+                        <p class="job-card-label">Matched skills</p>
+                        <p class="job-card-positive">{matched_skills}</p>
+                    </div>
+                    <div>
+                        <p class="job-card-label">Missing skills</p>
+                        <p class="job-card-negative">{missing_skills}</p>
+                    </div>
+                </div>
+                <div class="job-card-footer">
+                    <span>{matched_count} matched</span>
+                    <span>{missing_count} missing</span>
+                </div>
+            </div>
+            """
+        ).strip()
+
+        st.markdown(card_html, unsafe_allow_html=True)

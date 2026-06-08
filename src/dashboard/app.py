@@ -37,6 +37,7 @@ from src.dashboard.services import (
     get_role_sample_context,
     get_top_companies,
     validate_uploaded_jobs_csv,
+    read_uploaded_jobs_csv,
     load_processed_jobs,
 )
 from src.dashboard.styles import inject_global_styles
@@ -214,11 +215,7 @@ def main() -> None:
 
     if uploaded_jobs_file is not None:
         try:
-            uploaded_raw_jobs_df = pd.read_csv(
-                uploaded_jobs_file,
-                engine="python",
-                on_bad_lines="error",
-            )
+            uploaded_raw_jobs_df = read_uploaded_jobs_csv(uploaded_jobs_file)
         except pd.errors.EmptyDataError:
             st.error("Uploaded CSV is empty. Please upload a valid jobs CSV.")
             return

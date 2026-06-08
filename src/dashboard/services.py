@@ -18,6 +18,18 @@ def load_processed_jobs() -> pd.DataFrame:
         output_path=PROCESSED_DATA_PATH,
     )
 
+def read_uploaded_jobs_csv(uploaded_file) -> pd.DataFrame:
+    """
+    Read an uploaded jobs CSV using strict parsing so malformed rows
+    are caught before validation.
+    """
+
+    return pd.read_csv(
+        uploaded_file,
+        engine="python",
+        on_bad_lines="error",
+    )
+    
 def validate_uploaded_jobs_csv(uploaded_df: pd.DataFrame) -> tuple[bool, str]:
     """
     Validate that an uploaded jobs CSV has the required structure

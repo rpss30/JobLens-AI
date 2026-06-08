@@ -1,9 +1,11 @@
 import pandas as pd
+import pytest
 
 from src.dashboard.services import (
     filter_jobs,
     get_job_match_details,
     get_recommended_skills,
+    read_uploaded_jobs_csv,
     validate_uploaded_jobs_csv,
 )
 from src.matching.match_engine import (
@@ -289,3 +291,20 @@ def test_validate_uploaded_jobs_csv_rejects_blank_required_values() -> None:
     assert is_valid is False
     assert "blank values" in message
     assert "company" in message
+
+def test_read_uploaded_jobs_csv_rejects_bad_csv_format(tmp_path) -> None:
+    bad_csv_path = tmp_path / "bad_csv_format.csv"
+
+    bad_csv_path.write_text(
+        "\n".join(
+            [
+                "title,company,location,description,experience_level",
+                'Data Scientist,TestCo,Toronto ON,"Analyze data using Python and SQL.",Entry Level',
+                'Cloud Engineer,CloudTest,Vancouver BC,"Build AWS infrastructure using AWS and Docker.",Entry Level,EXTRA_COLUMN',
+                'Backend Developer,APITest,Montreal QC,"Build REST APIs using Python and PostgreSQL.",Entry Level',
+            ]
+        )
+    )
+
+    with pytest.raises(pd.errors.ParserError):
+        read_uploaded_jobs_csv(bad_csv_path)

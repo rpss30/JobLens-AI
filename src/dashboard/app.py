@@ -377,6 +377,10 @@ def main() -> None:
 
     with col5:
         st.metric("Current skills", len(current_skills))
+    
+    st.caption(
+        "Weighted match prioritizes skills that appear more often within each role category."
+    )
 
     show_candidate_fit_summary(candidate_summary)
 

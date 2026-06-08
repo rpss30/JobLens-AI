@@ -4,7 +4,7 @@ JobLens AI is a personalized job market intelligence dashboard that helps candid
 
 The dashboard analyzes job postings, extracts required technical skills, groups roles into market categories, calculates role-specific match scores, and recommends high-impact skills to learn next.
 
-Current MVP uses a curated sample dataset of job postings to simulate role-specific market analysis. The app can run from the local processed CSV dataset or from a local PostgreSQL database seeded with processed job data. Future iterations will expand to larger real-world ingestion pipelines.
+Current MVP uses a curated sample dataset of job postings to simulate role-specific market analysis. The app can run from the local processed CSV dataset or from PostgreSQL, supports saving uploaded CSV datasets to PostgreSQL, and allows saved database datasets to be reloaded from the dashboard. Future iterations will expand to larger real-world ingestion pipelines.
 
 
 ## Live Demo
@@ -54,6 +54,8 @@ The dashboard also shows market-level insights such as top required skills, role
 - Optional PostgreSQL-backed data loading with CSV fallback
 - Local database seeding script for processed job postings
 - Custom CSV upload validation and error handling
+- Uploaded CSV datasets can be saved to PostgreSQL
+- Saved PostgreSQL datasets can be selected and reloaded from the dashboard
 
 
 
@@ -171,7 +173,7 @@ A sample upload file is available at:
 data/examples/sample_upload_jobs.csv
 ```
 
-Uploaded CSVs are processed during the active Streamlit session and are not persisted as permanent storage.
+By default, uploaded CSVs are processed during the active Streamlit session. If PostgreSQL is enabled, users can optionally save uploaded CSV datasets to PostgreSQL and reload them later from the dashboard dataset selector.
 
 
 
@@ -347,7 +349,11 @@ In the sidebar, turn on:
 Use PostgreSQL database
 ```
 
-If PostgreSQL is connected and seeded correctly, the sidebar will show that sample jobs were loaded from PostgreSQL. Otherwise, the app will fall back to the local processed CSV.
+If PostgreSQL is connected and seeded correctly, the sidebar will show a PostgreSQL dataset selector. The default seeded dataset is `sample_jobs`. 
+
+Saved uploaded datasets will also appear in this selector after they are persisted to PostgreSQL.
+
+If PostgreSQL is unavailable, the app falls back to the local processed CSV.
 
 ### Database tables
 
@@ -399,11 +405,13 @@ Completed:
 - pytest test suite
 - GitHub Actions test workflow
 - Streamlit Cloud deployment
+- Uploaded CSV persistence to PostgreSQL
+- PostgreSQL dataset selector in the dashboard
 
 Not built yet:
 
 - Real job scraping or external job ingestion
-- Saved uploaded datasets in PostgreSQL
+- Dataset management features such as renaming or deleting saved datasets
 - Saved analysis runs
 - FastAPI backend
 - Dockerized deployment
@@ -418,7 +426,8 @@ Not built yet:
 - Skill extraction is dictionary-based, so it may miss aliases or uncommon phrasing.
 - Role classification is rule-based and title-first, not ML-based yet.
 - Match scores are designed for explainability, not as a production hiring recommendation system.
-- PostgreSQL support is currently local-first and optional; uploaded CSVs are still processed only during the active Streamlit session.
+- PostgreSQL support is currently local-first and optional; uploaded CSVs are only persisted when PostgreSQL is enabled and the save option is selected.
+- Saved datasets can be selected from the dashboard, but dataset rename/delete controls are not implemented yet.
 
 
 
@@ -427,13 +436,14 @@ Not built yet:
 Planned next steps:
 
 - Add real job ingestion from public job sources or APIs
-- Persist uploaded datasets and saved analysis runs in PostgreSQL
+- Add saved analysis runs and dataset history in PostgreSQL
 - Add FastAPI endpoints for matching and recommendations
 - Add Docker support
 - Add AWS deployment option beyond the current Streamlit Cloud deployment
 - Improve skill alias matching for terms like `JS`, `JavaScript`, `Node`, and `Node.js`
 - Add trend analysis for skills by role and location
 - Add downloadable candidate skill-gap reports
+- Add dataset management controls for renaming and deleting saved datasets
 
 
 

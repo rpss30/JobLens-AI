@@ -41,15 +41,17 @@ from src.dashboard.services import (
     load_processed_jobs,
 )
 from src.dashboard.styles import inject_global_styles
-
 from src.matching.match_engine import (
     build_role_skill_weights,
     get_role_weighted_top_skills,
     get_top_skills,
     score_roles,
 )
-
 from src.processing.job_processor import process_jobs
+from src.database.repository import (
+    check_database_connection,
+    load_processed_jobs_dataframe,
+)
 
 
 st.set_page_config(
@@ -204,6 +206,12 @@ def main() -> None:
     st.title("JobLens AI")
     st.caption("Personalized job market intelligence for role fit, skill gaps, and learning priorities.")
 
+    use_database = st.sidebar.toggle(
+        "Use PostgreSQL database",
+        value=False,
+        help="Load the curated sample jobs from PostgreSQL instead of the local processed CSV.",
+    )
+
     uploaded_jobs_file = st.sidebar.file_uploader(
         "Upload custom jobs CSV",
         type=["csv"],
@@ -270,7 +278,38 @@ def main() -> None:
 
         st.sidebar.success("Custom job dataset loaded.")
     else:
-        jobs_df = load_processed_jobs()
+        if use_database:
+            try:
+                if check_database_connection():
+                    jobs_df = load_processed_jobs_dataframe(dataset_name="sample_jobs")
+
+                    if jobs_df.empty:
+                        st.sidebar.warning(
+                            "PostgreSQL is connected, but no jobs were found. "
+                            "Using the local sample CSV instead."
+                        )
+                        jobs_df = load_processed_jobs()
+                    else:
+                        st.sidebar.success("Loaded sample jobs from PostgreSQL.")
+                else:
+                    st.sidebar.warning(
+                        "Could not connect to PostgreSQL. "
+                        "Using the local sample CSV instead."
+                    )
+                    jobs_df = load_processed_jobs()
+
+            except Exception as error:
+                st.sidebar.warning(
+                    "PostgreSQL is unavailable. "
+                    "Using the local sample CSV instead."
+                )
+
+                with st.sidebar.expander("Database error details"):
+                    st.code(str(error))
+
+                jobs_df = load_processed_jobs()
+        else:
+            jobs_df = load_processed_jobs()
 
     available_target_roles = get_available_target_roles(jobs_df)
     available_skills = get_available_skills(jobs_df)

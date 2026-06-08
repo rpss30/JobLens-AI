@@ -214,7 +214,11 @@ def main() -> None:
 
     if uploaded_jobs_file is not None:
         try:
-            uploaded_raw_jobs_df = pd.read_csv(uploaded_jobs_file)
+            uploaded_raw_jobs_df = pd.read_csv(
+                uploaded_jobs_file,
+                engine="python",
+                on_bad_lines="error",
+            )
         except pd.errors.EmptyDataError:
             st.error("Uploaded CSV is empty. Please upload a valid jobs CSV.")
             return

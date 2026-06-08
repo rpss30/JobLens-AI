@@ -248,6 +248,15 @@ Not built yet:
 
 ---
 
+## Known Limitations
+
+- The current MVP uses a curated sample dataset instead of live job postings.
+- Skill extraction is dictionary-based, so it may miss aliases or uncommon phrasing.
+- Role classification is rule-based and title-first, not ML-based yet.
+- Match scores are designed for explainability, not as a production hiring recommendation system.
+
+---
+
 ## Future Improvements
 
 Planned next steps:

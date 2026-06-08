@@ -4,6 +4,7 @@ from src.dashboard.services import (
     filter_jobs,
     get_job_match_details,
     get_recommended_skills,
+    validate_uploaded_jobs_csv,
 )
 from src.matching.match_engine import (
     build_role_skill_weights,
@@ -230,3 +231,61 @@ def test_filter_jobs_returns_empty_for_no_matches() -> None:
     )
 
     assert filtered_df.empty
+
+def test_validate_uploaded_jobs_csv_accepts_valid_file() -> None:
+    uploaded_df = pd.DataFrame(
+        [
+            {
+                "title": "Data Scientist",
+                "company": "TestCo",
+                "location": "Toronto ON",
+                "description": "Analyze data using Python, SQL, Pandas, and statistics.",
+                "experience_level": "Entry Level",
+            }
+        ]
+    )
+
+    is_valid, message = validate_uploaded_jobs_csv(uploaded_df)
+
+    assert is_valid is True
+    assert message == "Uploaded CSV is valid."
+
+
+def test_validate_uploaded_jobs_csv_rejects_missing_required_columns() -> None:
+    uploaded_df = pd.DataFrame(
+        [
+            {
+                "job_title": "Data Scientist",
+                "company": "TestCo",
+                "location": "Toronto ON",
+                "description": "Analyze data using Python and SQL.",
+            }
+        ]
+    )
+
+    is_valid, message = validate_uploaded_jobs_csv(uploaded_df)
+
+    assert is_valid is False
+    assert "missing required columns" in message
+    assert "experience_level" in message
+    assert "title" in message
+
+
+def test_validate_uploaded_jobs_csv_rejects_blank_required_values() -> None:
+    uploaded_df = pd.DataFrame(
+        [
+            {
+                "title": "Data Scientist",
+                "company": "",
+                "location": "Toronto ON",
+                "description": "Analyze data using Python and SQL.",
+                "experience_level": "Entry Level",
+            }
+        ]
+    )
+
+    is_valid, message = validate_uploaded_jobs_csv(uploaded_df)
+
+    assert is_valid is False
+    assert "blank values" in message
+    assert "company" in message

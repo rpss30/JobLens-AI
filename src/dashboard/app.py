@@ -449,6 +449,34 @@ def main() -> None:
                     + ", ".join(formatted_recommended_skills)
                 )
 
+            saved_role_scores = selected_saved_analysis_run.get("role_scores", [])
+
+            if saved_role_scores:
+                saved_role_scores_df = pd.DataFrame(saved_role_scores)
+
+                saved_score_columns = [
+                    "role_category",
+                    "sample_size",
+                    "weighted_match_score",
+                    "unweighted_match_score",
+                    "matched_weight",
+                    "total_possible_weight",
+                ]
+
+                available_saved_score_columns = [
+                    column
+                    for column in saved_score_columns
+                    if column in saved_role_scores_df.columns
+                ]
+
+                if available_saved_score_columns:
+                    st.markdown("**Saved role scores**")
+                    st.dataframe(
+                        saved_role_scores_df[available_saved_score_columns],
+                        use_container_width=True,
+                        hide_index=True,
+                    )
+
     with st.sidebar:
         st.header("Your Job Search")
 

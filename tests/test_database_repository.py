@@ -1,6 +1,7 @@
 # tests/test_database_repository.py
 
 from src.database.repository import (
+    build_analysis_run_name,
     build_uploaded_dataset_name,
     normalize_skill_name,
     parse_skills,
@@ -44,3 +45,23 @@ def test_build_uploaded_dataset_name_uses_uploaded_prefix_and_file_stem():
 
     assert dataset_name.startswith("uploaded_")
     assert dataset_name.endswith("_sample_jobs_upload")
+
+def test_build_analysis_run_name_includes_role_and_dataset_name():
+    result = build_analysis_run_name(
+        best_role="Cloud/AWS",
+        dataset_name="sample_jobs",
+    )
+
+    assert result.startswith("analysis_")
+    assert "cloud_aws" in result
+    assert "sample_jobs" in result
+
+
+def test_build_analysis_run_name_handles_missing_best_role():
+    result = build_analysis_run_name(
+        best_role=None,
+        dataset_name="Uploaded Jobs.csv",
+    )
+
+    assert result.startswith("analysis_")
+    assert "uploaded_jobs_csv" in result

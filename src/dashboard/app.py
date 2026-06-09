@@ -49,9 +49,13 @@ from src.matching.match_engine import (
 )
 from src.processing.job_processor import process_jobs
 from src.database.repository import (
+    build_analysis_run_name,
     check_database_connection,
+    list_analysis_runs,
     list_datasets,
+    load_analysis_run,
     load_processed_jobs_dataframe,
+    save_analysis_run,
     save_uploaded_dataset_from_dataframe,
 )
 
@@ -205,8 +209,15 @@ def get_top_insights(
 def main() -> None:
     inject_global_styles()
 
+    if "analysis_requested" not in st.session_state:
+        st.session_state.analysis_requested = False
+
+    selected_saved_analysis_run = None
+
     st.title("JobLens AI")
     st.caption("Personalized job market intelligence for role fit, skill gaps, and learning priorities.")
+
+
 
     use_database = st.sidebar.toggle(
         "Use PostgreSQL database",
@@ -254,6 +265,36 @@ def main() -> None:
             st.sidebar.warning("Could not load PostgreSQL dataset list.")
 
             with st.sidebar.expander("Dataset list error details"):
+                st.code(str(error))
+
+        try:
+            saved_analysis_runs = list_analysis_runs()
+
+            if saved_analysis_runs:
+                saved_run_options = {
+                    f"{run['name']} — {run['dataset_name']}": run["id"]
+                    for run in saved_analysis_runs
+                }
+
+                selected_saved_run_label = st.sidebar.selectbox(
+                    "Saved analysis preview",
+                    options=["None"] + list(saved_run_options.keys()),
+                    help=(
+                        "Preview a previously saved analysis run. "
+                        "This does not change the current live analysis filters yet."
+                    ),
+                )
+
+                if selected_saved_run_label != "None":
+                    selected_saved_analysis_run = load_analysis_run(
+                        saved_run_options[selected_saved_run_label]
+                    )
+            else:
+                st.sidebar.caption("No saved analysis runs yet.")
+        except Exception as error:
+            st.sidebar.warning("Could not load saved analysis runs.")
+
+            with st.sidebar.expander("Saved runs error details"):
                 st.code(str(error))
 
     if uploaded_jobs_file is not None:
@@ -374,24 +415,67 @@ def main() -> None:
     available_skills = get_available_skills(jobs_df)
     available_locations = get_available_locations(jobs_df)
 
-    # with st.expander("Debug: dataset preview"):
-    #     st.write("Total jobs loaded:", len(jobs_df))
-    #     st.write("Columns:", list(jobs_df.columns))
+    if selected_saved_analysis_run:
+        with st.expander("Saved Analysis Preview", expanded=True):
+            st.write(f"**Analysis name:** {selected_saved_analysis_run['name']}")
+            st.write(f"**Dataset:** {selected_saved_analysis_run['dataset_name']}")
+            st.write(f"**Best-fit role:** {selected_saved_analysis_run['best_role']}")
+            st.write(
+                f"**Weighted match:** "
+                f"{selected_saved_analysis_run['weighted_match_score']:.1f}%"
+                if selected_saved_analysis_run["weighted_match_score"] is not None
+                else "**Weighted match:** N/A"
+            )
+            st.write(f"**Top skill gap:** {selected_saved_analysis_run['top_missing_skill']}")
+            st.write(f"**Jobs analyzed:** {selected_saved_analysis_run['jobs_analyzed']}")
+            st.write(
+                "**Target roles:** "
+                + ", ".join(selected_saved_analysis_run["target_roles"])
+            )
+            st.write(
+                "**Current skills:** "
+                + ", ".join(selected_saved_analysis_run["current_skills"])
+            )
 
-    #     if "title" in jobs_df.columns:
-    #         st.write("Sample titles:", jobs_df["title"].head(10).tolist())
+            if selected_saved_analysis_run["recommended_skills"]:
+                formatted_recommended_skills = [
+                    str(skill).strip().title()
+                    for skill in selected_saved_analysis_run["recommended_skills"]
+                    if str(skill).strip()
+                ]
 
-    #     if "clean_title" in jobs_df.columns:
-    #         st.write("Sample clean titles:", jobs_df["clean_title"].head(10).tolist())
+                st.write(
+                    "**Recommended skills:** "
+                    + ", ".join(formatted_recommended_skills)
+                )
 
-    #     if "location" in jobs_df.columns:
-    #         st.write("Unique locations:", jobs_df["location"].dropna().unique().tolist())
+            saved_role_scores = selected_saved_analysis_run.get("role_scores", [])
 
-    #     if "experience_level" in jobs_df.columns:
-    #         st.write(
-    #             "Unique experience levels:",
-    #             jobs_df["experience_level"].dropna().unique().tolist(),
-    #         )
+            if saved_role_scores:
+                saved_role_scores_df = pd.DataFrame(saved_role_scores)
+
+                saved_score_columns = [
+                    "role_category",
+                    "sample_size",
+                    "weighted_match_score",
+                    "unweighted_match_score",
+                    "matched_weight",
+                    "total_possible_weight",
+                ]
+
+                available_saved_score_columns = [
+                    column
+                    for column in saved_score_columns
+                    if column in saved_role_scores_df.columns
+                ]
+
+                if available_saved_score_columns:
+                    st.markdown("**Saved role scores**")
+                    st.dataframe(
+                        saved_role_scores_df[available_saved_score_columns],
+                        use_container_width=True,
+                        hide_index=True,
+                    )
 
     with st.sidebar:
         st.header("Your Job Search")
@@ -472,8 +556,11 @@ def main() -> None:
         )
 
         analyze_button = st.button("Analyze Jobs", type="primary")
+        
+        if analyze_button:
+            st.session_state.analysis_requested = True
 
-    if not analyze_button:
+    if not st.session_state.analysis_requested:
         st.info("Enter your target roles and skills, then click **Analyze Jobs**.")
         return
 
@@ -551,6 +638,58 @@ def main() -> None:
     st.caption(
         "Weighted match prioritizes skills that appear more often within each role category."
     )
+
+    if use_database and check_database_connection():
+        with st.expander("Save this analysis run"):
+            default_analysis_name = build_analysis_run_name(
+                best_role=best_role,
+                dataset_name=selected_database_dataset,
+            )
+
+            analysis_name = st.text_input(
+                "Analysis name",
+                value=default_analysis_name,
+                help="Give this analysis a readable name so you can find it later.",
+            )
+
+            save_run_button = st.button("Save analysis run")
+
+            if save_run_button:
+                try:
+                    recommended_skill_names = (
+                        recommended_skills_df["skill"].head(10).tolist()
+                        if not recommended_skills_df.empty
+                        and "skill" in recommended_skills_df.columns
+                        else []
+                    )
+
+                    role_scores_to_save = role_scores_df.to_dict(orient="records")
+
+                    saved_run_id = save_analysis_run(
+                        name=analysis_name.strip() or default_analysis_name,
+                        dataset_name=selected_database_dataset,
+                        target_roles=target_roles,
+                        location=location,
+                        experience_level=experience_level,
+                        current_skills=current_skills,
+                        best_role=best_role,
+                        weighted_match_score=float(best_score),
+                        top_missing_skill=top_missing_skill,
+                        jobs_analyzed=jobs_analyzed,
+                        recommended_skills=recommended_skill_names,
+                        role_scores=role_scores_to_save,
+                    )
+
+                    st.success(f"Analysis run saved successfully. Saved run ID: {saved_run_id}")
+                except Exception as error:
+                    st.error("Could not save this analysis run.")
+
+                    with st.expander("Analysis save error details"):
+                        st.code(str(error))
+    else:
+        st.info(
+            "Turn on PostgreSQL database mode to save analysis runs."
+        )
 
     show_candidate_fit_summary(candidate_summary)
 

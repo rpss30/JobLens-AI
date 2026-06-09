@@ -367,6 +367,27 @@ The current PostgreSQL schema includes:
 
 This keeps the current MVP simple while preparing the project for future saved datasets, skill trend snapshots, analysis history, and real job ingestion.
 
+### Saved Analysis Runs
+
+JobLens AI can optionally save completed analysis runs to PostgreSQL.
+
+When PostgreSQL mode is enabled, a user can save an analysis run after generating role-fit results. A saved run stores the key inputs and summary outputs from that analysis, including:
+
+- dataset name
+- target roles
+- selected location
+- selected experience level
+- current skills
+- best-fit role
+- weighted match score
+- top missing skill
+- jobs analyzed
+- recommended skills
+- saved role score breakdown
+
+Saved runs can be selected later from the sidebar and previewed in the dashboard. This currently acts as a saved summary view rather than a full automatic rerun of the dashboard filters.
+
+This keeps the feature simple and local-first while demonstrating persistent analysis history with PostgreSQL.
 
 ## Testing
 
@@ -407,6 +428,7 @@ Completed:
 - Streamlit Cloud deployment
 - Uploaded CSV persistence to PostgreSQL
 - PostgreSQL dataset selector in the dashboard
+- Saved analysis runs can be persisted to PostgreSQL and previewed later from the dashboard sidebar.
 
 Not built yet:
 
@@ -428,6 +450,7 @@ Not built yet:
 - Match scores are designed for explainability, not as a production hiring recommendation system.
 - PostgreSQL support is currently local-first and optional; uploaded CSVs are only persisted when PostgreSQL is enabled and the save option is selected.
 - Saved datasets can be selected from the dashboard, but dataset rename/delete controls are not implemented yet.
+- Saved analysis run loading currently shows a preview only; it does not yet repopulate sidebar filters or automatically rerun the dashboard.
 
 
 

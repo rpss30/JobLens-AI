@@ -11,7 +11,7 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from src.database.db import get_db_session
-from src.database.models import Dataset, JobPosting, JobSkill, ProcessedJob, Skill
+from src.database.models import AnalysisRun, Dataset, JobPosting, JobSkill, ProcessedJob, Skill
 
 
 RAW_COLUMNS = [
@@ -89,6 +89,19 @@ def build_uploaded_dataset_name(filename: str) -> str:
     timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
 
     return f"uploaded_{timestamp}_{safe_file_stem}"
+
+def build_analysis_run_name(best_role: str | None, dataset_name: str) -> str:
+    """
+    Build a readable default name for a saved analysis run.
+    """
+    timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
+    safe_dataset_name = slugify_dataset_name(dataset_name)
+
+    if best_role:
+        safe_role_name = slugify_dataset_name(best_role)
+        return f"analysis_{timestamp}_{safe_role_name}_{safe_dataset_name}"
+
+    return f"analysis_{timestamp}_{safe_dataset_name}"
 
 def check_database_connection() -> bool:
     try:
@@ -298,3 +311,105 @@ def load_processed_jobs_dataframe(dataset_name: str = "sample_jobs") -> pd.DataF
             "skills_text",
         ],
     )
+
+def save_analysis_run(
+    *,
+    name: str,
+    dataset_name: str,
+    target_roles: list[str],
+    location: str,
+    experience_level: str,
+    current_skills: list[str],
+    best_role: str | None,
+    weighted_match_score: float | None,
+    top_missing_skill: str | None,
+    jobs_analyzed: int,
+    recommended_skills: list[str],
+    role_scores: list[dict[str, Any]],
+) -> int:
+    """
+    Save a completed dashboard analysis run to PostgreSQL.
+    """
+    with get_db_session() as session:
+        stmt = select(Dataset).where(Dataset.name == dataset_name)
+        dataset = session.execute(stmt).scalar_one_or_none()
+
+        analysis_run = AnalysisRun(
+            dataset_id=dataset.id if dataset else None,
+            name=name,
+            dataset_name=dataset_name,
+            target_roles=target_roles,
+            location=location,
+            experience_level=experience_level,
+            current_skills=current_skills,
+            best_role=best_role,
+            weighted_match_score=weighted_match_score,
+            top_missing_skill=top_missing_skill,
+            jobs_analyzed=jobs_analyzed,
+            recommended_skills=recommended_skills,
+            role_scores=role_scores,
+        )
+
+        session.add(analysis_run)
+        session.flush()
+
+        return analysis_run.id
+
+
+def list_analysis_runs() -> list[dict[str, Any]]:
+    """
+    List saved analysis runs from newest to oldest.
+    """
+    with get_db_session() as session:
+        stmt = select(
+            AnalysisRun.id,
+            AnalysisRun.name,
+            AnalysisRun.dataset_name,
+            AnalysisRun.best_role,
+            AnalysisRun.weighted_match_score,
+            AnalysisRun.jobs_analyzed,
+            AnalysisRun.created_at,
+        ).order_by(AnalysisRun.created_at.desc())
+
+        rows = session.execute(stmt).all()
+
+    return [
+        {
+            "id": row.id,
+            "name": row.name,
+            "dataset_name": row.dataset_name,
+            "best_role": row.best_role,
+            "weighted_match_score": row.weighted_match_score,
+            "jobs_analyzed": row.jobs_analyzed,
+            "created_at": row.created_at,
+        }
+        for row in rows
+    ]
+
+
+def load_analysis_run(analysis_run_id: int) -> dict[str, Any] | None:
+    """
+    Load a single saved analysis run by ID.
+    """
+    with get_db_session() as session:
+        analysis_run = session.get(AnalysisRun, analysis_run_id)
+
+        if analysis_run is None:
+            return None
+
+        return {
+            "id": analysis_run.id,
+            "name": analysis_run.name,
+            "dataset_name": analysis_run.dataset_name,
+            "target_roles": analysis_run.target_roles,
+            "location": analysis_run.location,
+            "experience_level": analysis_run.experience_level,
+            "current_skills": analysis_run.current_skills,
+            "best_role": analysis_run.best_role,
+            "weighted_match_score": analysis_run.weighted_match_score,
+            "top_missing_skill": analysis_run.top_missing_skill,
+            "jobs_analyzed": analysis_run.jobs_analyzed,
+            "recommended_skills": analysis_run.recommended_skills,
+            "role_scores": analysis_run.role_scores,
+            "created_at": analysis_run.created_at,
+        }

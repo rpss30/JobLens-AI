@@ -438,9 +438,15 @@ def main() -> None:
             )
 
             if selected_saved_analysis_run["recommended_skills"]:
+                formatted_recommended_skills = [
+                    str(skill).strip().title()
+                    for skill in selected_saved_analysis_run["recommended_skills"]
+                    if str(skill).strip()
+                ]
+
                 st.write(
                     "**Recommended skills:** "
-                    + ", ".join(selected_saved_analysis_run["recommended_skills"])
+                    + ", ".join(formatted_recommended_skills)
                 )
 
     with st.sidebar:

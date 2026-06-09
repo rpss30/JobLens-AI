@@ -217,33 +217,7 @@ def main() -> None:
     st.title("JobLens AI")
     st.caption("Personalized job market intelligence for role fit, skill gaps, and learning priorities.")
 
-    if selected_saved_analysis_run:
-        with st.expander("Saved Analysis Preview", expanded=True):
-            st.write(f"**Analysis name:** {selected_saved_analysis_run['name']}")
-            st.write(f"**Dataset:** {selected_saved_analysis_run['dataset_name']}")
-            st.write(f"**Best-fit role:** {selected_saved_analysis_run['best_role']}")
-            st.write(
-                f"**Weighted match:** "
-                f"{selected_saved_analysis_run['weighted_match_score']:.1f}%"
-                if selected_saved_analysis_run["weighted_match_score"] is not None
-                else "**Weighted match:** N/A"
-            )
-            st.write(f"**Top skill gap:** {selected_saved_analysis_run['top_missing_skill']}")
-            st.write(f"**Jobs analyzed:** {selected_saved_analysis_run['jobs_analyzed']}")
-            st.write(
-                "**Target roles:** "
-                + ", ".join(selected_saved_analysis_run["target_roles"])
-            )
-            st.write(
-                "**Current skills:** "
-                + ", ".join(selected_saved_analysis_run["current_skills"])
-            )
 
-            if selected_saved_analysis_run["recommended_skills"]:
-                st.write(
-                    "**Recommended skills:** "
-                    + ", ".join(selected_saved_analysis_run["recommended_skills"])
-                )
 
     use_database = st.sidebar.toggle(
         "Use PostgreSQL database",
@@ -441,24 +415,33 @@ def main() -> None:
     available_skills = get_available_skills(jobs_df)
     available_locations = get_available_locations(jobs_df)
 
-    # with st.expander("Debug: dataset preview"):
-    #     st.write("Total jobs loaded:", len(jobs_df))
-    #     st.write("Columns:", list(jobs_df.columns))
+    if selected_saved_analysis_run:
+        with st.expander("Saved Analysis Preview", expanded=True):
+            st.write(f"**Analysis name:** {selected_saved_analysis_run['name']}")
+            st.write(f"**Dataset:** {selected_saved_analysis_run['dataset_name']}")
+            st.write(f"**Best-fit role:** {selected_saved_analysis_run['best_role']}")
+            st.write(
+                f"**Weighted match:** "
+                f"{selected_saved_analysis_run['weighted_match_score']:.1f}%"
+                if selected_saved_analysis_run["weighted_match_score"] is not None
+                else "**Weighted match:** N/A"
+            )
+            st.write(f"**Top skill gap:** {selected_saved_analysis_run['top_missing_skill']}")
+            st.write(f"**Jobs analyzed:** {selected_saved_analysis_run['jobs_analyzed']}")
+            st.write(
+                "**Target roles:** "
+                + ", ".join(selected_saved_analysis_run["target_roles"])
+            )
+            st.write(
+                "**Current skills:** "
+                + ", ".join(selected_saved_analysis_run["current_skills"])
+            )
 
-    #     if "title" in jobs_df.columns:
-    #         st.write("Sample titles:", jobs_df["title"].head(10).tolist())
-
-    #     if "clean_title" in jobs_df.columns:
-    #         st.write("Sample clean titles:", jobs_df["clean_title"].head(10).tolist())
-
-    #     if "location" in jobs_df.columns:
-    #         st.write("Unique locations:", jobs_df["location"].dropna().unique().tolist())
-
-    #     if "experience_level" in jobs_df.columns:
-    #         st.write(
-    #             "Unique experience levels:",
-    #             jobs_df["experience_level"].dropna().unique().tolist(),
-    #         )
+            if selected_saved_analysis_run["recommended_skills"]:
+                st.write(
+                    "**Recommended skills:** "
+                    + ", ".join(selected_saved_analysis_run["recommended_skills"])
+                )
 
     with st.sidebar:
         st.header("Your Job Search")

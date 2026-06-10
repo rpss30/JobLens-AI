@@ -13,7 +13,7 @@ from src.skill_extraction.gemini_extractor import build_skill_extraction_prompt
 from src.skill_extraction.normalizer import normalize_skill_list
 
 
-DEFAULT_GROQ_MODEL = "moonshotai/kimi-k2-instruct"
+DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile"
 
 
 @dataclass(frozen=True)

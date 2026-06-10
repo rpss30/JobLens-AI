@@ -96,8 +96,11 @@ def main(
         extraction_result = extract_skills_ai_first(
             title=title,
             description=description,
+            use_groq_primary=True,
+            use_gemini_fallback=True,
             use_deterministic_fallback=True,
-            max_gemini_attempts=2,
+            max_groq_attempts=1,
+            max_gemini_attempts=1,
             retry_delay_seconds=5,
         )
 

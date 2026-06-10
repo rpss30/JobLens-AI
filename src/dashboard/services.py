@@ -184,20 +184,53 @@ def filter_jobs(
         def title_matches(clean_title: str) -> bool:
             clean_title = str(clean_title).lower()
 
+            generic_role_words = {
+                "engineer",
+                "developer",
+                "analyst",
+                "manager",
+                "specialist",
+                "principal",
+                "staff",
+            }
+
+            cloud_role_terms = {
+                "cloud",
+                "aws",
+                "devops",
+                "platform",
+                "infrastructure",
+            }
+
             for role in role_keywords:
                 role_words = role.split()
 
-                # Full phrase match first
+                # Full phrase match first.
                 if role in clean_title:
                     return True
 
-                # Fallback: match if at least one important role word appears
+                # Role-family match for cloud/devops/platform roles.
+                if (
+                    any(term in role_words for term in cloud_role_terms)
+                    and any(term in clean_title for term in cloud_role_terms)
+                ):
+                    return True
+
+                # Flexible fallback, but ignore generic role words like "engineer".
                 important_words = [
-                    word for word in role_words
-                    if word not in {"junior", "senior", "entry", "level"}
+                    word
+                    for word in role_words
+                    if word
+                    not in {
+                        "junior",
+                        "senior",
+                        "entry",
+                        "level",
+                        *generic_role_words,
+                    }
                 ]
 
-                if any(word in clean_title for word in important_words):
+                if important_words and any(word in clean_title for word in important_words):
                     return True
 
             return False

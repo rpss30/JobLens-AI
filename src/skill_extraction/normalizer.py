@@ -37,6 +37,15 @@ SKILL_ALIASES = {
     "ci cd": "CI/CD",
     "ide": "IDEs",
     "ides": "IDEs",
+    "aws": "AWS",
+    "gcp": "GCP",
+    "azure": "Azure",
+    "mlflow": "MLflow",
+    "nlp": "NLP",
+    "genai": "generative ai",
+    "opentelemetry": "OpenTelemetry",
+    "finops": "FinOps",
+    "api design": "API design",
 }
 
 

@@ -73,3 +73,28 @@ def test_normalize_skill_list_applies_common_ai_output_aliases():
         "CI/CD",
         "IDEs",
     ]
+
+def test_normalize_skill_list_applies_technical_capitalization_aliases():
+    skills = [
+        "aws",
+        "gcp",
+        "azure",
+        "mlflow",
+        "nlp",
+        "genai",
+        "opentelemetry",
+        "finops",
+        "api design",
+    ]
+
+    assert normalize_skill_list(skills) == [
+        "AWS",
+        "GCP",
+        "Azure",
+        "MLflow",
+        "NLP",
+        "generative ai",
+        "OpenTelemetry",
+        "FinOps",
+        "API design",
+    ]

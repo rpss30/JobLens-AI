@@ -63,6 +63,7 @@ def main(
     delay_seconds: int = 10,
     title_query: str | None = None,
     start_row: int = 0,
+    output_path: Path = OUTPUT_PATH,
 ) -> None:
     if not INPUT_PATH.exists():
         raise FileNotFoundError(
@@ -126,10 +127,10 @@ def main(
         time.sleep(delay_seconds)
 
     output_df = pd.DataFrame(processed_rows)
-    OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    output_df.to_csv(OUTPUT_PATH, index=False)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_df.to_csv(output_path, index=False)
 
-    print(f"\nSaved AI-first processed sample to: {OUTPUT_PATH}")
+    print(f"\nSaved AI-first processed sample to: {output_path}")
 
 
 if __name__ == "__main__":
@@ -140,6 +141,12 @@ if __name__ == "__main__":
     parser.add_argument("--delay-seconds", type=int, default=10)
     parser.add_argument("--title-query", type=str, default=None)
     parser.add_argument("--start-row", type=int, default=0)
+    parser.add_argument(
+        "--output-path",
+        type=Path,
+        default=OUTPUT_PATH,
+        help="Where to save the AI-first processed sample CSV.",
+    )
 
     args = parser.parse_args()
 
@@ -148,4 +155,5 @@ if __name__ == "__main__":
         delay_seconds=args.delay_seconds,
         title_query=args.title_query,
         start_row=args.start_row,
+        output_path=args.output_path,
     )

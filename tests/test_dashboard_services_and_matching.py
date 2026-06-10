@@ -88,12 +88,27 @@ def test_filter_jobs_allows_any_location_and_experience() -> None:
         experience_level="Any",
     )
 
-    assert len(filtered_df) == 2
+    assert len(filtered_df) == 1
 
     returned_titles = set(filtered_df["title"].tolist())
 
-    assert "Machine Learning Engineer" in returned_titles
     assert "AWS Cloud Engineer" in returned_titles
+    assert "Machine Learning Engineer" not in returned_titles
+
+def test_filter_jobs_does_not_match_only_generic_engineer_word() -> None:
+    jobs_df = make_sample_jobs_df()
+
+    filtered_df = filter_jobs(
+        df=jobs_df,
+        target_roles=["Software Engineer"],
+        location="Any",
+        experience_level="Any",
+    )
+
+    returned_titles = set(filtered_df["title"].tolist())
+
+    assert "Machine Learning Engineer" not in returned_titles
+    assert "AWS Cloud Engineer" not in returned_titles
 
 def test_get_job_match_details_calculates_job_level_scores() -> None:
     jobs_df = make_sample_jobs_df()

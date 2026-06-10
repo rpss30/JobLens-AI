@@ -39,6 +39,8 @@ from src.dashboard.services import (
     validate_uploaded_jobs_csv,
     read_uploaded_jobs_csv,
     load_processed_jobs,
+    GREENHOUSE_AI_DEMO_PATH,
+    load_processed_jobs_from_csv,
 )
 from src.dashboard.styles import inject_global_styles
 from src.matching.match_engine import (
@@ -217,7 +219,17 @@ def main() -> None:
     st.title("JobLens AI")
     st.caption("Personalized job market intelligence for role fit, skill gaps, and learning priorities.")
 
-
+    dataset_source = st.sidebar.selectbox(
+        "Dataset source",
+        options=[
+            "Default sample dataset",
+            "AI-extracted Greenhouse demo",
+        ],
+        help=(
+            "Choose the local sample dataset or a generated AI-extracted "
+            "Greenhouse experiment dataset if it exists."
+        ),
+    )
 
     use_database = st.sidebar.toggle(
         "Use PostgreSQL database",
@@ -409,7 +421,19 @@ def main() -> None:
 
                 jobs_df = load_processed_jobs()
         else:
-            jobs_df = load_processed_jobs()
+            if dataset_source == "AI-extracted Greenhouse sample":
+                jobs_df = load_processed_jobs_from_csv(GREENHOUSE_AI_DEMO_PATH)
+
+                if jobs_df.empty:
+                    st.sidebar.warning(
+                        "AI-extracted Greenhouse demo dataset was not found. "
+                        "Using the default sample dataset instead."
+                    )
+                    jobs_df = load_processed_jobs()
+                else:
+                    st.sidebar.success("Loaded AI-extracted Greenhouse demo dataset.")
+            else:
+                jobs_df = load_processed_jobs()
 
     available_target_roles = get_available_target_roles(jobs_df)
     available_skills = get_available_skills(jobs_df)

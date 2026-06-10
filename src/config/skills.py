@@ -10,6 +10,7 @@ TECH_SKILLS = [
     "docker",
     "kubernetes",
     "terraform",
+    "api gateway",
     "cloudwatch",
     "postgresql",
     "redshift",
@@ -54,6 +55,7 @@ TECH_SKILLS = [
     "monitoring",
     "machine learning",
     "model evaluation",
+    "mysql"
 ]
 
 BASE_SKILL_IMPORTANCE = {
@@ -72,6 +74,7 @@ BASE_SKILL_IMPORTANCE = {
     "spark": 4,
     "pyspark": 4,
     "postgresql": 4,
+    "mysql": 4,
     "rest apis": 4,
     "data pipelines": 4,
     "model deployment": 4,

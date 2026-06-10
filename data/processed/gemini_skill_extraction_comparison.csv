@@ -1,0 +1,6 @@
+title,company,location,deterministic_skills,gemini_skills,gemini_only_skills,deterministic_only_skills,error
+Machine Learning Engineer,Quincus,"Toronto, Ontario",['machine learning'],"['ai', 'machine learning']",['ai'],[],
+Machine Learning Engineer,Insight Global,"Etobicoke, Toronto",['machine learning'],"['machine learning', 'ai', 'generative ai', 'cloud infrastructure']","['ai', 'cloud infrastructure', 'generative ai']",[],
+Machine Learning Engineer,Toparo,"Toronto, Ontario",['machine learning'],"['web3', 'blockchain', 'machine learning']","['blockchain', 'web3']",[],
+Machine Learning Engineer,Bree,"Toronto, Ontario",[],[],[],[],
+Machine Learning Engineer,TD Bank,"Toronto, Ontario",[],[],[],[],

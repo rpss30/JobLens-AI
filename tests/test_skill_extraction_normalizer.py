@@ -30,3 +30,25 @@ def test_normalize_skill_list_respects_max_skills_limit():
     skills = ["Python", "SQL", "AWS", "Docker"]
 
     assert normalize_skill_list(skills, max_skills=2) == ["python", "sql"]
+
+def test_normalize_skill_list_filters_generic_terms_by_default():
+    skills = [
+        "Python",
+        "AI",
+        "systems",
+        "technical design",
+        "SQL",
+        "operational excellence",
+    ]
+
+    assert normalize_skill_list(skills) == ["python", "sql"]
+
+
+def test_normalize_skill_list_can_keep_generic_terms_when_requested():
+    skills = ["Python", "AI", "systems"]
+
+    assert normalize_skill_list(skills, exclude_generic_terms=False) == [
+        "python",
+        "ai",
+        "systems",
+    ]

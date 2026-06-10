@@ -7,6 +7,24 @@ import re
 
 _SEPARATOR_PATTERN = re.compile(r"[/|;]+")
 
+GENERIC_SKILL_TERMS = {
+    "ai",
+    "systems",
+    "platform",
+    "business",
+    "customer",
+    "work",
+    "experience",
+    "leadership",
+    "collaboration",
+    "problem solving",
+    "technical design",
+    "operational excellence",
+    "process improvement",
+    "tooling",
+    "r&d",
+}
+
 
 def normalize_skill_name(skill: str) -> str:
     """Normalize one extracted skill into a consistent dashboard-friendly name."""
@@ -16,7 +34,11 @@ def normalize_skill_name(skill: str) -> str:
     return normalized.strip()
 
 
-def normalize_skill_list(skills: list[str], max_skills: int = 20) -> list[str]:
+def normalize_skill_list(
+    skills: list[str],
+    max_skills: int = 20,
+    exclude_generic_terms: bool = True,
+) -> list[str]:
     """Normalize, deduplicate, and cap extracted skills."""
     normalized_skills: list[str] = []
     seen: set[str] = set()
@@ -28,6 +50,9 @@ def normalize_skill_list(skills: list[str], max_skills: int = 20) -> list[str]:
         normalized = normalize_skill_name(skill)
 
         if not normalized:
+            continue
+
+        if exclude_generic_terms and normalized in GENERIC_SKILL_TERMS:
             continue
 
         if normalized in seen:

@@ -10,6 +10,7 @@ TECH_SKILLS = [
     "docker",
     "kubernetes",
     "terraform",
+    "api gateway",
     "cloudwatch",
     "postgresql",
     "redshift",

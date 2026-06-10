@@ -1,0 +1,42 @@
+"""Helpers for cleaning and validating AI-extracted skill names."""
+
+from __future__ import annotations
+
+import re
+
+
+_SEPARATOR_PATTERN = re.compile(r"[/|;]+")
+
+
+def normalize_skill_name(skill: str) -> str:
+    """Normalize one extracted skill into a consistent dashboard-friendly name."""
+    normalized = skill.strip().lower()
+    normalized = _SEPARATOR_PATTERN.sub(" ", normalized)
+    normalized = re.sub(r"\s+", " ", normalized)
+    return normalized.strip()
+
+
+def normalize_skill_list(skills: list[str], max_skills: int = 20) -> list[str]:
+    """Normalize, deduplicate, and cap extracted skills."""
+    normalized_skills: list[str] = []
+    seen: set[str] = set()
+
+    for skill in skills:
+        if not isinstance(skill, str):
+            continue
+
+        normalized = normalize_skill_name(skill)
+
+        if not normalized:
+            continue
+
+        if normalized in seen:
+            continue
+
+        seen.add(normalized)
+        normalized_skills.append(normalized)
+
+        if len(normalized_skills) >= max_skills:
+            break
+
+    return normalized_skills

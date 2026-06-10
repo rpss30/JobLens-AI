@@ -18,3 +18,4 @@ data/processed/greenhouse_ai_processed_jobs_sample.csv
 data/processed/greenhouse_*_ai_skills.csv
 data/processed/greenhouse_gemini_skill_extraction_comparison.csv
 data/processed/*comparison*.csv
+data/processed/greenhouse_ai_demo_jobs.csv

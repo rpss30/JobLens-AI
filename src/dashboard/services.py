@@ -11,7 +11,7 @@ from src.processing.job_processor import process_jobs
 
 RAW_DATA_PATH = "data/raw/sample_jobs.csv"
 PROCESSED_DATA_PATH = "data/processed/processed_jobs.csv"
-GREENHOUSE_AI_SAMPLE_PATH = "data/processed/greenhouse_ai_engineer_ai_skills.csv"
+GREENHOUSE_AI_DEMO_PATH = "data/processed/greenhouse_ai_demo_jobs.csv"
 
 
 @st.cache_data

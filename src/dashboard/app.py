@@ -39,7 +39,7 @@ from src.dashboard.services import (
     validate_uploaded_jobs_csv,
     read_uploaded_jobs_csv,
     load_processed_jobs,
-    GREENHOUSE_AI_SAMPLE_PATH,
+    GREENHOUSE_AI_DEMO_PATH,
     load_processed_jobs_from_csv,
 )
 from src.dashboard.styles import inject_global_styles
@@ -223,7 +223,7 @@ def main() -> None:
         "Dataset source",
         options=[
             "Default sample dataset",
-            "AI-extracted Greenhouse sample",
+            "AI-extracted Greenhouse demo",
         ],
         help=(
             "Choose the local sample dataset or a generated AI-extracted "
@@ -422,16 +422,16 @@ def main() -> None:
                 jobs_df = load_processed_jobs()
         else:
             if dataset_source == "AI-extracted Greenhouse sample":
-                jobs_df = load_processed_jobs_from_csv(GREENHOUSE_AI_SAMPLE_PATH)
+                jobs_df = load_processed_jobs_from_csv(GREENHOUSE_AI_DEMO_PATH)
 
                 if jobs_df.empty:
                     st.sidebar.warning(
-                        "AI-extracted Greenhouse sample was not found. "
+                        "AI-extracted Greenhouse demo dataset was not found. "
                         "Using the default sample dataset instead."
                     )
                     jobs_df = load_processed_jobs()
                 else:
-                    st.sidebar.success("Loaded AI-extracted Greenhouse sample.")
+                    st.sidebar.success("Loaded AI-extracted Greenhouse demo dataset.")
             else:
                 jobs_df = load_processed_jobs()
 

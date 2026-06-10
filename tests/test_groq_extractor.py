@@ -14,7 +14,7 @@ def test_parse_groq_skill_response_returns_normalized_skills():
         "python",
         "sql",
         "machine learning",
-        "ci cd",
+        "CI/CD",
     ]
 
 

@@ -25,6 +25,20 @@ GENERIC_SKILL_TERMS = {
     "r&d",
 }
 
+SKILL_ALIASES = {
+    "ml": "machine learning",
+    "rag": "retrieval augmented generation",
+    "llm": "large language models",
+    "llms": "large language models",
+    "api": "APIs",
+    "apis": "APIs",
+    "rest api": "REST APIs",
+    "rest apis": "REST APIs",
+    "ci cd": "CI/CD",
+    "ide": "IDEs",
+    "ides": "IDEs",
+}
+
 
 def normalize_skill_name(skill: str) -> str:
     """Normalize one extracted skill into a consistent dashboard-friendly name."""
@@ -54,6 +68,8 @@ def normalize_skill_list(
 
         if exclude_generic_terms and normalized in GENERIC_SKILL_TERMS:
             continue
+
+        normalized = SKILL_ALIASES.get(normalized, normalized)
 
         if normalized in seen:
             continue

@@ -52,3 +52,24 @@ def test_normalize_skill_list_can_keep_generic_terms_when_requested():
         "ai",
         "systems",
     ]
+
+def test_normalize_skill_list_applies_common_ai_output_aliases():
+    skills = [
+        "ML",
+        "RAG",
+        "LLMs",
+        "APIs",
+        "REST API",
+        "CI/CD",
+        "IDEs",
+    ]
+
+    assert normalize_skill_list(skills) == [
+        "machine learning",
+        "retrieval augmented generation",
+        "large language models",
+        "APIs",
+        "REST APIs",
+        "CI/CD",
+        "IDEs",
+    ]

@@ -1,5 +1,8 @@
 # src/dashboard/services.py
 
+import ast
+from pathlib import Path
+
 import pandas as pd
 import streamlit as st
 
@@ -8,15 +11,81 @@ from src.processing.job_processor import process_jobs
 
 RAW_DATA_PATH = "data/raw/sample_jobs.csv"
 PROCESSED_DATA_PATH = "data/processed/processed_jobs.csv"
+GREENHOUSE_AI_SAMPLE_PATH = "data/processed/greenhouse_ai_engineer_ai_skills.csv"
 
 
 @st.cache_data
 def load_processed_jobs() -> pd.DataFrame:
     """Load and process job data once."""
-    return process_jobs(
+    jobs_df = process_jobs(
         input_path=RAW_DATA_PATH,
         output_path=PROCESSED_DATA_PATH,
     )
+
+    return prepare_processed_jobs_for_dashboard(jobs_df)
+
+def parse_extracted_skills_value(value: object) -> list[str]:
+    """Parse extracted_skills values loaded from CSV into a clean list."""
+    if isinstance(value, list):
+        return [str(skill).strip() for skill in value if str(skill).strip()]
+
+    if pd.isna(value):
+        return []
+
+    if not isinstance(value, str):
+        return []
+
+    stripped_value = value.strip()
+
+    if not stripped_value:
+        return []
+
+    try:
+        parsed_value = ast.literal_eval(stripped_value)
+    except (ValueError, SyntaxError):
+        parsed_value = None
+
+    if isinstance(parsed_value, list):
+        return [
+            str(skill).strip()
+            for skill in parsed_value
+            if str(skill).strip()
+        ]
+
+    return [
+        skill.strip()
+        for skill in stripped_value.split(",")
+        if skill.strip()
+    ]
+
+
+def prepare_processed_jobs_for_dashboard(df: pd.DataFrame) -> pd.DataFrame:
+    """Normalize processed job dataframe columns for dashboard usage."""
+    prepared_df = df.copy()
+
+    if "extracted_skills" in prepared_df.columns:
+        prepared_df["extracted_skills"] = prepared_df["extracted_skills"].apply(
+            parse_extracted_skills_value
+        )
+
+    if "skills_text" not in prepared_df.columns and "extracted_skills" in prepared_df.columns:
+        prepared_df["skills_text"] = prepared_df["extracted_skills"].apply(
+            lambda skills: ", ".join(skills)
+        )
+
+    return prepared_df
+
+
+@st.cache_data
+def load_processed_jobs_from_csv(path: str) -> pd.DataFrame:
+    """Load an already-processed jobs CSV for dashboard analysis."""
+    csv_path = Path(path)
+
+    if not csv_path.exists():
+        return pd.DataFrame()
+
+    loaded_df = pd.read_csv(csv_path)
+    return prepare_processed_jobs_for_dashboard(loaded_df)
 
 def read_uploaded_jobs_csv(uploaded_file) -> pd.DataFrame:
     """

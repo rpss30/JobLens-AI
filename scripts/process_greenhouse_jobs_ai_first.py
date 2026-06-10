@@ -12,6 +12,7 @@ Extraction behavior:
 
 from __future__ import annotations
 
+import argparse
 import sys
 import time
 from pathlib import Path
@@ -38,8 +39,31 @@ REQUIRED_COLUMNS = [
     "experience_level",
 ]
 
+def select_sample_jobs(
+    jobs_df: pd.DataFrame,
+    sample_size: int,
+    title_query: str | None = None,
+    start_row: int = 0,
+) -> pd.DataFrame:
+    """Select a small sample of jobs for AI-first extraction experiments."""
+    selected_df = jobs_df.copy()
 
-def main(sample_size: int = 5, delay_seconds: int = 10) -> None:
+    if title_query:
+        selected_df = selected_df[
+            selected_df["title"].str.contains(title_query, case=False, na=False)
+        ]
+
+    if start_row > 0:
+        selected_df = selected_df.iloc[start_row:]
+
+    return selected_df.head(sample_size).copy()
+
+def main(
+    sample_size: int = 5,
+    delay_seconds: int = 10,
+    title_query: str | None = None,
+    start_row: int = 0,
+) -> None:
     if not INPUT_PATH.exists():
         raise FileNotFoundError(
             f"Could not find {INPUT_PATH}. Run scripts/fetch_greenhouse_jobs.py first."
@@ -51,7 +75,15 @@ def main(sample_size: int = 5, delay_seconds: int = 10) -> None:
     if missing_columns:
         raise ValueError(f"Missing required columns: {sorted(missing_columns)}")
 
-    sample_df = raw_jobs_df.head(sample_size).copy()
+    sample_df = select_sample_jobs(
+        jobs_df=raw_jobs_df,
+        sample_size=sample_size,
+        title_query=title_query,
+        start_row=start_row,
+    )
+
+    if sample_df.empty:
+        raise ValueError("No jobs matched the requested sample filters.")
 
     processed_rows: list[dict[str, object]] = []
 
@@ -98,4 +130,19 @@ def main(sample_size: int = 5, delay_seconds: int = 10) -> None:
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(
+        description="Process a small Greenhouse sample using AI-first skill extraction."
+    )
+    parser.add_argument("--sample-size", type=int, default=5)
+    parser.add_argument("--delay-seconds", type=int, default=10)
+    parser.add_argument("--title-query", type=str, default=None)
+    parser.add_argument("--start-row", type=int, default=0)
+
+    args = parser.parse_args()
+
+    main(
+        sample_size=args.sample_size,
+        delay_seconds=args.delay_seconds,
+        title_query=args.title_query,
+        start_row=args.start_row,
+    )

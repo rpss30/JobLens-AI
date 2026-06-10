@@ -7,3 +7,14 @@ venv/
 node_modules/
 dist/
 build/
+
+# Generated real-job ingestion outputs
+data/raw/greenhouse_jobs.csv
+data/raw/lever_jobs.csv
+
+# Generated AI extraction experiment outputs
+data/processed/greenhouse_processed_jobs.csv
+data/processed/greenhouse_ai_processed_jobs_sample.csv
+data/processed/greenhouse_*_ai_skills.csv
+data/processed/greenhouse_gemini_skill_extraction_comparison.csv
+data/processed/*comparison*.csv

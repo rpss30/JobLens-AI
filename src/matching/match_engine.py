@@ -1,16 +1,11 @@
 # src/matching/match_engine.py
 
 import pandas as pd
-from src.config.skills import BASE_SKILL_IMPORTANCE
-
+from sklearn.feature_extraction.text import TfidfVectorizer
 
 def normalize_skill(skill: str) -> str:
     """Normalize skill names for comparison."""
     return skill.strip().lower()
-
-def get_base_skill_importance(skill: str) -> int:
-    """Fallback importance for small datasets."""
-    return BASE_SKILL_IMPORTANCE.get(normalize_skill(skill), 2)
 
 def frequency_to_weight(frequency: float) -> int:
     """Convert skill frequency into an importance weight from 1 to 5."""
@@ -34,49 +29,87 @@ def get_max_weight_for_sample_size(total_jobs: int) -> int:
 
 def build_role_skill_weights(df: pd.DataFrame) -> dict[str, dict[str, int]]:
     """
-    Build role-specific skill weights.
+    Build role-specific skill weights using TF-IDF over extracted skills.
+
+    Each role category is treated like a document, and each extracted skill is
+    treated like a term. Skills that are common within a role but less common
+    across other roles receive stronger role-specific weights.
 
     Example output:
     {
-        "AI/ML": {"python": 5, "pytorch": 4, "docker": 2},
-        "Cloud/AWS": {"aws": 5, "terraform": 4, "python": 2}
+        "AI/ML": {"python": 4, "pytorch": 5, "docker": 2},
+        "Cloud/AWS": {"aws": 5, "terraform": 4, "python": 1}
     }
     """
-    role_weights = {}
+    if df.empty or "role_category" not in df.columns or "extracted_skills" not in df.columns:
+        return {}
+
+    role_documents: dict[str, str] = {}
+    role_sample_sizes: dict[str, int] = {}
 
     for role_category, group in df.groupby("role_category"):
-        total_jobs = len(group)
-        skill_job_counts = {}
+        role_sample_sizes[role_category] = len(group)
+
+        role_skill_terms: list[str] = []
 
         for skills in group["extracted_skills"]:
             if not isinstance(skills, list):
                 continue
 
-            # Count each skill only once per job using sets
-            unique_skills = {normalize_skill(skill) for skill in skills}
+            # Count each skill at most once per job posting.
+            unique_skills = sorted({normalize_skill(skill) for skill in skills})
 
-            for skill in unique_skills:
-                skill_job_counts[skill] = skill_job_counts.get(skill, 0) + 1
+            # Replace spaces with underscores so multi-word skills stay together.
+            role_skill_terms.extend(skill.replace(" ", "_") for skill in unique_skills)
 
-        weights = {}
+        if role_skill_terms:
+            role_documents[role_category] = " ".join(role_skill_terms)
 
-        max_weight = get_max_weight_for_sample_size(total_jobs)
+    if not role_documents:
+        return {}
 
-        for skill, count in skill_job_counts.items():
-            frequency = count / total_jobs
-            raw_weight = frequency_to_weight(frequency)
-            base_weight = get_base_skill_importance(skill)
+    role_categories = list(role_documents.keys())
+    documents = [role_documents[role_category] for role_category in role_categories]
 
-            # Blend market frequency with base importance to prevent all weights from becoming equal
-            blended_weight = round((0.7 * raw_weight) + (0.3 * base_weight))
+    vectorizer = TfidfVectorizer(
+        lowercase=False,
+        tokenizer=str.split,
+        preprocessor=None,
+        token_pattern=None,
+    )
 
-            # Smoothing to prevent tiny samples from giving every skill max weight
-            weights[skill] = min(blended_weight, max_weight)
+    tfidf_matrix = vectorizer.fit_transform(documents)
+    feature_names = vectorizer.get_feature_names_out()
+
+    role_weights: dict[str, dict[str, int]] = {}
+
+    for role_index, role_category in enumerate(role_categories):
+        row = tfidf_matrix[role_index].toarray()[0]
+        max_score = row.max()
+
+        max_weight = get_max_weight_for_sample_size(
+            role_sample_sizes.get(role_category, 0)
+        )
+
+        weights: dict[str, int] = {}
+
+        if max_score == 0:
+            role_weights[role_category] = weights
+            continue
+
+        for skill_token, tfidf_score in zip(feature_names, row):
+            if tfidf_score == 0:
+                continue
+
+            skill = skill_token.replace("_", " ")
+
+            # Normalize TF-IDF to the dashboard's readable 1-5 weight scale.
+            scaled_weight = round(1 + 4 * (tfidf_score / max_score))
+            weights[skill] = min(max(scaled_weight, 1), max_weight)
 
         role_weights[role_category] = weights
 
     return role_weights
-
 
 def get_skill_weight_for_role(
     skill: str,

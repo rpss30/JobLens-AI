@@ -58,6 +58,7 @@ The dashboard also shows market-level insights such as top required skills, role
 - Uploaded CSV datasets can be saved to PostgreSQL
 - Saved PostgreSQL datasets can be selected and reloaded from the dashboard
 - FastAPI backend with health check and candidate analysis endpoint
+- Docker Compose support for running the dashboard, API, and PostgreSQL together
 
 
 
@@ -195,7 +196,6 @@ By default, uploaded CSVs are processed during the active Streamlit session. If 
 
 Planned future additions:
 
-- Docker
 - AWS
 
 
@@ -299,6 +299,46 @@ curl -X POST http://127.0.0.1:8000/analyze \
     "experience_level": "Entry Level",
     "top_n": 5
   }'
+```
+
+## Running with Docker
+
+JobLens AI can also be run with Docker Compose.
+
+Build and start the Streamlit dashboard, FastAPI backend, and PostgreSQL database:
+
+```bash
+docker compose up --build
+```
+
+Once the services are running:
+
+- Streamlit dashboard: `http://localhost:8501`
+- FastAPI docs: `http://localhost:8000/docs`
+- FastAPI health check: `http://localhost:8000/health`
+
+Initialize the PostgreSQL tables:
+
+```bash
+docker compose exec dashboard python -m src.database.init_db
+```
+
+Seed the sample processed jobs dataset:
+
+```bash
+docker compose exec dashboard python -m scripts.seed_database
+```
+
+To stop the services:
+
+```bash
+docker compose down
+```
+
+To stop the services and remove the PostgreSQL volume:
+
+```bash
+docker compose down -v
 ```
 
 ## Local PostgreSQL Setup
@@ -459,6 +499,7 @@ Completed:
 - PostgreSQL dataset selector in the dashboard
 - Saved analysis runs can be persisted to PostgreSQL and previewed later from the dashboard sidebar.
 - FastAPI backend with `/health` and `/analyze` endpoints
+- Docker Compose setup for Streamlit, FastAPI, and PostgreSQL
 
 Not built yet:
 
@@ -490,7 +531,6 @@ Planned next steps:
 - Add real job ingestion from public job sources or APIs
 - Add saved analysis runs and dataset history in PostgreSQL
 - Expand FastAPI support for PostgreSQL-backed datasets and saved analysis runs
-- Add Docker support
 - Add AWS deployment option beyond the current Streamlit Cloud deployment
 - Improve skill alias matching for terms like `JS`, `JavaScript`, `Node`, and `Node.js`
 - Add trend analysis for skills by role and location

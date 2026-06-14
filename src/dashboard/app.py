@@ -753,6 +753,8 @@ def main() -> None:
         data=candidate_report_markdown,
         file_name="joblens_candidate_skill_gap_report.md",
         mime="text/markdown",
+        type="primary",
+        icon=":material/download:",
     )
 
     st.divider()

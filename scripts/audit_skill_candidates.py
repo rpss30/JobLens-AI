@@ -23,7 +23,7 @@ sys.path.append(str(ROOT_DIR))
 from src.config.skills import TECH_SKILLS
 
 
-PROCESSED_INPUT_PATH = ROOT_DIR / "data" / "processed" / "adzuna_processed_jobs.csv"
+PROCESSED_INPUT_PATH = ROOT_DIR / "data" / "processed" / "processed_jobs.csv"
 REPORT_OUTPUT_PATH = ROOT_DIR / "data" / "processed" / "skill_candidate_audit.csv"
 
 

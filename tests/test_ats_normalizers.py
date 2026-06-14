@@ -16,7 +16,7 @@ def test_clean_html_text_handles_none():
 
 
 def test_build_ats_job_id_includes_source_company_and_posting_id():
-    assert build_ats_job_id("Lever", "OpenAI", "abc123") == "lever:openai:abc123"
+    assert build_ats_job_id("Lever", "SomeCompany", "abc123") == "lever:somecompany:abc123"
 
 
 def test_infer_experience_level_detects_senior_roles():

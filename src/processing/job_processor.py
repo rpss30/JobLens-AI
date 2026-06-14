@@ -4,6 +4,41 @@ import re
 import pandas as pd
 from src.config.skills import TECH_SKILLS
 
+RAW_JOB_REQUIRED_COLUMNS = [
+    "title",
+    "company",
+    "location",
+    "description",
+    "experience_level",
+]
+
+PROCESSED_JOB_REQUIRED_COLUMNS = [
+    "title",
+    "company",
+    "location",
+    "description",
+    "experience_level",
+    "clean_title",
+    "clean_description",
+    "extracted_skills",
+    "role_category",
+    "skills_text",
+]
+
+def validate_required_columns(
+    df: pd.DataFrame,
+    required_columns: list[str],
+    schema_name: str,
+) -> None:
+    """Raise a clear error if a dataframe is missing required columns."""
+    missing_columns = [
+        column for column in required_columns if column not in df.columns
+    ]
+
+    if missing_columns:
+        raise ValueError(
+            f"{schema_name} is missing required columns: {missing_columns}"
+        )
 
 def normalize_text(text: str) -> str:
     """Convert text to lowercase and remove extra spaces."""
@@ -75,8 +110,14 @@ def categorize_role(title: str, description: str) -> str:
 
 
 def process_jobs(input_path: str, output_path: str) -> pd.DataFrame:
-    """Load raw jobs, extract skills/categories, and save processed data."""
+    """Load raw jobs, extract skills/categories, validate schema, and save processed data."""
     df = pd.read_csv(input_path)
+
+    validate_required_columns(
+        df=df,
+        required_columns=RAW_JOB_REQUIRED_COLUMNS,
+        schema_name="Raw jobs dataframe",
+    )
 
     df["clean_title"] = df["title"].apply(normalize_text)
     df["clean_description"] = df["description"].apply(normalize_text)
@@ -89,6 +130,12 @@ def process_jobs(input_path: str, output_path: str) -> pd.DataFrame:
 
     # Save list column as comma-separated text for CSV output.
     df["skills_text"] = df["extracted_skills"].apply(lambda skills: ", ".join(skills))
+
+    validate_required_columns(
+        df=df,
+        required_columns=PROCESSED_JOB_REQUIRED_COLUMNS,
+        schema_name="Processed jobs dataframe",
+    )
 
     df.to_csv(output_path, index=False)
     return df

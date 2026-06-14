@@ -98,6 +98,28 @@ def make_api_processed_jobs_df() -> pd.DataFrame:
         ]
     )
 
+def make_saved_analysis_run() -> dict:
+    return {
+        "id": 1,
+        "name": "analysis_20260101_data_science_sample_jobs",
+        "dataset_name": "sample_jobs",
+        "target_roles": ["Data Scientist"],
+        "location": "Any",
+        "experience_level": "Entry Level",
+        "current_skills": ["Python", "SQL", "Pandas"],
+        "best_role": "Data Science",
+        "weighted_match_score": 75.5,
+        "top_missing_skill": "spark",
+        "jobs_analyzed": 20,
+        "recommended_skills": ["spark", "statistics"],
+        "role_scores": [
+            {
+                "role_category": "Data Science",
+                "weighted_match_score": 75.5,
+            }
+        ],
+        "created_at": datetime(2026, 1, 1, tzinfo=UTC),
+    }
 
 def test_list_datasets_returns_database_datasets(monkeypatch) -> None:
     monkeypatch.setattr(api_main, "check_database_connection", lambda: True)
@@ -185,3 +207,82 @@ def test_analyze_database_dataset_returns_404_when_dataset_missing(monkeypatch) 
 
     assert response.status_code == 404
     assert "missing_dataset" in response.json()["detail"]
+
+def test_list_analysis_runs_returns_saved_runs(monkeypatch) -> None:
+    monkeypatch.setattr(api_main, "check_database_connection", lambda: True)
+    monkeypatch.setattr(
+        api_main,
+        "list_analysis_runs",
+        lambda: [make_saved_analysis_run()],
+    )
+
+    response = client.get("/analysis-runs")
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert len(data) == 1
+    assert data[0]["id"] == 1
+    assert data[0]["name"] == "analysis_20260101_data_science_sample_jobs"
+    assert data[0]["dataset_name"] == "sample_jobs"
+    assert data[0]["target_roles"] == ["Data Scientist"]
+    assert data[0]["current_skills"] == ["Python", "SQL", "Pandas"]
+    assert data[0]["best_role"] == "Data Science"
+    assert data[0]["weighted_match_score"] == 75.5
+    assert data[0]["top_missing_skill"] == "spark"
+    assert data[0]["jobs_analyzed"] == 20
+    assert data[0]["recommended_skills"] == ["spark", "statistics"]
+    assert "role_scores" in data[0]
+    assert "created_at" in data[0]
+
+
+def test_list_analysis_runs_returns_503_when_database_unavailable(monkeypatch) -> None:
+    monkeypatch.setattr(api_main, "check_database_connection", lambda: False)
+
+    response = client.get("/analysis-runs")
+
+    assert response.status_code == 503
+    assert "PostgreSQL is unavailable" in response.json()["detail"]
+
+
+def test_get_analysis_run_returns_saved_run(monkeypatch) -> None:
+    monkeypatch.setattr(api_main, "check_database_connection", lambda: True)
+
+    def fake_load_analysis_run(analysis_run_id: int) -> dict:
+        assert analysis_run_id == 1
+        return make_saved_analysis_run()
+
+    monkeypatch.setattr(api_main, "load_analysis_run", fake_load_analysis_run)
+
+    response = client.get("/analysis-runs/1")
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["id"] == 1
+    assert data["dataset_name"] == "sample_jobs"
+    assert data["target_roles"] == ["Data Scientist"]
+    assert data["current_skills"] == ["Python", "SQL", "Pandas"]
+    assert data["best_role"] == "Data Science"
+    assert data["recommended_skills"] == ["spark", "statistics"]
+
+
+def test_get_analysis_run_returns_404_when_missing(monkeypatch) -> None:
+    monkeypatch.setattr(api_main, "check_database_connection", lambda: True)
+    monkeypatch.setattr(api_main, "load_analysis_run", lambda analysis_run_id: None)
+
+    response = client.get("/analysis-runs/999")
+
+    assert response.status_code == 404
+    assert "Analysis run 999 was not found" in response.json()["detail"]
+
+
+def test_get_analysis_run_returns_503_when_database_unavailable(monkeypatch) -> None:
+    monkeypatch.setattr(api_main, "check_database_connection", lambda: False)
+
+    response = client.get("/analysis-runs/1")
+
+    assert response.status_code == 503
+    assert "PostgreSQL is unavailable" in response.json()["detail"]

@@ -365,9 +365,16 @@ def list_analysis_runs() -> list[dict[str, Any]]:
             AnalysisRun.id,
             AnalysisRun.name,
             AnalysisRun.dataset_name,
+            AnalysisRun.target_roles,
+            AnalysisRun.location,
+            AnalysisRun.experience_level,
+            AnalysisRun.current_skills,
             AnalysisRun.best_role,
             AnalysisRun.weighted_match_score,
+            AnalysisRun.top_missing_skill,
             AnalysisRun.jobs_analyzed,
+            AnalysisRun.recommended_skills,
+            AnalysisRun.role_scores,
             AnalysisRun.created_at,
         ).order_by(AnalysisRun.created_at.desc())
 
@@ -378,14 +385,20 @@ def list_analysis_runs() -> list[dict[str, Any]]:
             "id": row.id,
             "name": row.name,
             "dataset_name": row.dataset_name,
+            "target_roles": row.target_roles,
+            "location": row.location,
+            "experience_level": row.experience_level,
+            "current_skills": row.current_skills,
             "best_role": row.best_role,
             "weighted_match_score": row.weighted_match_score,
+            "top_missing_skill": row.top_missing_skill,
             "jobs_analyzed": row.jobs_analyzed,
+            "recommended_skills": row.recommended_skills,
+            "role_scores": row.role_scores,
             "created_at": row.created_at,
         }
         for row in rows
     ]
-
 
 def load_analysis_run(analysis_run_id: int) -> dict[str, Any] | None:
     """

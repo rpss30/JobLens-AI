@@ -59,6 +59,7 @@ The dashboard also shows market-level insights such as top required skills, role
 - Saved PostgreSQL datasets can be selected and reloaded from the dashboard
 - FastAPI backend with health check and candidate analysis endpoint
 - Docker Compose support for running the dashboard, API, and PostgreSQL together
+- FastAPI dataset listing and PostgreSQL-backed analysis support
 
 
 
@@ -301,6 +302,27 @@ curl -X POST http://127.0.0.1:8000/analyze \
   }'
 ```
 
+List PostgreSQL datasets:
+
+```bash
+curl http://127.0.0.1:8000/datasets
+```
+
+Analyze a PostgreSQL-backed dataset:
+
+```bash
+curl -X POST http://127.0.0.1:8000/analyze \
+  -H "Content-Type: application/json" \
+  -d '{
+    "dataset_name": "sample_jobs",
+    "current_skills": ["Python", "SQL", "Pandas"],
+    "target_roles": ["Data Scientist"],
+    "location": "Any",
+    "experience_level": "Entry Level",
+    "top_n": 5
+  }'
+```
+
 ## Running with Docker
 
 JobLens AI can also be run with Docker Compose.
@@ -500,6 +522,7 @@ Completed:
 - Saved analysis runs can be persisted to PostgreSQL and previewed later from the dashboard sidebar.
 - FastAPI backend with `/health` and `/analyze` endpoints
 - Docker Compose setup for Streamlit, FastAPI, and PostgreSQL
+- FastAPI can list PostgreSQL datasets and analyze a selected saved dataset
 
 Not built yet:
 
@@ -530,7 +553,7 @@ Planned next steps:
 
 - Add real job ingestion from public job sources or APIs
 - Add saved analysis runs and dataset history in PostgreSQL
-- Expand FastAPI support for PostgreSQL-backed datasets and saved analysis runs
+- Add FastAPI endpoints for saved analysis runs
 - Add AWS deployment option beyond the current Streamlit Cloud deployment
 - Improve skill alias matching for terms like `JS`, `JavaScript`, `Node`, and `Node.js`
 - Add trend analysis for skills by role and location

@@ -2,7 +2,7 @@
 
 JobLens AI is a personalized job market intelligence dashboard that helps candidates understand how well their current skills align with target roles.
 
-The dashboard analyzes job postings, extracts required technical skills, groups roles into market categories, calculates role-specific match scores, and recommends high-impact skills to learn next.
+The dashboard analyzes job postings, extracts required technical skills, groups roles into market categories, calculates role-specific match scores, recommends high-impact skills to learn next, and generates a downloadable candidate skill-gap report.
 
 Current MVP uses a curated sample dataset of job postings to simulate role-specific market analysis. The app can run from the local processed CSV dataset or from PostgreSQL, supports saving uploaded CSV datasets to PostgreSQL, and allows saved database datasets to be reloaded from the dashboard. Future iterations will expand to larger real-world ingestion pipelines.
 
@@ -47,6 +47,7 @@ The dashboard also shows market-level insights such as top required skills, role
 - Skill-gap analysis based on selected candidate skills
 - Recommended skills ranked by market demand and role importance
 - Candidate fit summary with highlighted strengths and gaps
+- Downloadable Markdown candidate skill-gap report
 - Top matching job cards with job-level evidence
 - Jobs-by-location market insight
 - Role distribution and top hiring companies
@@ -416,6 +417,7 @@ Completed:
 - Search presets
 - Candidate profile presets
 - Candidate fit summary
+- Downloadable candidate skill-gap report
 - Top matching job cards
 - Jobs-by-location chart
 - Role and skill visualizations
@@ -434,7 +436,6 @@ Not built yet:
 
 - Real job scraping or external job ingestion
 - Dataset management features such as renaming or deleting saved datasets
-- Saved analysis runs
 - FastAPI backend
 - Dockerized deployment
 - Authentication or multi-user support
@@ -465,7 +466,7 @@ Planned next steps:
 - Add AWS deployment option beyond the current Streamlit Cloud deployment
 - Improve skill alias matching for terms like `JS`, `JavaScript`, `Node`, and `Node.js`
 - Add trend analysis for skills by role and location
-- Add downloadable candidate skill-gap reports
+- Add PDF export for candidate skill-gap reports
 - Add dataset management controls for renaming and deleting saved datasets
 
 

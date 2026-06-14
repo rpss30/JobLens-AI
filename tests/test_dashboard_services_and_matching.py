@@ -3,6 +3,7 @@ import pytest
 
 from src.dashboard.services import (
     filter_jobs,
+    generate_candidate_report_markdown,
     get_job_match_details,
     get_recommended_skills,
     read_uploaded_jobs_csv,
@@ -323,3 +324,72 @@ def test_read_uploaded_jobs_csv_rejects_bad_csv_format(tmp_path) -> None:
 
     with pytest.raises(pd.errors.ParserError):
         read_uploaded_jobs_csv(bad_csv_path)
+
+def test_generate_candidate_report_markdown_includes_key_sections() -> None:
+    jobs_df = make_sample_jobs_df()
+    current_skills = ["Python", "SQL", "Pandas"]
+    target_roles = ["Data Scientist"]
+
+    filtered_jobs = filter_jobs(
+        df=jobs_df,
+        target_roles=target_roles,
+        location="Toronto ON",
+        experience_level="Entry Level",
+    )
+
+    role_skill_weights = build_role_skill_weights(filtered_jobs)
+
+    role_scores_df = score_roles(
+        filtered_jobs,
+        user_skills=current_skills,
+    )
+
+    recommended_skills_df = get_recommended_skills(
+        jobs_df=filtered_jobs,
+        user_skills=current_skills,
+        role_skill_weights=role_skill_weights,
+        top_n=10,
+    )
+
+    job_match_details_df = get_job_match_details(
+        filtered_jobs=filtered_jobs,
+        user_skills=current_skills,
+    )
+
+    report_markdown = generate_candidate_report_markdown(
+        current_skills=current_skills,
+        target_roles=target_roles,
+        location="Toronto ON",
+        experience_level="Entry Level",
+        filtered_jobs=filtered_jobs,
+        role_scores_df=role_scores_df,
+        recommended_skills_df=recommended_skills_df,
+        job_match_details_df=job_match_details_df,
+        candidate_fit_summary={
+            "summary": (
+                "Your strongest fit is <strong>Data Science</strong> "
+                "with a strong weighted match."
+            ),
+            "matched_skills": ["Python", "SQL", "Pandas"],
+            "missing_skills": ["statistics"],
+        },
+        dataset_name="test_dataset",
+    )
+
+    assert "# JobLens AI Candidate Skill-Gap Report" in report_markdown
+    assert "## Analysis Inputs" in report_markdown
+    assert "## Fit Overview" in report_markdown
+    assert "## Candidate Fit Summary" in report_markdown
+    assert "## Recommended Skills to Learn" in report_markdown
+    assert "## Role Score Breakdown" in report_markdown
+    assert "## Top Matching Jobs" in report_markdown
+
+    assert "test_dataset" in report_markdown
+    assert "Data Scientist" in report_markdown
+    assert "Toronto ON" in report_markdown
+    assert "Entry Level" in report_markdown
+    assert "Python, SQL, Pandas" in report_markdown
+    assert "Data Science" in report_markdown
+
+    assert "<strong>" not in report_markdown
+    assert "</strong>" not in report_markdown

@@ -27,6 +27,7 @@ from src.dashboard.components import (
 )
 from src.dashboard.services import (
     filter_jobs,
+    generate_candidate_report_markdown,
     get_available_locations,
     get_available_skills,
     get_available_target_roles,
@@ -726,6 +727,33 @@ def main() -> None:
     top_companies_df = get_top_companies(filtered_jobs, top_n=10)
     jobs_by_location_df = get_jobs_by_location(filtered_jobs)
     job_match_details_df = get_job_match_details(filtered_jobs, current_skills)
+
+    if uploaded_jobs_file is not None:
+        report_dataset_name = uploaded_jobs_file.name
+    elif use_database:
+        report_dataset_name = selected_database_dataset
+    else:
+        report_dataset_name = dataset_source
+
+    candidate_report_markdown = generate_candidate_report_markdown(
+        current_skills=current_skills,
+        target_roles=target_roles,
+        location=location,
+        experience_level=experience_level,
+        filtered_jobs=filtered_jobs,
+        role_scores_df=role_scores_df,
+        recommended_skills_df=recommended_skills_df,
+        job_match_details_df=job_match_details_df,
+        candidate_fit_summary=candidate_summary,
+        dataset_name=report_dataset_name,
+    )
+
+    st.download_button(
+        label="Download candidate skill-gap report",
+        data=candidate_report_markdown,
+        file_name="joblens_candidate_skill_gap_report.md",
+        mime="text/markdown",
+    )
 
     st.divider()
 

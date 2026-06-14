@@ -1,6 +1,7 @@
 # src/dashboard/services.py
 
 import ast
+import re
 from pathlib import Path
 
 import pandas as pd
@@ -618,6 +619,191 @@ def get_candidate_fit_summary(
         "missing_skills": top_missing_skills,
     }
 
+def generate_candidate_report_markdown(
+    current_skills: list[str],
+    target_roles: list[str],
+    location: str,
+    experience_level: str,
+    filtered_jobs: pd.DataFrame,
+    role_scores_df: pd.DataFrame,
+    recommended_skills_df: pd.DataFrame,
+    job_match_details_df: pd.DataFrame,
+    candidate_fit_summary: dict | None = None,
+    dataset_name: str = "Current dataset",
+) -> str:
+    """
+    Generate a downloadable Markdown candidate skill-gap report.
+
+    This function only formats already-computed dashboard results.
+    It does not perform scoring, filtering, or recommendation logic.
+    """
+
+    def clean_html(raw_text: object) -> str:
+        if not isinstance(raw_text, str):
+            return ""
+
+        return re.sub(r"<[^>]+>", "", raw_text).strip()
+
+    def format_list(values: list[str], fallback: str = "None selected") -> str:
+        clean_values = [
+            str(value).strip()
+            for value in values
+            if str(value).strip()
+        ]
+
+        if not clean_values:
+            return fallback
+
+        return ", ".join(clean_values)
+
+    def format_skill_list(value: object, fallback: str = "None") -> str:
+        if isinstance(value, list):
+            return format_list(value, fallback=fallback)
+
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+
+        return fallback
+
+    jobs_analyzed = len(filtered_jobs)
+
+    best_role = "N/A"
+    best_score = 0.0
+    top_missing_skill = "N/A"
+
+    if not role_scores_df.empty and "weighted_match_score" in role_scores_df.columns:
+        best_role_row = role_scores_df.sort_values(
+            by="weighted_match_score",
+            ascending=False,
+        ).iloc[0]
+
+        best_role = str(best_role_row.get("role_category", "N/A"))
+        best_score = float(best_role_row.get("weighted_match_score", 0.0))
+
+        missing_skills = best_role_row.get("missing_skills", [])
+        if isinstance(missing_skills, list) and missing_skills:
+            top_missing_skill = str(missing_skills[0])
+
+    if not recommended_skills_df.empty and "skill" in recommended_skills_df.columns:
+        top_missing_skill = str(recommended_skills_df.iloc[0]["skill"])
+
+    report_lines = [
+        "# JobLens AI Candidate Skill-Gap Report",
+        "",
+        "## Analysis Inputs",
+        "",
+        f"- Dataset: {dataset_name}",
+        f"- Target roles: {format_list(target_roles)}",
+        f"- Location filter: {location or 'Any'}",
+        f"- Experience level filter: {experience_level or 'Any'}",
+        f"- Current skills: {format_list(current_skills)}",
+        "",
+        "## Fit Overview",
+        "",
+        f"- Jobs analyzed: {jobs_analyzed}",
+        f"- Best-fit role category: {best_role}",
+        f"- Weighted match score: {best_score:.1f}%",
+        f"- Top recommended skill gap: {top_missing_skill}",
+        "",
+    ]
+
+    if candidate_fit_summary and candidate_fit_summary.get("summary"):
+        report_lines.extend([
+            "## Candidate Fit Summary",
+            "",
+            clean_html(candidate_fit_summary["summary"]),
+            "",
+        ])
+
+    report_lines.extend([
+        "## Recommended Skills to Learn",
+        "",
+    ])
+
+    if recommended_skills_df.empty:
+        report_lines.append("No recommended skills were generated for the current filters.")
+    else:
+        report_lines.extend([
+            "| Skill | Score | Job Count | Average Weight |",
+            "| --- | ---: | ---: | ---: |",
+        ])
+
+        for _, row in recommended_skills_df.head(10).iterrows():
+            report_lines.append(
+                "| "
+                f"{row.get('skill', 'N/A')} | "
+                f"{float(row.get('score', 0)):.2f} | "
+                f"{int(row.get('job_count', 0))} | "
+                f"{float(row.get('avg_weight', 0)):.2f} |"
+            )
+
+    report_lines.extend([
+        "",
+        "## Role Score Breakdown",
+        "",
+    ])
+
+    if role_scores_df.empty:
+        report_lines.append("No role score breakdown is available for the current filters.")
+    else:
+        report_lines.extend([
+            "| Role Category | Weighted Match Score | Matched Skills | Missing Skills |",
+            "| --- | ---: | --- | --- |",
+        ])
+
+        sorted_role_scores = role_scores_df.sort_values(
+            by="weighted_match_score",
+            ascending=False,
+        )
+
+        for _, row in sorted_role_scores.iterrows():
+            report_lines.append(
+                "| "
+                f"{row.get('role_category', 'N/A')} | "
+                f"{float(row.get('weighted_match_score', 0)):.1f}% | "
+                f"{format_skill_list(row.get('matched_skills', []))} | "
+                f"{format_skill_list(row.get('missing_skills', []))} |"
+            )
+
+    report_lines.extend([
+        "",
+        "## Top Matching Jobs",
+        "",
+    ])
+
+    if job_match_details_df.empty:
+        report_lines.append("No job-level matches are available for the current filters.")
+    else:
+        report_lines.extend([
+            "| Title | Company | Location | Match Score | Matched Skills | Missing Skills |",
+            "| --- | --- | --- | ---: | --- | --- |",
+        ])
+
+        for _, row in job_match_details_df.head(10).iterrows():
+            report_lines.append(
+                "| "
+                f"{row.get('title', 'N/A')} | "
+                f"{row.get('company', 'N/A')} | "
+                f"{row.get('location', 'N/A')} | "
+                f"{float(row.get('job_match_score', 0)):.1f}% | "
+                f"{row.get('matched_skills_preview', 'None')} | "
+                f"{row.get('missing_skills_preview', 'None')} |"
+            )
+
+    report_lines.extend([
+        "",
+        "## Notes",
+        "",
+        (
+            "This report is based on the currently selected JobLens AI dataset, "
+            "filters, and candidate skills. Match scores are intended for portfolio "
+            "analysis and skill-gap exploration, not hiring decisions."
+        ),
+        "",
+    ])
+
+    return "\n".join(report_lines)
+    
 def get_role_sample_context(jobs_df: pd.DataFrame) -> pd.DataFrame:
     """
     Returns how many job postings were analyzed per role category,

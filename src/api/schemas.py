@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -42,7 +43,22 @@ class DatasetSummary(BaseModel):
     source_type: str
     created_at: datetime
 
-
+class AnalysisRunResponse(BaseModel):
+    id: int
+    name: str
+    dataset_name: str
+    target_roles: list[str]
+    location: str
+    experience_level: str
+    current_skills: list[str]
+    best_role: str | None
+    weighted_match_score: float | None
+    top_missing_skill: str | None
+    jobs_analyzed: int
+    recommended_skills: list[str]
+    role_scores: list[dict[str, Any]]
+    created_at: datetime
+    
 class RecommendedSkill(BaseModel):
     skill: str
     score: float

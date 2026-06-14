@@ -1,9 +1,15 @@
 from functools import lru_cache
+from typing import Any
 
 import pandas as pd
 from fastapi import FastAPI, HTTPException
 
-from src.api.schemas import AnalyzeRequest, AnalyzeResponse, DatasetSummary
+from src.api.schemas import (
+    AnalysisRunResponse,
+    AnalyzeRequest,
+    AnalyzeResponse,
+    DatasetSummary,
+)
 from src.dashboard.services import (
     filter_jobs,
     get_job_match_details,
@@ -12,7 +18,9 @@ from src.dashboard.services import (
 )
 from src.database.repository import (
     check_database_connection,
+    list_analysis_runs,
     list_datasets,
+    load_analysis_run,
     load_processed_jobs_dataframe,
 )
 from src.matching.match_engine import build_role_skill_weights, score_roles
@@ -207,6 +215,38 @@ def get_datasets() -> list[dict]:
 
     return list_datasets()
 
+@app.get("/analysis-runs", response_model=list[AnalysisRunResponse])
+def get_analysis_runs() -> list[dict[str, Any]]:
+    """List saved PostgreSQL analysis runs."""
+
+    if not check_database_connection():
+        raise HTTPException(
+            status_code=503,
+            detail="PostgreSQL is unavailable, so analysis runs cannot be listed.",
+        )
+
+    return list_analysis_runs()
+
+
+@app.get("/analysis-runs/{analysis_run_id}", response_model=AnalysisRunResponse)
+def get_analysis_run(analysis_run_id: int) -> dict[str, Any]:
+    """Load one saved PostgreSQL analysis run by ID."""
+
+    if not check_database_connection():
+        raise HTTPException(
+            status_code=503,
+            detail="PostgreSQL is unavailable, so analysis runs cannot be loaded.",
+        )
+
+    analysis_run = load_analysis_run(analysis_run_id)
+
+    if analysis_run is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Analysis run {analysis_run_id} was not found.",
+        )
+
+    return analysis_run
 
 @app.post("/analyze", response_model=AnalyzeResponse)
 def analyze_jobs(request: AnalyzeRequest) -> AnalyzeResponse:

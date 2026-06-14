@@ -20,7 +20,7 @@ sys.path.append(str(ROOT_DIR))
 from src.skill_extraction.gemini_extractor import extract_skills_with_gemini
 
 
-INPUT_PATH = ROOT_DIR / "data" / "processed" / "adzuna_processed_jobs.csv"
+INPUT_PATH = ROOT_DIR / "data" / "processed" / "processed_jobs.csv"
 OUTPUT_PATH = ROOT_DIR / "data" / "processed" / "gemini_skill_extraction_comparison.csv"
 
 

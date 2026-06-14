@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, Field
 
 
@@ -26,6 +28,19 @@ class AnalyzeRequest(BaseModel):
         le=25,
         description="Number of recommended skills and matching jobs to return.",
     )
+    dataset_name: str | None = Field(
+        default=None,
+        description=(
+            "Optional PostgreSQL dataset name. If omitted, the API uses "
+            "the local sample dataset."
+        ),
+    )
+
+
+class DatasetSummary(BaseModel):
+    name: str
+    source_type: str
+    created_at: datetime
 
 
 class RecommendedSkill(BaseModel):
@@ -60,6 +75,7 @@ class JobMatch(BaseModel):
 
 
 class AnalyzeResponse(BaseModel):
+    dataset_name: str
     best_role: str
     weighted_match_score: float
     top_missing_skill: str

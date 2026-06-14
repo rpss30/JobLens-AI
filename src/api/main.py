@@ -3,12 +3,17 @@ from functools import lru_cache
 import pandas as pd
 from fastapi import FastAPI, HTTPException
 
-from src.api.schemas import AnalyzeRequest, AnalyzeResponse
+from src.api.schemas import AnalyzeRequest, AnalyzeResponse, DatasetSummary
 from src.dashboard.services import (
     filter_jobs,
     get_job_match_details,
     get_recommended_skills,
     prepare_processed_jobs_for_dashboard,
+)
+from src.database.repository import (
+    check_database_connection,
+    list_datasets,
+    load_processed_jobs_dataframe,
 )
 from src.matching.match_engine import build_role_skill_weights, score_roles
 from src.processing.job_processor import process_jobs
@@ -16,29 +21,58 @@ from src.processing.job_processor import process_jobs
 
 RAW_DATA_PATH = "data/raw/sample_jobs.csv"
 PROCESSED_DATA_PATH = "data/processed/processed_jobs.csv"
+LOCAL_SAMPLE_DATASET_NAME = "local_sample"
 
 app = FastAPI(
     title="JobLens AI API",
     description="Backend API for JobLens AI role-fit and skill-gap analysis.",
-    version="0.1.0",
+    version="0.2.0",
 )
 
 
 @lru_cache(maxsize=1)
 def load_api_jobs() -> pd.DataFrame:
-    """
-    Load the default JobLens dataset for API analysis.
-
-    The API intentionally starts with the local sample dataset only.
-    PostgreSQL and uploaded datasets can be added later without changing
-    the core response contract.
-    """
+    """Load the local sample JobLens dataset for API analysis."""
     jobs_df = process_jobs(
         input_path=RAW_DATA_PATH,
         output_path=PROCESSED_DATA_PATH,
     )
 
     return prepare_processed_jobs_for_dashboard(jobs_df)
+
+
+def load_jobs_for_analysis(dataset_name: str | None) -> tuple[str, pd.DataFrame]:
+    """
+    Load jobs for API analysis.
+
+    If dataset_name is omitted, use the local sample dataset.
+    If dataset_name is provided, load that dataset from PostgreSQL.
+    """
+
+    if not dataset_name:
+        return LOCAL_SAMPLE_DATASET_NAME, load_api_jobs()
+
+    if not check_database_connection():
+        raise HTTPException(
+            status_code=503,
+            detail="PostgreSQL is unavailable, so database datasets cannot be loaded.",
+        )
+
+    try:
+        jobs_df = load_processed_jobs_dataframe(dataset_name=dataset_name)
+    except Exception as error:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Could not load dataset '{dataset_name}' from PostgreSQL.",
+        ) from error
+
+    if jobs_df.empty:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Dataset '{dataset_name}' was not found or contains no processed jobs.",
+        )
+
+    return dataset_name, prepare_processed_jobs_for_dashboard(jobs_df)
 
 
 def get_top_insights(
@@ -70,6 +104,8 @@ def get_top_insights(
 
 
 def build_analyze_response(
+    *,
+    dataset_name: str,
     filtered_jobs: pd.DataFrame,
     current_skills: list[str],
     top_n: int,
@@ -142,6 +178,7 @@ def build_analyze_response(
     ]
 
     return AnalyzeResponse(
+        dataset_name=dataset_name,
         best_role=best_role,
         weighted_match_score=best_score,
         top_missing_skill=top_missing_skill,
@@ -158,11 +195,24 @@ def health_check() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@app.get("/datasets", response_model=list[DatasetSummary])
+def get_datasets() -> list[dict]:
+    """List PostgreSQL datasets available for API analysis."""
+
+    if not check_database_connection():
+        raise HTTPException(
+            status_code=503,
+            detail="PostgreSQL is unavailable, so datasets cannot be listed.",
+        )
+
+    return list_datasets()
+
+
 @app.post("/analyze", response_model=AnalyzeResponse)
 def analyze_jobs(request: AnalyzeRequest) -> AnalyzeResponse:
-    """Analyze candidate fit against the default JobLens dataset."""
+    """Analyze candidate fit against the local sample dataset or a PostgreSQL dataset."""
 
-    jobs_df = load_api_jobs()
+    dataset_name, jobs_df = load_jobs_for_analysis(request.dataset_name)
 
     filtered_jobs = filter_jobs(
         df=jobs_df,
@@ -181,6 +231,7 @@ def analyze_jobs(request: AnalyzeRequest) -> AnalyzeResponse:
         )
 
     return build_analyze_response(
+        dataset_name=dataset_name,
         filtered_jobs=filtered_jobs,
         current_skills=request.current_skills,
         top_n=request.top_n,

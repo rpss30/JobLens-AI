@@ -1,0 +1,39 @@
+services:
+  dashboard:
+    build: .
+    container_name: joblens-dashboard
+    command: streamlit run src/dashboard/app.py --server.address=0.0.0.0 --server.port=8501
+    ports:
+      - "8501:8501"
+    environment:
+      - PYTHONPATH=/app
+      - DATABASE_URL=postgresql+psycopg://postgres:postgres@db:5432/joblens_ai
+    depends_on:
+      - db
+
+  api:
+    build: .
+    container_name: joblens-api
+    command: uvicorn src.api.main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONPATH=/app
+      - DATABASE_URL=postgresql+psycopg://postgres:postgres@db:5432/joblens_ai
+    depends_on:
+      - db
+
+  db:
+    image: postgres:16
+    container_name: joblens-postgres
+    environment:
+      - POSTGRES_DB=joblens_ai
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - joblens_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  joblens_postgres_data:

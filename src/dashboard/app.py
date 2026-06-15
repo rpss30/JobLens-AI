@@ -31,6 +31,7 @@ from src.dashboard.components import (
 from src.dashboard.services import (
     filter_jobs,
     generate_candidate_report_markdown,
+    generate_candidate_report_pdf,
     get_available_locations,
     get_available_skills,
     get_available_target_roles,
@@ -1373,14 +1374,42 @@ def main() -> None:
         dataset_name=report_dataset_name,
     )
 
-    st.download_button(
-        label="Download candidate skill-gap report",
-        data=candidate_report_markdown,
-        file_name="joblens_candidate_skill_gap_report.md",
-        mime="text/markdown",
-        type="primary",
-        icon=":material/download:",
+    candidate_report_pdf = generate_candidate_report_pdf(
+        current_skills=current_skills,
+        target_roles=target_roles,
+        location=location,
+        experience_level=experience_level,
+        filtered_jobs=filtered_jobs,
+        role_scores_df=role_scores_df,
+        recommended_skills_df=recommended_skills_df,
+        job_match_details_df=job_match_details_df,
+        candidate_fit_summary=candidate_summary,
+        dataset_name=report_dataset_name,
     )
+
+    markdown_download_col, pdf_download_col = st.columns(2)
+
+    with markdown_download_col:
+        st.download_button(
+            label="Download Markdown report",
+            data=candidate_report_markdown,
+            file_name="joblens_candidate_skill_gap_report.md",
+            mime="text/markdown",
+            type="primary",
+            icon=":material/download:",
+            width="stretch",
+        )
+
+    with pdf_download_col:
+        st.download_button(
+            label="Download PDF report",
+            data=candidate_report_pdf,
+            file_name="joblens_candidate_skill_gap_report.pdf",
+            mime="application/pdf",
+            type="secondary",
+            icon=":material/picture_as_pdf:",
+            width="stretch",
+        )
 
     st.divider()
 

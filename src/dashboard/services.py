@@ -2,10 +2,23 @@
 
 import ast
 import re
+from html import escape
+from io import BytesIO
 from pathlib import Path
 
 import pandas as pd
 import streamlit as st
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.units import inch
+from reportlab.platypus import (
+    Paragraph,
+    SimpleDocTemplate,
+    Spacer,
+    Table,
+    TableStyle,
+)
 
 from src.processing.job_processor import process_jobs
 
@@ -895,7 +908,366 @@ def generate_candidate_report_markdown(
     ])
 
     return "\n".join(report_lines)
-    
+
+
+def generate_candidate_report_pdf(
+    current_skills: list[str],
+    target_roles: list[str],
+    location: str,
+    experience_level: str,
+    filtered_jobs: pd.DataFrame,
+    role_scores_df: pd.DataFrame,
+    recommended_skills_df: pd.DataFrame,
+    job_match_details_df: pd.DataFrame,
+    candidate_fit_summary: dict | None = None,
+    dataset_name: str = "Current dataset",
+) -> bytes:
+    """
+    Generate a downloadable PDF candidate skill-gap report.
+
+    This mirrors the Markdown report content while using a structured PDF
+    layout suitable for sharing as a portfolio/demo artifact.
+    """
+
+    def clean_html(raw_text: object) -> str:
+        if not isinstance(raw_text, str):
+            return ""
+
+        return re.sub(r"<[^>]+>", "", raw_text).strip()
+
+    def format_list(values: list[str], fallback: str = "None selected") -> str:
+        clean_values = [
+            str(value).strip()
+            for value in values
+            if str(value).strip()
+        ]
+
+        if not clean_values:
+            return fallback
+
+        return ", ".join(clean_values)
+
+    def format_skill_list(value: object, fallback: str = "None") -> str:
+        if isinstance(value, list):
+            return format_list(value, fallback=fallback)
+
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+
+        return fallback
+
+    def paragraph(text: object, style: ParagraphStyle) -> Paragraph:
+        return Paragraph(escape(str(text)), style)
+
+    def section_title(text: str) -> None:
+        story.append(Spacer(1, 0.16 * inch))
+        story.append(paragraph(text, styles["ReportHeading"]))
+        story.append(Spacer(1, 0.06 * inch))
+
+    def build_table(
+        headers: list[str],
+        rows: list[list[object]],
+        column_widths: list[float],
+    ) -> Table:
+        table_data = [
+            [paragraph(header, styles["TableHeader"]) for header in headers]
+        ]
+
+        for row in rows:
+            table_data.append([
+                paragraph(value, styles["TableCell"])
+                for value in row
+            ])
+
+        table = Table(
+            table_data,
+            colWidths=column_widths,
+            hAlign="LEFT",
+            repeatRows=1,
+        )
+        table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#e2e8f0")),
+                    ("BOX", (0, 0), (-1, -1), 0.35, colors.HexColor("#cbd5e1")),
+                    ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#cbd5e1")),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                    ("TOPPADDING", (0, 0), (-1, -1), 6),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ]
+            )
+        )
+        return table
+
+    def add_footer(canvas, doc) -> None:
+        canvas.saveState()
+        canvas.setFont("Helvetica", 8)
+        canvas.setFillColor(colors.HexColor("#64748b"))
+        canvas.drawString(doc.leftMargin, 0.42 * inch, "JobLens AI")
+        canvas.drawRightString(
+            letter[0] - doc.rightMargin,
+            0.42 * inch,
+            f"Page {doc.page}",
+        )
+        canvas.restoreState()
+
+    jobs_analyzed = len(filtered_jobs)
+
+    best_role = "N/A"
+    best_score = 0.0
+    top_missing_skill = "N/A"
+
+    if not role_scores_df.empty and "weighted_match_score" in role_scores_df.columns:
+        best_role_row = role_scores_df.sort_values(
+            by="weighted_match_score",
+            ascending=False,
+        ).iloc[0]
+
+        best_role = str(best_role_row.get("role_category", "N/A"))
+        best_score = float(best_role_row.get("weighted_match_score", 0.0))
+
+        missing_skills = best_role_row.get("missing_skills", [])
+        if isinstance(missing_skills, list) and missing_skills:
+            top_missing_skill = str(missing_skills[0])
+
+    if not recommended_skills_df.empty and "skill" in recommended_skills_df.columns:
+        top_missing_skill = str(recommended_skills_df.iloc[0]["skill"])
+
+    buffer = BytesIO()
+    document = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        rightMargin=0.55 * inch,
+        leftMargin=0.55 * inch,
+        topMargin=0.55 * inch,
+        bottomMargin=0.6 * inch,
+        title="JobLens AI Candidate Skill-Gap Report",
+    )
+
+    stylesheet = getSampleStyleSheet()
+    styles = {
+        "Title": ParagraphStyle(
+            "ReportTitle",
+            parent=stylesheet["Title"],
+            fontName="Helvetica-Bold",
+            fontSize=22,
+            leading=27,
+            textColor=colors.HexColor("#0f172a"),
+            spaceAfter=8,
+        ),
+        "Subtitle": ParagraphStyle(
+            "ReportSubtitle",
+            parent=stylesheet["BodyText"],
+            fontName="Helvetica",
+            fontSize=10,
+            leading=14,
+            textColor=colors.HexColor("#475569"),
+            spaceAfter=12,
+        ),
+        "ReportHeading": ParagraphStyle(
+            "ReportHeading",
+            parent=stylesheet["Heading2"],
+            fontName="Helvetica-Bold",
+            fontSize=14,
+            leading=18,
+            textColor=colors.HexColor("#0f172a"),
+            spaceBefore=4,
+            spaceAfter=4,
+        ),
+        "Body": ParagraphStyle(
+            "ReportBody",
+            parent=stylesheet["BodyText"],
+            fontName="Helvetica",
+            fontSize=9.5,
+            leading=13,
+            textColor=colors.HexColor("#1e293b"),
+        ),
+        "TableHeader": ParagraphStyle(
+            "ReportTableHeader",
+            parent=stylesheet["BodyText"],
+            fontName="Helvetica-Bold",
+            fontSize=8.2,
+            leading=10,
+            textColor=colors.HexColor("#0f172a"),
+        ),
+        "TableCell": ParagraphStyle(
+            "ReportTableCell",
+            parent=stylesheet["BodyText"],
+            fontName="Helvetica",
+            fontSize=7.7,
+            leading=9.5,
+            textColor=colors.HexColor("#1e293b"),
+        ),
+    }
+
+    story: list = [
+        paragraph("JobLens AI Candidate Skill-Gap Report", styles["Title"]),
+        paragraph(
+            "Personalized job market intelligence for role fit, skill gaps, "
+            "and learning priorities.",
+            styles["Subtitle"],
+        ),
+    ]
+
+    section_title("Analysis Inputs")
+    story.append(
+        build_table(
+            headers=["Field", "Value"],
+            rows=[
+                ["Dataset", dataset_name],
+                ["Target roles", format_list(target_roles)],
+                ["Location filter", location or "Any"],
+                ["Experience level filter", experience_level or "Any"],
+                ["Current skills", format_list(current_skills)],
+            ],
+            column_widths=[1.65 * inch, 5.65 * inch],
+        )
+    )
+
+    section_title("Fit Overview")
+    story.append(
+        build_table(
+            headers=["Metric", "Value"],
+            rows=[
+                ["Jobs analyzed", jobs_analyzed],
+                ["Best-fit role category", best_role],
+                ["Weighted match score", f"{best_score:.1f}%"],
+                ["Top recommended skill gap", top_missing_skill],
+            ],
+            column_widths=[2.1 * inch, 5.2 * inch],
+        )
+    )
+
+    if candidate_fit_summary and candidate_fit_summary.get("summary"):
+        section_title("Candidate Fit Summary")
+        story.append(
+            paragraph(
+                clean_html(candidate_fit_summary["summary"]),
+                styles["Body"],
+            )
+        )
+
+    section_title("Recommended Skills to Learn")
+    if recommended_skills_df.empty:
+        story.append(
+            paragraph(
+                "No recommended skills were generated for the current filters.",
+                styles["Body"],
+            )
+        )
+    else:
+        recommended_rows = []
+        for _, row in recommended_skills_df.head(10).iterrows():
+            recommended_rows.append([
+                row.get("skill", "N/A"),
+                f"{float(row.get('score', 0)):.2f}",
+                int(row.get("job_count", 0)),
+                f"{float(row.get('avg_weight', 0)):.2f}",
+            ])
+
+        story.append(
+            build_table(
+                headers=["Skill", "Score", "Job Count", "Average Weight"],
+                rows=recommended_rows,
+                column_widths=[
+                    2.5 * inch,
+                    1.1 * inch,
+                    1.3 * inch,
+                    1.5 * inch,
+                ],
+            )
+        )
+
+    section_title("Role Score Breakdown")
+    if role_scores_df.empty:
+        story.append(
+            paragraph(
+                "No role score breakdown is available for the current filters.",
+                styles["Body"],
+            )
+        )
+    else:
+        sorted_role_scores = role_scores_df.sort_values(
+            by="weighted_match_score",
+            ascending=False,
+        )
+        role_rows = []
+        for _, row in sorted_role_scores.iterrows():
+            role_rows.append([
+                row.get("role_category", "N/A"),
+                f"{float(row.get('weighted_match_score', 0)):.1f}%",
+                format_skill_list(row.get("matched_skills", [])),
+                format_skill_list(row.get("missing_skills", [])),
+            ])
+
+        story.append(
+            build_table(
+                headers=[
+                    "Role Category",
+                    "Weighted Match",
+                    "Matched Skills",
+                    "Missing Skills",
+                ],
+                rows=role_rows,
+                column_widths=[
+                    1.45 * inch,
+                    0.95 * inch,
+                    2.1 * inch,
+                    2.7 * inch,
+                ],
+            )
+        )
+
+    section_title("Top Matching Jobs")
+    positive_job_matches_df = get_positive_job_matches(job_match_details_df)
+
+    if positive_job_matches_df.empty:
+        story.append(
+            paragraph(
+                "No positive job-level matches are available for the current filters.",
+                styles["Body"],
+            )
+        )
+    else:
+        top_job_rows = []
+        for _, row in positive_job_matches_df.head(10).iterrows():
+            top_job_rows.append([
+                row.get("title", "N/A"),
+                row.get("company", "N/A"),
+                f"{float(row.get('job_match_score', 0)):.1f}%",
+                row.get("matched_skills_preview", "None"),
+            ])
+
+        story.append(
+            build_table(
+                headers=["Title", "Company", "Match", "Matched Skills"],
+                rows=top_job_rows,
+                column_widths=[
+                    2.55 * inch,
+                    1.45 * inch,
+                    0.75 * inch,
+                    2.45 * inch,
+                ],
+            )
+        )
+
+    section_title("Notes")
+    story.append(
+        paragraph(
+            "This report is based on the currently selected JobLens AI dataset, "
+            "filters, and candidate skills. Match scores are intended for "
+            "portfolio analysis and skill-gap exploration, not hiring decisions.",
+            styles["Body"],
+        )
+    )
+
+    document.build(story, onFirstPage=add_footer, onLaterPages=add_footer)
+
+    return buffer.getvalue()
+
+
 def get_role_sample_context(jobs_df: pd.DataFrame) -> pd.DataFrame:
     """
     Returns how many job postings were analyzed per role category,

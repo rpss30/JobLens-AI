@@ -1,9 +1,13 @@
+from io import BytesIO
+
 import pandas as pd
 import pytest
+from pypdf import PdfReader
 
 from src.dashboard.services import (
     filter_jobs,
     generate_candidate_report_markdown,
+    generate_candidate_report_pdf,
     get_candidate_fit_summary,
     get_job_match_details,
     get_positive_job_matches,
@@ -584,3 +588,110 @@ def test_generate_candidate_report_markdown_excludes_zero_score_top_jobs() -> No
 
     assert "Machine Learning Engineer" in top_jobs_section
     assert "Data Scientist" not in top_jobs_section
+
+
+def test_generate_candidate_report_pdf_includes_key_sections() -> None:
+    jobs_df = make_sample_jobs_df()
+    current_skills = ["Python", "SQL", "Pandas"]
+    target_roles = ["Data Scientist"]
+
+    filtered_jobs = filter_jobs(
+        df=jobs_df,
+        target_roles=target_roles,
+        location="Toronto ON",
+        experience_level="Entry Level",
+    )
+
+    role_skill_weights = build_role_skill_weights(filtered_jobs)
+    role_scores_df = score_roles(
+        filtered_jobs,
+        user_skills=current_skills,
+    )
+    recommended_skills_df = get_recommended_skills(
+        jobs_df=filtered_jobs,
+        user_skills=current_skills,
+        role_skill_weights=role_skill_weights,
+        top_n=10,
+    )
+    job_match_details_df = get_job_match_details(
+        filtered_jobs=filtered_jobs,
+        user_skills=current_skills,
+    )
+
+    report_pdf = generate_candidate_report_pdf(
+        current_skills=current_skills,
+        target_roles=target_roles,
+        location="Toronto ON",
+        experience_level="Entry Level",
+        filtered_jobs=filtered_jobs,
+        role_scores_df=role_scores_df,
+        recommended_skills_df=recommended_skills_df,
+        job_match_details_df=job_match_details_df,
+        candidate_fit_summary={
+            "summary": (
+                "Your strongest fit is <strong>Data Science</strong> "
+                "with a strong weighted match."
+            ),
+            "matched_skills": ["Python", "SQL", "Pandas"],
+            "missing_skills": ["statistics"],
+        },
+        dataset_name="test_dataset",
+    )
+
+    assert report_pdf.startswith(b"%PDF")
+
+    pdf_reader = PdfReader(BytesIO(report_pdf))
+    pdf_text = "\n".join(
+        page.extract_text() or ""
+        for page in pdf_reader.pages
+    )
+
+    assert "JobLens AI Candidate Skill-Gap Report" in pdf_text
+    assert "Analysis Inputs" in pdf_text
+    assert "Fit Overview" in pdf_text
+    assert "Candidate Fit Summary" in pdf_text
+    assert "Recommended Skills to Learn" in pdf_text
+    assert "Role Score Breakdown" in pdf_text
+    assert "Top Matching Jobs" in pdf_text
+    assert "test_dataset" in pdf_text
+    assert "Data Scientist" in pdf_text
+
+
+def test_generate_candidate_report_pdf_excludes_zero_score_top_jobs() -> None:
+    jobs_df = make_sample_jobs_df()
+    current_skills = ["PyTorch"]
+
+    role_skill_weights = build_role_skill_weights(jobs_df)
+    role_scores_df = score_roles(jobs_df, user_skills=current_skills)
+    recommended_skills_df = get_recommended_skills(
+        jobs_df=jobs_df,
+        user_skills=current_skills,
+        role_skill_weights=role_skill_weights,
+        top_n=10,
+    )
+    job_match_details_df = get_job_match_details(
+        filtered_jobs=jobs_df,
+        user_skills=current_skills,
+    )
+
+    report_pdf = generate_candidate_report_pdf(
+        current_skills=current_skills,
+        target_roles=["Machine Learning Engineer"],
+        location="Any",
+        experience_level="Any",
+        filtered_jobs=jobs_df,
+        role_scores_df=role_scores_df,
+        recommended_skills_df=recommended_skills_df,
+        job_match_details_df=job_match_details_df,
+        dataset_name="test_dataset",
+    )
+
+    pdf_reader = PdfReader(BytesIO(report_pdf))
+    pdf_text = "\n".join(
+        page.extract_text() or ""
+        for page in pdf_reader.pages
+    )
+    top_jobs_text = pdf_text.split("Top Matching Jobs", 1)[1]
+
+    assert "Machine Learning Engineer" in top_jobs_text
+    assert "Data Scientist" not in top_jobs_text

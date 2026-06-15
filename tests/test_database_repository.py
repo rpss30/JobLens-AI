@@ -3,6 +3,7 @@
 from contextlib import contextmanager
 from types import SimpleNamespace
 
+import pandas as pd
 import pytest
 
 from src.database import repository
@@ -101,6 +102,15 @@ def test_build_uploaded_dataset_name_falls_back_when_custom_name_is_blank():
 
     assert dataset_name.startswith("uploaded_")
     assert dataset_name.endswith("_sample_jobs_upload")
+
+
+def test_save_uploaded_dataset_requires_custom_name():
+    with pytest.raises(ValueError, match="Dataset name is required"):
+        repository.save_uploaded_dataset_from_dataframe(
+            df=pd.DataFrame(),
+            filename="Sample Jobs Upload.csv",
+            custom_name="   ",
+        )
 
 def test_build_analysis_run_name_includes_role_and_dataset_name():
     result = build_analysis_run_name(

@@ -348,6 +348,9 @@ def save_uploaded_dataset_from_dataframe(
     """
     Save a processed uploaded jobs dataframe as a new PostgreSQL dataset.
     """
+    if not custom_name or not custom_name.strip():
+        raise ValueError("Dataset name is required when saving an uploaded CSV.")
+
     dataset_name = build_uploaded_dataset_name(
         filename=filename,
         custom_name=custom_name,

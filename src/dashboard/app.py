@@ -228,6 +228,83 @@ def get_top_insights(
 
     return best_role, best_score, top_missing_skill, jobs_analyzed
 
+
+def format_summary_skills(skills: list[str], fallback: str) -> str:
+    clean_skills = [
+        str(skill).strip()
+        for skill in skills
+        if str(skill).strip()
+    ]
+
+    if not clean_skills:
+        return fallback
+
+    if len(clean_skills) == 1:
+        return clean_skills[0]
+
+    if len(clean_skills) == 2:
+        return f"{clean_skills[0]} and {clean_skills[1]}"
+
+    return f"{', '.join(clean_skills[:-1])}, and {clean_skills[-1]}"
+
+
+def align_candidate_summary_with_match_status(
+    candidate_summary: dict,
+    role_scores_df: pd.DataFrame,
+    best_score: float,
+    top_missing_skill: str,
+    jobs_analyzed: int,
+) -> dict:
+    if best_score > 0 or role_scores_df.empty:
+        return candidate_summary
+
+    best_role_row = role_scores_df.sort_values(
+        by="weighted_match_score",
+        ascending=False,
+    ).iloc[0]
+
+    scored_role = str(best_role_row.get("role_category", "selected roles"))
+    total_possible_weight = int(best_role_row.get("total_possible_weight", 0))
+
+    missing_skills = candidate_summary.get("missing_skills", [])
+
+    if (
+        not missing_skills
+        and top_missing_skill
+        and top_missing_skill not in {"N/A", "No major gaps", "No skill gap"}
+    ):
+        missing_skills = [top_missing_skill]
+
+    missing_text = format_summary_skills(
+        missing_skills,
+        fallback="the skills listed in the detailed breakdown",
+    )
+
+    if total_possible_weight == 0:
+        summary = (
+            f"Based on <strong>{jobs_analyzed} matching postings</strong>, "
+            "JobLens could not calculate a meaningful skill-fit score because "
+            "the selected postings do not have extracted skills yet. "
+            "Try a broader filter or a dataset with richer skill extraction."
+        )
+    else:
+        summary = (
+            f"Based on <strong>{jobs_analyzed} matching postings</strong>, "
+            "JobLens found <strong>no overlap</strong> between your current "
+            f"skills and the extracted skills for "
+            f"<span class='summary-highlight'>{scored_role}</span>. "
+            f"The highest-impact gaps are "
+            f"<span class='summary-warning'>{missing_text}</span>."
+        )
+
+    return {
+        **candidate_summary,
+        "summary": summary,
+        "matched_skills": [],
+        "missing_skills": missing_skills,
+    }
+
+
 def format_dataset_source_type(source_type: str) -> str:
     if source_type == "uploaded_csv":
         return "Uploaded CSV"
@@ -1179,6 +1256,14 @@ def main() -> None:
         role_scores_df=role_scores_df,
         recommended_skills_df=recommended_skills_df,
         filtered_jobs_df=filtered_jobs,
+    )
+
+    candidate_summary = align_candidate_summary_with_match_status(
+        candidate_summary=candidate_summary,
+        role_scores_df=role_scores_df,
+        best_score=best_score,
+        top_missing_skill=top_missing_skill,
+        jobs_analyzed=jobs_analyzed,
     )
 
     role_sample_context_df = get_role_sample_context(filtered_jobs)

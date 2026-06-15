@@ -750,7 +750,32 @@ def main() -> None:
     use_database = dataset_source == DATASET_SOURCE_DATABASE
 
     with st.sidebar:
-        st.header("Dataset")
+        dataset_heading_col, dataset_help_col = st.columns([0.78, 0.22])
+
+        with dataset_heading_col:
+            st.header("Dataset")
+
+        with dataset_help_col:
+            with st.popover(
+                "?",
+                icon=":material/help:",
+                help="Dataset info",
+                use_container_width=True,
+            ):
+                st.markdown("**Expected dataset**")
+                st.write(
+                    "Use a jobs CSV with `title`, `company`, `location`, "
+                    "`description`, and `experience_level` columns."
+                )
+                st.write(
+                    "The selected dataset is the job market sample used for "
+                    "role-fit scoring, skill gaps, recommendations, and charts."
+                )
+                st.write(
+                    "Uploaded PostgreSQL datasets are reusable. Protected sample "
+                    "datasets cannot be renamed or deleted."
+                )
+
         st.caption("Current dataset")
         st.write(f"**{get_current_dataset_label(dataset_source, selected_database_dataset)}**")
 

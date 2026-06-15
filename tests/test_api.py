@@ -98,6 +98,25 @@ def make_api_processed_jobs_df() -> pd.DataFrame:
         ]
     )
 
+def make_zero_overlap_api_processed_jobs_df() -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            {
+                "job_id": None,
+                "title": "Backend Software Engineer",
+                "company": "TestCo",
+                "location": "Remote",
+                "description": "Build backend services using Go and Java.",
+                "experience_level": "Senior",
+                "clean_title": "backend software engineer",
+                "clean_description": "build backend services using go and java",
+                "extracted_skills": ["Go", "Java", "SQL"],
+                "role_category": "Software Engineering",
+                "skills_text": "Go, Java, SQL",
+            }
+        ]
+    )
+
 def make_saved_analysis_run() -> dict:
     return {
         "id": 1,
@@ -184,6 +203,35 @@ def test_analyze_can_use_database_dataset(monkeypatch) -> None:
     assert data["jobs_analyzed"] == 1
     assert data["best_role"] == "Data Science"
     assert data["top_matching_jobs"][0]["title"] == "Data Scientist"
+
+
+def test_analyze_omits_zero_score_top_matching_jobs(monkeypatch) -> None:
+    monkeypatch.setattr(api_main, "check_database_connection", lambda: True)
+    monkeypatch.setattr(
+        api_main,
+        "load_processed_jobs_dataframe",
+        lambda dataset_name: make_zero_overlap_api_processed_jobs_df(),
+    )
+
+    response = client.post(
+        "/analyze",
+        json={
+            "dataset_name": "sample_jobs",
+            "current_skills": ["Python", "Docker"],
+            "target_roles": ["Backend Software Engineer"],
+            "location": "Any",
+            "experience_level": "Any",
+            "top_n": 5,
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["best_role"] == "No skill overlap"
+    assert data["weighted_match_score"] == 0.0
+    assert data["top_matching_jobs"] == []
 
 
 def test_analyze_database_dataset_returns_404_when_dataset_missing(monkeypatch) -> None:

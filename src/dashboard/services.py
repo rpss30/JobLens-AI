@@ -440,6 +440,18 @@ def get_job_match_details(
 
     return job_match_df
 
+def get_positive_job_matches(job_match_details_df: pd.DataFrame) -> pd.DataFrame:
+    """Return only job-level matches with positive skill overlap."""
+    if (
+        job_match_details_df.empty
+        or "job_match_score" not in job_match_details_df.columns
+    ):
+        return job_match_details_df.copy()
+
+    return job_match_details_df[
+        job_match_details_df["job_match_score"] > 0
+    ].copy()
+
 def get_recommended_skills(
     jobs_df: pd.DataFrame,
     user_skills: list[str],
@@ -581,7 +593,8 @@ def get_candidate_fit_summary(
     ).iloc[0]
 
     best_role = best_role_row["role_category"]
-    best_score = best_role_row["weighted_match_score"]
+    best_score = float(best_role_row["weighted_match_score"])
+    total_possible_weight = int(best_role_row.get("total_possible_weight", 0))
 
     matched_skills = best_role_row.get("matched_skills", [])
     missing_skills = best_role_row.get("missing_skills", [])
@@ -602,6 +615,30 @@ def get_candidate_fit_summary(
         top_missing_skills,
         fallback="no major gaps from the current filters",
     )
+
+    if best_score <= 0:
+        if total_possible_weight == 0:
+            summary = (
+                f"Based on <strong>{len(filtered_jobs)} matching postings</strong>, "
+                "JobLens could not calculate a meaningful skill-fit score because "
+                "the selected postings do not have extracted skills yet. "
+                "Try a broader filter or a dataset with richer skill extraction."
+            )
+        else:
+            summary = (
+                f"Based on <strong>{len(filtered_jobs)} matching postings</strong>, "
+                "JobLens found <strong>no overlap</strong> between your current "
+                f"skills and the extracted skills for "
+                f"<span class='summary-highlight'>{best_role}</span>. "
+                f"The highest-impact gaps are "
+                f"<span class='summary-warning'>{missing_text}</span>."
+            )
+
+        return {
+            "summary": summary,
+            "matched_skills": [],
+            "missing_skills": top_missing_skills,
+        }
 
     summary = (
         f"Based on <strong>{len(filtered_jobs)} matching postings</strong>, "
@@ -771,15 +808,19 @@ def generate_candidate_report_markdown(
         "",
     ])
 
-    if job_match_details_df.empty:
-        report_lines.append("No job-level matches are available for the current filters.")
+    positive_job_matches_df = get_positive_job_matches(job_match_details_df)
+
+    if positive_job_matches_df.empty:
+        report_lines.append(
+            "No positive job-level matches are available for the current filters."
+        )
     else:
         report_lines.extend([
             "| Title | Company | Location | Match Score | Matched Skills | Missing Skills |",
             "| --- | --- | --- | ---: | --- | --- |",
         ])
 
-        for _, row in job_match_details_df.head(10).iterrows():
+        for _, row in positive_job_matches_df.head(10).iterrows():
             report_lines.append(
                 "| "
                 f"{row.get('title', 'N/A')} | "

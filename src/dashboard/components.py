@@ -5,12 +5,29 @@ from textwrap import dedent
 import pandas as pd
 import streamlit as st
 
+from src.dashboard.services import get_positive_job_matches
+
 
 def show_role_summary_cards(role_scores_df: pd.DataFrame) -> None:
     """Show top role matches as metric cards."""
     st.subheader("Best Role Matches")
 
-    top_roles = role_scores_df.head(3)
+    if role_scores_df.empty or "weighted_match_score" not in role_scores_df.columns:
+        st.info("No role match scores are available yet.")
+        return
+
+    positive_roles = role_scores_df[
+        role_scores_df["weighted_match_score"] > 0
+    ]
+
+    if positive_roles.empty:
+        st.info(
+            "No role categories have a positive skill match yet. "
+            "Review the recommended skills and role breakdown for gaps."
+        )
+        return
+
+    top_roles = positive_roles.head(3)
     cols = st.columns(3)
 
     for col, (_, row) in zip(cols, top_roles.iterrows()):
@@ -27,7 +44,22 @@ def show_role_explanations(role_scores_df: pd.DataFrame) -> None:
     st.subheader("Why These Roles Match")
     st.caption("Highlights the strongest matching skills and the biggest gaps for your top role categories.")
 
-    top_roles = role_scores_df.head(3)
+    if role_scores_df.empty or "weighted_match_score" not in role_scores_df.columns:
+        st.info("No role match explanations are available yet.")
+        return
+
+    positive_roles = role_scores_df[
+        role_scores_df["weighted_match_score"] > 0
+    ]
+
+    if positive_roles.empty:
+        st.info(
+            "There are no positive role matches to explain yet. "
+            "The detailed breakdown below still shows the underlying gaps."
+        )
+        return
+
+    top_roles = positive_roles.head(3)
 
     for _, row in top_roles.iterrows():
         role_weights = row["role_skill_weights"]
@@ -119,11 +151,16 @@ def show_top_job_match_cards(
         "These are the strongest individual job matches based on your current skills."
     )
 
-    if job_match_details_df.empty:
-        st.info("No matching job postings available for the current filters.")
+    positive_job_matches_df = get_positive_job_matches(job_match_details_df)
+
+    if positive_job_matches_df.empty:
+        st.info(
+            "No positive job-level matches found yet. "
+            "The filtered postings are still available in the table below."
+        )
         return
 
-    top_jobs = job_match_details_df.head(top_n)
+    top_jobs = positive_job_matches_df.head(top_n)
 
     for _, row in top_jobs.iterrows():
         title = row.get("title", "Untitled Role")

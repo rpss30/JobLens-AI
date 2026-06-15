@@ -16,6 +16,7 @@ from src.api.schemas import (
 from src.dashboard.services import (
     filter_jobs,
     get_job_match_details,
+    get_positive_job_matches,
     get_recommended_skills,
     prepare_processed_jobs_for_dashboard,
 )
@@ -107,6 +108,14 @@ def get_top_insights(
     best_role = str(best_role_row["role_category"])
     best_score = float(best_role_row["weighted_match_score"])
 
+    if best_score <= 0:
+        total_possible_weight = int(best_role_row.get("total_possible_weight", 0))
+        best_role = (
+            "No skill overlap"
+            if total_possible_weight > 0
+            else "Insufficient skill data"
+        )
+
     if recommended_skills_df.empty:
         top_missing_skill = "No major gaps"
     else:
@@ -144,6 +153,7 @@ def build_analyze_response(
         filtered_jobs=filtered_jobs,
         user_skills=current_skills,
     )
+    positive_job_matches_df = get_positive_job_matches(job_match_details_df)
 
     best_role, best_score, top_missing_skill, jobs_analyzed = get_top_insights(
         role_scores_df=role_scores_df,
@@ -188,7 +198,7 @@ def build_analyze_response(
             "matched_skills_preview": str(row["matched_skills_preview"]),
             "missing_skills_preview": str(row["missing_skills_preview"]),
         }
-        for _, row in job_match_details_df.head(top_n).iterrows()
+        for _, row in positive_job_matches_df.head(top_n).iterrows()
     ]
 
     return AnalyzeResponse(

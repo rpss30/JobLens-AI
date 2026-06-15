@@ -209,7 +209,15 @@ def get_top_insights(
     ).iloc[0]
 
     best_role = best_role_row["role_category"]
-    best_score = best_role_row["weighted_match_score"]
+    best_score = float(best_role_row["weighted_match_score"])
+
+    if best_score <= 0:
+        total_possible_weight = int(best_role_row.get("total_possible_weight", 0))
+        best_role = (
+            "No skill overlap"
+            if total_possible_weight > 0
+            else "Insufficient skill data"
+        )
 
     if recommended_skills_df.empty:
         top_missing_skill = "No major gaps"

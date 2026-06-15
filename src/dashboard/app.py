@@ -750,14 +750,14 @@ def main() -> None:
     use_database = dataset_source == DATASET_SOURCE_DATABASE
 
     with st.sidebar:
-        dataset_heading_col, dataset_help_col = st.columns([0.78, 0.22])
+        dataset_heading_col, dataset_help_col = st.columns([0.65, 0.35])
 
         with dataset_heading_col:
             st.header("Dataset")
 
         with dataset_help_col:
             with st.popover(
-                "?",
+                "Info",
                 icon=":material/help:",
                 help="Dataset info",
                 use_container_width=True,
@@ -778,6 +778,46 @@ def main() -> None:
 
         st.caption("Current dataset")
         st.write(f"**{get_current_dataset_label(dataset_source, selected_database_dataset)}**")
+
+        if use_database:
+            if st.button(
+                "Turn off PostgreSQL",
+                icon=":material/database_off:",
+                use_container_width=True,
+            ):
+                st.session_state.active_dataset_source = DATASET_SOURCE_DEFAULT
+                st.session_state.dataset_select_success_message = (
+                    f"Selected `{DATASET_SOURCE_DEFAULT}`."
+                )
+                st.rerun()
+        else:
+            if st.button(
+                "Turn on PostgreSQL",
+                icon=":material/database:",
+                use_container_width=True,
+            ):
+                if not database_available:
+                    st.warning(
+                        "PostgreSQL is unavailable right now.",
+                        icon=":material/warning:",
+                    )
+                elif not available_database_datasets:
+                    st.warning(
+                        "No PostgreSQL datasets were found.",
+                        icon=":material/warning:",
+                    )
+                else:
+                    selected_default_database_dataset = get_default_database_dataset(
+                        available_database_datasets
+                    )
+                    st.session_state.active_dataset_source = DATASET_SOURCE_DATABASE
+                    st.session_state.selected_database_dataset = (
+                        selected_default_database_dataset
+                    )
+                    st.session_state.dataset_select_success_message = (
+                        f"Selected `{selected_default_database_dataset}`."
+                    )
+                    st.rerun()
 
         if database_list_error is not None:
             st.warning("Could not load PostgreSQL dataset list.")

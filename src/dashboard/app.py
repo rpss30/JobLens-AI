@@ -461,7 +461,7 @@ def upload_dataset_dialog(database_available: bool) -> None:
                 st.code(str(error))
 
 
-@st.dialog("Manage saved datasets")
+@st.dialog("Manage saved datasets", width="large")
 def manage_saved_datasets_dialog(
     database_available: bool,
     database_datasets: list[dict[str, Any]],
@@ -479,22 +479,23 @@ def manage_saved_datasets_dialog(
 
     st.caption("Uploaded CSV datasets can be renamed or deleted. Protected datasets are locked.")
 
-    for dataset in database_datasets:
+    for dataset_index, dataset in enumerate(database_datasets):
         dataset_name = str(dataset["name"])
         source_type = str(dataset["source_type"])
         is_user_dataset = source_type == "uploaded_csv"
 
-        col_info, col_edit, col_delete = st.columns([5, 1, 1])
+        col_info, col_actions = st.columns([5, 2])
 
         with col_info:
             st.write(dataset_name)
             st.caption(format_dataset_source_type(source_type))
 
-        with col_edit:
+        with col_actions:
             if st.button(
-                "Edit",
+                "Rename",
                 key=f"manage_edit_{dataset_name}",
                 icon=":material/edit:",
+                help=f"Rename {dataset_name}",
                 disabled=not is_user_dataset,
                 use_container_width=True,
             ):
@@ -503,11 +504,11 @@ def manage_saved_datasets_dialog(
                     "dataset_name": dataset_name,
                 }
 
-        with col_delete:
             if st.button(
                 "Delete",
                 key=f"manage_delete_{dataset_name}",
                 icon=":material/delete:",
+                help=f"Delete {dataset_name}",
                 disabled=not is_user_dataset,
                 use_container_width=True,
             ):
@@ -515,6 +516,9 @@ def manage_saved_datasets_dialog(
                     "type": "delete",
                     "dataset_name": dataset_name,
                 }
+
+        if dataset_index < len(database_datasets) - 1:
+            st.divider()
 
     action = st.session_state.get("dataset_manager_action")
 

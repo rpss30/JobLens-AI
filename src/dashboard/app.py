@@ -276,24 +276,33 @@ def process_uploaded_jobs_file(uploaded_jobs_file) -> pd.DataFrame:
         )
 
 
-@st.dialog("Choose dataset")
+@st.dialog("Choose dataset", width="large")
 def choose_dataset_dialog(
     database_available: bool,
     database_datasets: list[dict[str, Any]],
 ) -> None:
     st.markdown("**Local datasets**")
 
-    col_default_info, col_default_action = st.columns([4, 1])
+    col_default_info, col_default_action = st.columns([5, 1.35])
+    is_default_active = (
+        st.session_state.active_dataset_source == DATASET_SOURCE_DEFAULT
+    )
 
     with col_default_info:
         st.write(DATASET_SOURCE_DEFAULT)
         st.caption("Bundled portfolio sample CSV")
 
     with col_default_action:
+        if is_default_active:
+            st.markdown(
+                '<span class="active-dataset-button-marker"></span>',
+                unsafe_allow_html=True,
+            )
         if st.button(
-            "Use",
+            "Active" if is_default_active else "Use",
             key="use_default_dataset",
             icon=":material/check_circle:",
+            disabled=is_default_active,
             use_container_width=True,
         ):
             st.session_state.active_dataset_source = DATASET_SOURCE_DEFAULT
@@ -302,17 +311,26 @@ def choose_dataset_dialog(
             )
             st.rerun()
 
-    col_greenhouse_info, col_greenhouse_action = st.columns([4, 1])
+    col_greenhouse_info, col_greenhouse_action = st.columns([5, 1.35])
+    is_greenhouse_active = (
+        st.session_state.active_dataset_source == DATASET_SOURCE_GREENHOUSE
+    )
 
     with col_greenhouse_info:
         st.write(DATASET_SOURCE_GREENHOUSE)
         st.caption("Generated AI-extracted demo dataset, when available")
 
     with col_greenhouse_action:
+        if is_greenhouse_active:
+            st.markdown(
+                '<span class="active-dataset-button-marker"></span>',
+                unsafe_allow_html=True,
+            )
         if st.button(
-            "Use",
+            "Active" if is_greenhouse_active else "Use",
             key="use_greenhouse_dataset",
             icon=":material/check_circle:",
+            disabled=is_greenhouse_active,
             use_container_width=True,
         ):
             st.session_state.active_dataset_source = DATASET_SOURCE_GREENHOUSE
@@ -343,7 +361,7 @@ def choose_dataset_dialog(
             and st.session_state.selected_database_dataset == dataset_name
         )
 
-        col_info, col_action = st.columns([4, 1])
+        col_info, col_action = st.columns([5, 1.35])
 
         with col_info:
             st.write(dataset_name)
@@ -351,6 +369,11 @@ def choose_dataset_dialog(
 
         with col_action:
             button_label = "Active" if is_active else "Use"
+            if is_active:
+                st.markdown(
+                    '<span class="active-dataset-button-marker"></span>',
+                    unsafe_allow_html=True,
+                )
             if st.button(
                 button_label,
                 key=f"use_database_dataset_{dataset_name}",

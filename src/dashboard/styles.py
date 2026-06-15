@@ -64,6 +64,10 @@ def inject_global_styles() -> None:
             display: none !important;
         }
 
+        div[data-testid="stElementContainer"]:has(.active-dataset-button-marker) {
+            display: none !important;
+        }
+
         section[data-testid="stSidebar"]
         div[data-testid="stElementContainer"]:has(.dataset-info-popover-anchor)
         + div button[data-testid="stPopoverButton"] {
@@ -113,6 +117,25 @@ def inject_global_styles() -> None:
             background: rgba(22, 163, 74, 0.16) !important;
             border-color: #16a34a !important;
             color: #14532d !important;
+        }
+
+        div[data-testid="stElementContainer"]:has(.active-dataset-button-marker)
+        + div[data-testid="stElementContainer"] div.stButton > button,
+        div[data-testid="stElementContainer"]:has(.active-dataset-button-marker)
+        + div[data-testid="stElementContainer"] div.stButton > button:disabled {
+            background: rgba(22, 163, 74, 0.10) !important;
+            border-color: rgba(22, 163, 74, 0.72) !important;
+            color: #166534 !important;
+            cursor: default !important;
+            font-weight: 700 !important;
+            opacity: 1 !important;
+        }
+
+        div[data-testid="stElementContainer"]:has(.active-dataset-button-marker)
+        + div[data-testid="stElementContainer"] div.stButton > button *,
+        div[data-testid="stElementContainer"]:has(.active-dataset-button-marker)
+        + div[data-testid="stElementContainer"] div.stButton > button:disabled * {
+            color: #166534 !important;
         }
 
         div[data-baseweb="tag"] {

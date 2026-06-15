@@ -154,6 +154,11 @@ def clear_dataset(session: Session, dataset_name: str) -> None:
         session.delete(dataset)
         session.flush()
 
+def is_user_managed_dataset(source_type: str) -> bool:
+    """
+    Return whether a dataset source type is safe for user deletion.
+    """
+    return source_type == "uploaded_csv"
 
 def seed_processed_jobs_from_dataframe(
     df: pd.DataFrame,
@@ -248,6 +253,27 @@ def list_datasets() -> list[dict[str, Any]]:
         for row in rows
     ]
 
+def delete_dataset(dataset_name: str) -> bool:
+    """
+    Delete a user-managed PostgreSQL dataset.
+
+    Only uploaded CSV datasets are deletable. Curated/sample datasets are protected.
+    Returns True when a dataset was deleted and False when no dataset was found.
+    """
+    with get_db_session() as session:
+        stmt = select(Dataset).where(Dataset.name == dataset_name)
+        dataset = session.execute(stmt).scalar_one_or_none()
+
+        if dataset is None:
+            return False
+
+        if not is_user_managed_dataset(dataset.source_type):
+            raise ValueError("Only uploaded CSV datasets can be deleted.")
+
+        session.delete(dataset)
+        session.flush()
+
+        return True
 
 def save_uploaded_dataset_from_dataframe(
     df: pd.DataFrame,

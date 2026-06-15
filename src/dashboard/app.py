@@ -54,6 +54,7 @@ from src.processing.job_processor import process_jobs
 from src.database.repository import (
     build_analysis_run_name,
     check_database_connection,
+    delete_dataset,
     list_analysis_runs,
     list_datasets,
     load_analysis_run,
@@ -209,11 +210,79 @@ def get_top_insights(
 
     return best_role, best_score, top_missing_skill, jobs_analyzed
 
+@st.dialog("Confirm dataset deletion")
+def confirm_delete_dataset_dialog(dataset_name: str) -> None:
+    st.write(f"You are about to delete `{dataset_name}` from PostgreSQL.")
+    st.warning(
+        "This action cannot be undone.",
+        icon=":material/warning:",
+    )
+
+    col_cancel, col_delete = st.columns(2)
+
+    with col_cancel:
+        if st.button(
+            "Cancel",
+            icon=":material/close:",
+            use_container_width=True,
+        ):
+            st.rerun()
+
+    with col_delete:
+        if st.button(
+            "Delete dataset",
+            type="primary",
+            icon=":material/delete:",
+            use_container_width=True,
+        ):
+            try:
+                deleted = delete_dataset(dataset_name)
+
+                if deleted:
+                    st.session_state.dataset_delete_success_message = (
+                        f"Deleted dataset `{dataset_name}`."
+                    )
+                    st.rerun()
+
+                st.session_state.dataset_delete_warning_message = (
+                    f"Dataset `{dataset_name}` was not found."
+                )
+                st.rerun()
+
+            except Exception as error:
+                st.session_state.dataset_delete_error_message = str(error)
+                st.rerun()
+
 def main() -> None:
     inject_global_styles()
 
     if "analysis_requested" not in st.session_state:
         st.session_state.analysis_requested = False
+
+    if "dataset_delete_success_message" in st.session_state:
+        st.toast(
+            st.session_state.dataset_delete_success_message,
+            icon=":material/check_circle:",
+        )
+        del st.session_state.dataset_delete_success_message
+
+    if "dataset_delete_warning_message" in st.session_state:
+        st.warning(
+            st.session_state.dataset_delete_warning_message,
+            icon=":material/warning:",
+        )
+        del st.session_state.dataset_delete_warning_message
+
+    if "dataset_delete_error_message" in st.session_state:
+        st.error(
+            "Could not delete selected dataset.",
+            icon=":material/error:",
+        )
+
+        with st.expander("Dataset delete error details"):
+            st.code(st.session_state.dataset_delete_error_message)
+
+        del st.session_state.dataset_delete_error_message
 
     selected_saved_analysis_run = None
 
@@ -259,6 +328,8 @@ def main() -> None:
     selected_database_dataset = "sample_jobs"
 
     if use_database and check_database_connection():
+        available_database_datasets = []
+
         try:
             available_database_datasets = list_datasets()
             dataset_names = [dataset["name"] for dataset in available_database_datasets]
@@ -279,6 +350,40 @@ def main() -> None:
 
             with st.sidebar.expander("Dataset list error details"):
                 st.code(str(error))
+
+        uploaded_database_datasets = [
+            dataset
+            for dataset in available_database_datasets
+            if dataset["source_type"] == "uploaded_csv"
+        ]
+
+        if uploaded_database_datasets:
+            with st.sidebar.expander("Manage saved datasets"):
+                st.caption(
+                    "Only uploaded CSV datasets can be deleted. "
+                    "The curated sample dataset is protected."
+                )
+
+                uploaded_dataset_names = [
+                    dataset["name"] for dataset in uploaded_database_datasets
+                ]
+
+                dataset_to_delete = st.selectbox(
+                    "Uploaded dataset to delete",
+                    options=uploaded_dataset_names,
+                    help="Choose an uploaded PostgreSQL dataset to delete.",
+                )
+
+                delete_dataset_button = st.button(
+                    "Delete selected dataset",
+                    type="secondary",
+                    icon=":material/delete:",
+                )
+
+                if delete_dataset_button:
+                    confirm_delete_dataset_dialog(dataset_to_delete)
+        else:
+            st.sidebar.caption("No uploaded datasets available for deletion.")
 
         try:
             saved_analysis_runs = list_analysis_runs()

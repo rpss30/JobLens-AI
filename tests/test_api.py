@@ -286,3 +286,54 @@ def test_get_analysis_run_returns_503_when_database_unavailable(monkeypatch) -> 
 
     assert response.status_code == 503
     assert "PostgreSQL is unavailable" in response.json()["detail"]
+
+def test_delete_dataset_deletes_uploaded_dataset(monkeypatch) -> None:
+    monkeypatch.setattr(api_main, "check_database_connection", lambda: True)
+
+    def fake_delete_dataset(dataset_name: str) -> bool:
+        assert dataset_name == "uploaded_20260101_sample_jobs"
+        return True
+
+    monkeypatch.setattr(api_main, "delete_dataset", fake_delete_dataset)
+
+    response = client.delete("/datasets/uploaded_20260101_sample_jobs")
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["dataset_name"] == "uploaded_20260101_sample_jobs"
+    assert data["deleted"] is True
+
+
+def test_delete_dataset_returns_404_when_dataset_missing(monkeypatch) -> None:
+    monkeypatch.setattr(api_main, "check_database_connection", lambda: True)
+    monkeypatch.setattr(api_main, "delete_dataset", lambda dataset_name: False)
+
+    response = client.delete("/datasets/missing_dataset")
+
+    assert response.status_code == 404
+    assert "missing_dataset" in response.json()["detail"]
+
+
+def test_delete_dataset_returns_400_for_protected_dataset(monkeypatch) -> None:
+    monkeypatch.setattr(api_main, "check_database_connection", lambda: True)
+
+    def fake_delete_dataset(dataset_name: str) -> bool:
+        raise ValueError("Only uploaded CSV datasets can be deleted.")
+
+    monkeypatch.setattr(api_main, "delete_dataset", fake_delete_dataset)
+
+    response = client.delete("/datasets/sample_jobs")
+
+    assert response.status_code == 400
+    assert "Only uploaded CSV datasets can be deleted" in response.json()["detail"]
+
+
+def test_delete_dataset_returns_503_when_database_unavailable(monkeypatch) -> None:
+    monkeypatch.setattr(api_main, "check_database_connection", lambda: False)
+
+    response = client.delete("/datasets/uploaded_20260101_sample_jobs")
+
+    assert response.status_code == 503
+    assert "PostgreSQL is unavailable" in response.json()["detail"]

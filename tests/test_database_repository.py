@@ -3,6 +3,7 @@
 from src.database.repository import (
     build_analysis_run_name,
     build_uploaded_dataset_name,
+    is_user_managed_dataset,
     normalize_skill_name,
     parse_skills,
     slugify_dataset_name,
@@ -65,3 +66,10 @@ def test_build_analysis_run_name_handles_missing_best_role():
 
     assert result.startswith("analysis_")
     assert "uploaded_jobs_csv" in result
+
+def test_is_user_managed_dataset_allows_uploaded_csv():
+    assert is_user_managed_dataset("uploaded_csv") is True
+
+
+def test_is_user_managed_dataset_protects_sample_csv():
+    assert is_user_managed_dataset("sample_csv") is False

@@ -9,6 +9,7 @@ from src.api.schemas import (
     AnalyzeRequest,
     AnalyzeResponse,
     DatasetSummary,
+    DeleteDatasetResponse,
 )
 from src.dashboard.services import (
     filter_jobs,
@@ -18,6 +19,7 @@ from src.dashboard.services import (
 )
 from src.database.repository import (
     check_database_connection,
+    delete_dataset,
     list_analysis_runs,
     list_datasets,
     load_analysis_run,
@@ -215,6 +217,37 @@ def get_datasets() -> list[dict]:
 
     return list_datasets()
 
+@app.delete("/datasets/{dataset_name}", response_model=DeleteDatasetResponse)
+def remove_dataset(dataset_name: str) -> dict[str, bool | str]:
+    """Delete a user-managed PostgreSQL dataset."""
+
+    if not check_database_connection():
+        raise HTTPException(
+            status_code=503,
+            detail="PostgreSQL is unavailable, so datasets cannot be deleted.",
+        )
+
+    try:
+        deleted = delete_dataset(dataset_name)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except Exception as error:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Could not delete dataset '{dataset_name}'.",
+        ) from error
+
+    if not deleted:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Dataset '{dataset_name}' was not found.",
+        )
+
+    return {
+        "dataset_name": dataset_name,
+        "deleted": True,
+    }
+    
 @app.get("/analysis-runs", response_model=list[AnalysisRunResponse])
 def get_analysis_runs() -> list[dict[str, Any]]:
     """List saved PostgreSQL analysis runs."""

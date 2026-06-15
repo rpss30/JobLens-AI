@@ -43,6 +43,10 @@ class DatasetSummary(BaseModel):
     source_type: str
     created_at: datetime
 
+class DeleteDatasetResponse(BaseModel):
+    dataset_name: str
+    deleted: bool
+    
 class AnalysisRunResponse(BaseModel):
     id: int
     name: str

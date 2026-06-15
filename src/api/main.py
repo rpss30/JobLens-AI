@@ -10,6 +10,8 @@ from src.api.schemas import (
     AnalyzeResponse,
     DatasetSummary,
     DeleteDatasetResponse,
+    RenameDatasetRequest,
+    RenameDatasetResponse,
 )
 from src.dashboard.services import (
     filter_jobs,
@@ -19,11 +21,13 @@ from src.dashboard.services import (
 )
 from src.database.repository import (
     check_database_connection,
+    build_custom_dataset_name,
     delete_dataset,
     list_analysis_runs,
     list_datasets,
     load_analysis_run,
     load_processed_jobs_dataframe,
+    rename_dataset,
 )
 from src.matching.match_engine import build_role_skill_weights, score_roles
 from src.processing.job_processor import process_jobs
@@ -247,7 +251,42 @@ def remove_dataset(dataset_name: str) -> dict[str, bool | str]:
         "dataset_name": dataset_name,
         "deleted": True,
     }
-    
+
+@app.patch("/datasets/{dataset_name}", response_model=RenameDatasetResponse)
+def update_dataset_name(
+    dataset_name: str,
+    request: RenameDatasetRequest,
+) -> dict[str, bool | str]:
+    """Rename a user-managed PostgreSQL dataset."""
+
+    if not check_database_connection():
+        raise HTTPException(
+            status_code=503,
+            detail="PostgreSQL is unavailable, so datasets cannot be renamed.",
+        )
+
+    try:
+        renamed = rename_dataset(dataset_name, request.new_name)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except Exception as error:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Could not rename dataset '{dataset_name}'.",
+        ) from error
+
+    if not renamed:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Dataset '{dataset_name}' was not found.",
+        )
+
+    return {
+        "old_name": dataset_name,
+        "new_name": build_custom_dataset_name(request.new_name),
+        "renamed": True,
+    }
+
 @app.get("/analysis-runs", response_model=list[AnalysisRunResponse])
 def get_analysis_runs() -> list[dict[str, Any]]:
     """List saved PostgreSQL analysis runs."""

@@ -80,10 +80,23 @@ def slugify_dataset_name(value: str) -> str:
     return cleaned_value or "uploaded_dataset"
 
 
-def build_uploaded_dataset_name(filename: str) -> str:
+def build_custom_dataset_name(custom_name: str) -> str:
+    """
+    Build a safe dataset name from a user-provided label.
+    """
+    return slugify_dataset_name(custom_name)
+
+
+def build_uploaded_dataset_name(
+    filename: str,
+    custom_name: str | None = None,
+) -> str:
     """
     Build a unique dataset name for an uploaded CSV file.
     """
+    if custom_name and custom_name.strip():
+        return build_custom_dataset_name(custom_name)
+
     file_stem = Path(filename).stem
     safe_file_stem = slugify_dataset_name(file_stem)
     timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
@@ -253,6 +266,16 @@ def list_datasets() -> list[dict[str, Any]]:
         for row in rows
     ]
 
+def dataset_name_exists(dataset_name: str) -> bool:
+    """
+    Return whether a PostgreSQL dataset already uses this name.
+    """
+    with get_db_session() as session:
+        stmt = select(Dataset.id).where(Dataset.name == dataset_name)
+        existing_dataset_id = session.execute(stmt).scalar_one_or_none()
+
+    return existing_dataset_id is not None
+
 def delete_dataset(dataset_name: str) -> bool:
     """
     Delete a user-managed PostgreSQL dataset.
@@ -275,14 +298,65 @@ def delete_dataset(dataset_name: str) -> bool:
 
         return True
 
+def rename_dataset(old_name: str, new_name: str) -> bool:
+    """
+    Rename a user-managed PostgreSQL dataset.
+
+    Only uploaded CSV datasets are renameable. Curated/sample datasets are protected.
+    Returns True when a dataset was renamed and False when no dataset was found.
+    """
+    if not new_name.strip():
+        raise ValueError("New dataset name cannot be blank.")
+
+    safe_new_name = build_custom_dataset_name(new_name)
+
+    with get_db_session() as session:
+        stmt = select(Dataset).where(Dataset.name == old_name)
+        dataset = session.execute(stmt).scalar_one_or_none()
+
+        if dataset is None:
+            return False
+
+        if not is_user_managed_dataset(dataset.source_type):
+            raise ValueError("Only uploaded CSV datasets can be renamed.")
+
+        if dataset.name == safe_new_name:
+            raise ValueError("New dataset name must be different from the current name.")
+
+        duplicate_stmt = select(Dataset).where(
+            Dataset.name == safe_new_name,
+            Dataset.id != dataset.id,
+        )
+        duplicate_dataset = session.execute(duplicate_stmt).scalar_one_or_none()
+
+        if duplicate_dataset is not None:
+            raise ValueError(f"Dataset name '{safe_new_name}' already exists.")
+
+        for analysis_run in dataset.analysis_runs:
+            analysis_run.dataset_name = safe_new_name
+
+        dataset.name = safe_new_name
+        session.flush()
+
+        return True
+
 def save_uploaded_dataset_from_dataframe(
     df: pd.DataFrame,
     filename: str,
+    custom_name: str | None = None,
 ) -> str:
     """
     Save a processed uploaded jobs dataframe as a new PostgreSQL dataset.
     """
-    dataset_name = build_uploaded_dataset_name(filename)
+    dataset_name = build_uploaded_dataset_name(
+        filename=filename,
+        custom_name=custom_name,
+    )
+
+    if dataset_name_exists(dataset_name):
+        raise ValueError(
+            f"Dataset name '{dataset_name}' already exists. Choose a different name."
+        )
 
     seed_processed_jobs_from_dataframe(
         df=df,

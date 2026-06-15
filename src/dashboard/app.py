@@ -53,12 +53,14 @@ from src.matching.match_engine import (
 from src.processing.job_processor import process_jobs
 from src.database.repository import (
     build_analysis_run_name,
+    build_custom_dataset_name,
     check_database_connection,
     delete_dataset,
     list_analysis_runs,
     list_datasets,
     load_analysis_run,
     load_processed_jobs_dataframe,
+    rename_dataset,
     save_analysis_run,
     save_uploaded_dataset_from_dataframe,
 )
@@ -253,6 +255,51 @@ def confirm_delete_dataset_dialog(dataset_name: str) -> None:
                 st.session_state.dataset_delete_error_message = str(error)
                 st.rerun()
 
+@st.dialog("Confirm dataset rename")
+def confirm_rename_dataset_dialog(dataset_name: str, new_dataset_name: str) -> None:
+    safe_new_dataset_name = build_custom_dataset_name(new_dataset_name)
+
+    st.write(f"You are about to rename `{dataset_name}` to `{safe_new_dataset_name}`.")
+    st.warning(
+        "Saved analysis runs linked to this dataset will show the new dataset name.",
+        icon=":material/warning:",
+    )
+
+    col_cancel, col_rename = st.columns(2)
+
+    with col_cancel:
+        if st.button(
+            "Cancel",
+            icon=":material/close:",
+            use_container_width=True,
+        ):
+            st.rerun()
+
+    with col_rename:
+        if st.button(
+            "Rename dataset",
+            type="primary",
+            icon=":material/edit:",
+            use_container_width=True,
+        ):
+            try:
+                renamed = rename_dataset(dataset_name, new_dataset_name)
+
+                if renamed:
+                    st.session_state.dataset_rename_success_message = (
+                        f"Renamed dataset `{dataset_name}` to `{safe_new_dataset_name}`."
+                    )
+                    st.rerun()
+
+                st.session_state.dataset_rename_warning_message = (
+                    f"Dataset `{dataset_name}` was not found."
+                )
+                st.rerun()
+
+            except Exception as error:
+                st.session_state.dataset_rename_error_message = str(error)
+                st.rerun()
+
 def main() -> None:
     inject_global_styles()
 
@@ -283,6 +330,31 @@ def main() -> None:
             st.code(st.session_state.dataset_delete_error_message)
 
         del st.session_state.dataset_delete_error_message
+
+    if "dataset_rename_success_message" in st.session_state:
+        st.toast(
+            st.session_state.dataset_rename_success_message,
+            icon=":material/check_circle:",
+        )
+        del st.session_state.dataset_rename_success_message
+
+    if "dataset_rename_warning_message" in st.session_state:
+        st.warning(
+            st.session_state.dataset_rename_warning_message,
+            icon=":material/warning:",
+        )
+        del st.session_state.dataset_rename_warning_message
+
+    if "dataset_rename_error_message" in st.session_state:
+        st.error(
+            "Could not rename selected dataset.",
+            icon=":material/error:",
+        )
+
+        with st.expander("Dataset rename error details"):
+            st.code(st.session_state.dataset_rename_error_message)
+
+        del st.session_state.dataset_rename_error_message
 
     selected_saved_analysis_run = None
 
@@ -325,6 +397,18 @@ def main() -> None:
         ),
     )
 
+    uploaded_dataset_custom_name = ""
+
+    if persist_uploaded_dataset:
+        uploaded_dataset_custom_name = st.sidebar.text_input(
+            "Dataset name (optional)",
+            placeholder="my_custom_dataset",
+            help=(
+                "Leave blank to use the automatic uploaded timestamp name. "
+                "Custom names are saved as lowercase underscores."
+            ),
+        )
+
     selected_database_dataset = "sample_jobs"
 
     if use_database and check_database_connection():
@@ -360,13 +444,48 @@ def main() -> None:
         if uploaded_database_datasets:
             with st.sidebar.expander("Manage saved datasets"):
                 st.caption(
-                    "Only uploaded CSV datasets can be deleted. "
+                    "Only uploaded CSV datasets can be renamed or deleted. "
                     "The curated sample dataset is protected."
                 )
 
                 uploaded_dataset_names = [
                     dataset["name"] for dataset in uploaded_database_datasets
                 ]
+
+                st.markdown("**Rename uploaded dataset**")
+
+                dataset_to_rename = st.selectbox(
+                    "Uploaded dataset to rename",
+                    options=uploaded_dataset_names,
+                    help="Choose an uploaded PostgreSQL dataset to rename.",
+                )
+
+                new_dataset_name = st.text_input(
+                    "New dataset name",
+                    placeholder="my_custom_dataset",
+                    help="Names are saved as lowercase, underscore-separated slugs.",
+                )
+
+                rename_dataset_button = st.button(
+                    "Rename selected dataset",
+                    type="secondary",
+                    icon=":material/edit:",
+                )
+
+                if rename_dataset_button:
+                    if not new_dataset_name.strip():
+                        st.warning(
+                            "Enter a new dataset name before renaming.",
+                            icon=":material/warning:",
+                        )
+                    else:
+                        confirm_rename_dataset_dialog(
+                            dataset_to_rename,
+                            new_dataset_name,
+                        )
+
+                st.divider()
+                st.markdown("**Delete uploaded dataset**")
 
                 dataset_to_delete = st.selectbox(
                     "Uploaded dataset to delete",
@@ -383,7 +502,7 @@ def main() -> None:
                 if delete_dataset_button:
                     confirm_delete_dataset_dialog(dataset_to_delete)
         else:
-            st.sidebar.caption("No uploaded datasets available for deletion.")
+            st.sidebar.caption("No uploaded datasets available to manage.")
 
         try:
             saved_analysis_runs = list_analysis_runs()
@@ -476,6 +595,7 @@ def main() -> None:
                     saved_dataset_name = save_uploaded_dataset_from_dataframe(
                         df=jobs_df,
                         filename=uploaded_jobs_file.name,
+                        custom_name=uploaded_dataset_custom_name,
                     )
 
                     st.sidebar.success(

@@ -46,7 +46,17 @@ class DatasetSummary(BaseModel):
 class DeleteDatasetResponse(BaseModel):
     dataset_name: str
     deleted: bool
-    
+
+class RenameDatasetRequest(BaseModel):
+    new_name: str = Field(..., min_length=1)
+
+
+class RenameDatasetResponse(BaseModel):
+    old_name: str
+    new_name: str
+    renamed: bool
+
+
 class AnalysisRunResponse(BaseModel):
     id: int
     name: str

@@ -337,3 +337,86 @@ def test_delete_dataset_returns_503_when_database_unavailable(monkeypatch) -> No
 
     assert response.status_code == 503
     assert "PostgreSQL is unavailable" in response.json()["detail"]
+
+
+def test_rename_dataset_renames_uploaded_dataset(monkeypatch) -> None:
+    monkeypatch.setattr(api_main, "check_database_connection", lambda: True)
+
+    def fake_rename_dataset(dataset_name: str, new_name: str) -> bool:
+        assert dataset_name == "uploaded_20260101_sample_jobs"
+        assert new_name == "My Custom Dataset"
+        return True
+
+    monkeypatch.setattr(api_main, "rename_dataset", fake_rename_dataset)
+
+    response = client.patch(
+        "/datasets/uploaded_20260101_sample_jobs",
+        json={"new_name": "My Custom Dataset"},
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["old_name"] == "uploaded_20260101_sample_jobs"
+    assert data["new_name"] == "my_custom_dataset"
+    assert data["renamed"] is True
+
+
+def test_rename_dataset_returns_404_when_dataset_missing(monkeypatch) -> None:
+    monkeypatch.setattr(api_main, "check_database_connection", lambda: True)
+    monkeypatch.setattr(api_main, "rename_dataset", lambda dataset_name, new_name: False)
+
+    response = client.patch(
+        "/datasets/missing_dataset",
+        json={"new_name": "renamed_dataset"},
+    )
+
+    assert response.status_code == 404
+    assert "missing_dataset" in response.json()["detail"]
+
+
+def test_rename_dataset_returns_400_for_protected_dataset(monkeypatch) -> None:
+    monkeypatch.setattr(api_main, "check_database_connection", lambda: True)
+
+    def fake_rename_dataset(dataset_name: str, new_name: str) -> bool:
+        raise ValueError("Only uploaded CSV datasets can be renamed.")
+
+    monkeypatch.setattr(api_main, "rename_dataset", fake_rename_dataset)
+
+    response = client.patch(
+        "/datasets/sample_jobs",
+        json={"new_name": "renamed_sample"},
+    )
+
+    assert response.status_code == 400
+    assert "Only uploaded CSV datasets can be renamed" in response.json()["detail"]
+
+
+def test_rename_dataset_returns_400_for_duplicate_target_name(monkeypatch) -> None:
+    monkeypatch.setattr(api_main, "check_database_connection", lambda: True)
+
+    def fake_rename_dataset(dataset_name: str, new_name: str) -> bool:
+        raise ValueError("Dataset name 'existing_dataset' already exists.")
+
+    monkeypatch.setattr(api_main, "rename_dataset", fake_rename_dataset)
+
+    response = client.patch(
+        "/datasets/uploaded_20260101_sample_jobs",
+        json={"new_name": "existing_dataset"},
+    )
+
+    assert response.status_code == 400
+    assert "already exists" in response.json()["detail"]
+
+
+def test_rename_dataset_returns_503_when_database_unavailable(monkeypatch) -> None:
+    monkeypatch.setattr(api_main, "check_database_connection", lambda: False)
+
+    response = client.patch(
+        "/datasets/uploaded_20260101_sample_jobs",
+        json={"new_name": "renamed_dataset"},
+    )
+
+    assert response.status_code == 503
+    assert "PostgreSQL is unavailable" in response.json()["detail"]

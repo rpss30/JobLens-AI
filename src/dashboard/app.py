@@ -187,7 +187,7 @@ SEARCH_PRESETS = {
 }
 
 DATASET_SOURCE_DEFAULT = "Default sample dataset"
-DATASET_SOURCE_GREENHOUSE = "AI-extracted Greenhouse demo"
+DATASET_SOURCE_GREENHOUSE = "Curated Greenhouse demo"
 DATASET_SOURCE_DATABASE = "PostgreSQL dataset"
 
 
@@ -1046,12 +1046,12 @@ def main() -> None:
 
             if jobs_df.empty:
                 st.sidebar.warning(
-                    "AI-extracted Greenhouse demo dataset was not found. "
+                    "Curated Greenhouse demo dataset was not found. "
                     "Using the default sample dataset instead."
                 )
                 jobs_df = load_processed_jobs()
             else:
-                st.sidebar.success("Loaded AI-extracted Greenhouse demo dataset.")
+                st.sidebar.success("Loaded curated Greenhouse demo dataset.")
         else:
             jobs_df = load_processed_jobs()
 

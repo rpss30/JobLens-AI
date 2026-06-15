@@ -185,6 +185,14 @@ def filter_jobs(
         def title_matches(clean_title: str) -> bool:
             clean_title = str(clean_title).lower()
 
+            def has_term(term: str) -> bool:
+                return bool(
+                    re.search(
+                        rf"(?<![a-z0-9]){re.escape(term)}(?![a-z0-9])",
+                        clean_title,
+                    )
+                )
+
             generic_role_words = {
                 "engineer",
                 "developer",
@@ -205,6 +213,22 @@ def filter_jobs(
 
             for role in role_keywords:
                 role_words = role.split()
+                role_cloud_terms = [
+                    term for term in cloud_role_terms if term in role_words
+                ]
+                role_specific_non_cloud_words = [
+                    word
+                    for word in role_words
+                    if word
+                    not in {
+                        "junior",
+                        "senior",
+                        "entry",
+                        "level",
+                        *generic_role_words,
+                        *cloud_role_terms,
+                    }
+                ]
 
                 # Full phrase match first.
                 if role in clean_title:
@@ -212,8 +236,9 @@ def filter_jobs(
 
                 # Role-family match for cloud/devops/platform roles.
                 if (
-                    any(term in role_words for term in cloud_role_terms)
-                    and any(term in clean_title for term in cloud_role_terms)
+                    role_cloud_terms
+                    and not role_specific_non_cloud_words
+                    and any(has_term(term) for term in role_cloud_terms)
                 ):
                     return True
 
@@ -231,7 +256,33 @@ def filter_jobs(
                     }
                 ]
 
-                if important_words and any(word in clean_title for word in important_words):
+                if not important_words or not all(
+                    has_term(word) for word in important_words
+                ):
+                    continue
+
+                role_family_words = [
+                    word for word in role_words if word in generic_role_words
+                ]
+
+                role_family_aliases = set(role_family_words)
+
+                if "engineer" in role_family_words:
+                    role_family_aliases.update({"developer", "architect"})
+                if "developer" in role_family_words:
+                    role_family_aliases.update({"engineer"})
+                if "analyst" in role_family_words:
+                    role_family_aliases.add("analytics")
+
+                if role_family_aliases and not any(
+                    has_term(word) for word in role_family_aliases
+                ):
+                    ai_or_ml_terms = {"ai", "ml", "machine", "learning"}
+
+                    if not any(word in ai_or_ml_terms for word in important_words):
+                        continue
+
+                if important_words:
                     return True
 
             return False

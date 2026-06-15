@@ -9,19 +9,26 @@ from src.api.schemas import (
     AnalyzeRequest,
     AnalyzeResponse,
     DatasetSummary,
+    DeleteDatasetResponse,
+    RenameDatasetRequest,
+    RenameDatasetResponse,
 )
 from src.dashboard.services import (
     filter_jobs,
     get_job_match_details,
+    get_positive_job_matches,
     get_recommended_skills,
     prepare_processed_jobs_for_dashboard,
 )
 from src.database.repository import (
     check_database_connection,
+    build_custom_dataset_name,
+    delete_dataset,
     list_analysis_runs,
     list_datasets,
     load_analysis_run,
     load_processed_jobs_dataframe,
+    rename_dataset,
 )
 from src.matching.match_engine import build_role_skill_weights, score_roles
 from src.processing.job_processor import process_jobs
@@ -101,6 +108,14 @@ def get_top_insights(
     best_role = str(best_role_row["role_category"])
     best_score = float(best_role_row["weighted_match_score"])
 
+    if best_score <= 0:
+        total_possible_weight = int(best_role_row.get("total_possible_weight", 0))
+        best_role = (
+            "No skill overlap"
+            if total_possible_weight > 0
+            else "Insufficient skill data"
+        )
+
     if recommended_skills_df.empty:
         top_missing_skill = "No major gaps"
     else:
@@ -138,6 +153,7 @@ def build_analyze_response(
         filtered_jobs=filtered_jobs,
         user_skills=current_skills,
     )
+    positive_job_matches_df = get_positive_job_matches(job_match_details_df)
 
     best_role, best_score, top_missing_skill, jobs_analyzed = get_top_insights(
         role_scores_df=role_scores_df,
@@ -182,7 +198,7 @@ def build_analyze_response(
             "matched_skills_preview": str(row["matched_skills_preview"]),
             "missing_skills_preview": str(row["missing_skills_preview"]),
         }
-        for _, row in job_match_details_df.head(top_n).iterrows()
+        for _, row in positive_job_matches_df.head(top_n).iterrows()
     ]
 
     return AnalyzeResponse(
@@ -214,6 +230,72 @@ def get_datasets() -> list[dict]:
         )
 
     return list_datasets()
+
+@app.delete("/datasets/{dataset_name}", response_model=DeleteDatasetResponse)
+def remove_dataset(dataset_name: str) -> dict[str, bool | str]:
+    """Delete a user-managed PostgreSQL dataset."""
+
+    if not check_database_connection():
+        raise HTTPException(
+            status_code=503,
+            detail="PostgreSQL is unavailable, so datasets cannot be deleted.",
+        )
+
+    try:
+        deleted = delete_dataset(dataset_name)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except Exception as error:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Could not delete dataset '{dataset_name}'.",
+        ) from error
+
+    if not deleted:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Dataset '{dataset_name}' was not found.",
+        )
+
+    return {
+        "dataset_name": dataset_name,
+        "deleted": True,
+    }
+
+@app.patch("/datasets/{dataset_name}", response_model=RenameDatasetResponse)
+def update_dataset_name(
+    dataset_name: str,
+    request: RenameDatasetRequest,
+) -> dict[str, bool | str]:
+    """Rename a user-managed PostgreSQL dataset."""
+
+    if not check_database_connection():
+        raise HTTPException(
+            status_code=503,
+            detail="PostgreSQL is unavailable, so datasets cannot be renamed.",
+        )
+
+    try:
+        renamed = rename_dataset(dataset_name, request.new_name)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except Exception as error:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Could not rename dataset '{dataset_name}'.",
+        ) from error
+
+    if not renamed:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Dataset '{dataset_name}' was not found.",
+        )
+
+    return {
+        "old_name": dataset_name,
+        "new_name": build_custom_dataset_name(request.new_name),
+        "renamed": True,
+    }
 
 @app.get("/analysis-runs", response_model=list[AnalysisRunResponse])
 def get_analysis_runs() -> list[dict[str, Any]]:

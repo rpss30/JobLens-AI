@@ -1,7 +1,10 @@
 # src/dashboard/app.py
 
 import sys
+import tempfile
 from pathlib import Path
+from typing import Any
+
 import pandas as pd
 import streamlit as st
 
@@ -53,11 +56,14 @@ from src.matching.match_engine import (
 from src.processing.job_processor import process_jobs
 from src.database.repository import (
     build_analysis_run_name,
+    build_custom_dataset_name,
     check_database_connection,
+    delete_dataset,
     list_analysis_runs,
     list_datasets,
     load_analysis_run,
     load_processed_jobs_dataframe,
+    rename_dataset,
     save_analysis_run,
     save_uploaded_dataset_from_dataframe,
 )
@@ -180,6 +186,11 @@ SEARCH_PRESETS = {
     },
 }
 
+DATASET_SOURCE_DEFAULT = "Default sample dataset"
+DATASET_SOURCE_GREENHOUSE = "Curated Greenhouse demo"
+DATASET_SOURCE_DATABASE = "PostgreSQL dataset"
+
+
 def get_top_insights(
     role_scores_df: pd.DataFrame,
     recommended_skills_df: pd.DataFrame,
@@ -198,7 +209,15 @@ def get_top_insights(
     ).iloc[0]
 
     best_role = best_role_row["role_category"]
-    best_score = best_role_row["weighted_match_score"]
+    best_score = float(best_role_row["weighted_match_score"])
+
+    if best_score <= 0:
+        total_possible_weight = int(best_role_row.get("total_possible_weight", 0))
+        best_role = (
+            "No skill overlap"
+            if total_possible_weight > 0
+            else "Insufficient skill data"
+        )
 
     if recommended_skills_df.empty:
         top_missing_skill = "No major gaps"
@@ -209,232 +228,832 @@ def get_top_insights(
 
     return best_role, best_score, top_missing_skill, jobs_analyzed
 
+
+def format_summary_skills(skills: list[str], fallback: str) -> str:
+    clean_skills = [
+        str(skill).strip()
+        for skill in skills
+        if str(skill).strip()
+    ]
+
+    if not clean_skills:
+        return fallback
+
+    if len(clean_skills) == 1:
+        return clean_skills[0]
+
+    if len(clean_skills) == 2:
+        return f"{clean_skills[0]} and {clean_skills[1]}"
+
+    return f"{', '.join(clean_skills[:-1])}, and {clean_skills[-1]}"
+
+
+def align_candidate_summary_with_match_status(
+    candidate_summary: dict,
+    role_scores_df: pd.DataFrame,
+    best_score: float,
+    top_missing_skill: str,
+    jobs_analyzed: int,
+) -> dict:
+    if best_score > 0 or role_scores_df.empty:
+        return candidate_summary
+
+    best_role_row = role_scores_df.sort_values(
+        by="weighted_match_score",
+        ascending=False,
+    ).iloc[0]
+
+    scored_role = str(best_role_row.get("role_category", "selected roles"))
+    total_possible_weight = int(best_role_row.get("total_possible_weight", 0))
+
+    missing_skills = candidate_summary.get("missing_skills", [])
+
+    if (
+        not missing_skills
+        and top_missing_skill
+        and top_missing_skill not in {"N/A", "No major gaps", "No skill gap"}
+    ):
+        missing_skills = [top_missing_skill]
+
+    missing_text = format_summary_skills(
+        missing_skills,
+        fallback="the skills listed in the detailed breakdown",
+    )
+
+    if total_possible_weight == 0:
+        summary = (
+            f"Based on <strong>{jobs_analyzed} matching postings</strong>, "
+            "JobLens could not calculate a meaningful skill-fit score because "
+            "the selected postings do not have extracted skills yet. "
+            "Try a broader filter or a dataset with richer skill extraction."
+        )
+    else:
+        summary = (
+            f"Based on <strong>{jobs_analyzed} matching postings</strong>, "
+            "JobLens found <strong>no overlap</strong> between your current "
+            f"skills and the extracted skills for "
+            f"<span class='summary-highlight'>{scored_role}</span>. "
+            f"The highest-impact gaps are "
+            f"<span class='summary-warning'>{missing_text}</span>."
+        )
+
+    return {
+        **candidate_summary,
+        "summary": summary,
+        "matched_skills": [],
+        "missing_skills": missing_skills,
+    }
+
+
+def format_dataset_source_type(source_type: str) -> str:
+    if source_type == "uploaded_csv":
+        return "Uploaded CSV"
+
+    if source_type == "sample_csv":
+        return "Protected sample"
+
+    return source_type.replace("_", " ").title()
+
+
+def get_database_dataset_names(datasets: list[dict[str, Any]]) -> list[str]:
+    return [str(dataset["name"]) for dataset in datasets]
+
+
+def get_default_database_dataset(datasets: list[dict[str, Any]]) -> str:
+    dataset_names = get_database_dataset_names(datasets)
+
+    if "sample_jobs" in dataset_names:
+        return "sample_jobs"
+
+    if dataset_names:
+        return dataset_names[0]
+
+    return "sample_jobs"
+
+
+def get_current_dataset_label(source: str, selected_database_dataset: str) -> str:
+    if source == DATASET_SOURCE_DATABASE:
+        return selected_database_dataset
+
+    return source
+
+
+def process_uploaded_jobs_file(uploaded_jobs_file) -> pd.DataFrame:
+    uploaded_raw_jobs_df = read_uploaded_jobs_csv(uploaded_jobs_file)
+
+    is_valid_upload, validation_message = validate_uploaded_jobs_csv(
+        uploaded_raw_jobs_df
+    )
+
+    if not is_valid_upload:
+        raise ValueError(validation_message)
+
+    with tempfile.TemporaryDirectory(prefix="joblens_upload_") as temp_dir:
+        temp_dir_path = Path(temp_dir)
+        temp_raw_path = temp_dir_path / "uploaded_jobs.csv"
+        temp_processed_path = temp_dir_path / "uploaded_processed_jobs.csv"
+
+        uploaded_raw_jobs_df.to_csv(temp_raw_path, index=False)
+
+        return process_jobs(
+            input_path=str(temp_raw_path),
+            output_path=str(temp_processed_path),
+        )
+
+
+@st.dialog("Choose dataset", width="large")
+def choose_dataset_dialog(
+    database_available: bool,
+    database_datasets: list[dict[str, Any]],
+) -> None:
+    st.markdown("**Local datasets**")
+
+    col_default_info, col_default_action = st.columns([5, 1.35])
+    is_default_active = (
+        st.session_state.active_dataset_source == DATASET_SOURCE_DEFAULT
+    )
+
+    with col_default_info:
+        st.write(DATASET_SOURCE_DEFAULT)
+        st.caption("Bundled portfolio sample CSV")
+
+    with col_default_action:
+        if is_default_active:
+            st.markdown(
+                '<span class="active-dataset-button-marker"></span>',
+                unsafe_allow_html=True,
+            )
+        if st.button(
+            "Active" if is_default_active else "Use",
+            key="use_default_dataset",
+            icon=":material/check_circle:",
+            disabled=is_default_active,
+            use_container_width=True,
+        ):
+            st.session_state.active_dataset_source = DATASET_SOURCE_DEFAULT
+            st.session_state.dataset_select_success_message = (
+                f"Selected `{DATASET_SOURCE_DEFAULT}`."
+            )
+            st.rerun()
+
+    col_greenhouse_info, col_greenhouse_action = st.columns([5, 1.35])
+    is_greenhouse_active = (
+        st.session_state.active_dataset_source == DATASET_SOURCE_GREENHOUSE
+    )
+
+    with col_greenhouse_info:
+        st.write(DATASET_SOURCE_GREENHOUSE)
+        st.caption("Generated AI-extracted demo dataset, when available")
+
+    with col_greenhouse_action:
+        if is_greenhouse_active:
+            st.markdown(
+                '<span class="active-dataset-button-marker"></span>',
+                unsafe_allow_html=True,
+            )
+        if st.button(
+            "Active" if is_greenhouse_active else "Use",
+            key="use_greenhouse_dataset",
+            icon=":material/check_circle:",
+            disabled=is_greenhouse_active,
+            use_container_width=True,
+        ):
+            st.session_state.active_dataset_source = DATASET_SOURCE_GREENHOUSE
+            st.session_state.dataset_select_success_message = (
+                f"Selected `{DATASET_SOURCE_GREENHOUSE}`."
+            )
+            st.rerun()
+
+    st.divider()
+    st.markdown("**Saved PostgreSQL datasets**")
+
+    if not database_available:
+        st.warning(
+            "PostgreSQL is unavailable, so saved datasets cannot be selected.",
+            icon=":material/warning:",
+        )
+        return
+
+    if not database_datasets:
+        st.info("No saved PostgreSQL datasets were found.")
+        return
+
+    for dataset in database_datasets:
+        dataset_name = str(dataset["name"])
+        source_type = str(dataset["source_type"])
+        is_active = (
+            st.session_state.active_dataset_source == DATASET_SOURCE_DATABASE
+            and st.session_state.selected_database_dataset == dataset_name
+        )
+
+        col_info, col_action = st.columns([5, 1.35])
+
+        with col_info:
+            st.write(dataset_name)
+            st.caption(format_dataset_source_type(source_type))
+
+        with col_action:
+            button_label = "Active" if is_active else "Use"
+            if is_active:
+                st.markdown(
+                    '<span class="active-dataset-button-marker"></span>',
+                    unsafe_allow_html=True,
+                )
+            if st.button(
+                button_label,
+                key=f"use_database_dataset_{dataset_name}",
+                icon=":material/check_circle:",
+                disabled=is_active,
+                use_container_width=True,
+            ):
+                st.session_state.active_dataset_source = DATASET_SOURCE_DATABASE
+                st.session_state.selected_database_dataset = dataset_name
+                st.session_state.dataset_select_success_message = (
+                    f"Selected `{dataset_name}`."
+                )
+                st.rerun()
+
+
+@st.dialog("Upload dataset")
+def upload_dataset_dialog(database_available: bool) -> None:
+    if not database_available:
+        st.warning(
+            "Turn on PostgreSQL locally before saving uploaded datasets.",
+            icon=":material/warning:",
+        )
+        return
+
+    uploaded_jobs_file = st.file_uploader(
+        "Jobs CSV",
+        type=["csv"],
+        help=(
+            "CSV must include title, company, location, description, "
+            "and experience_level columns."
+        ),
+        key="dataset_upload_file",
+    )
+
+    dataset_name = st.text_input(
+        "Dataset name",
+        placeholder="my_custom_dataset",
+        help="Required. Names are saved as lowercase, underscore-separated slugs.",
+        key="dataset_upload_name",
+    )
+
+    if dataset_name.strip():
+        safe_dataset_name = build_custom_dataset_name(dataset_name)
+        st.caption(f"Saved name: `{safe_dataset_name}`")
+
+    if st.button(
+        "Save uploaded dataset",
+        type="primary",
+        icon=":material/upload_file:",
+        use_container_width=True,
+    ):
+        if uploaded_jobs_file is None:
+            st.warning(
+                "Choose a jobs CSV before saving.",
+                icon=":material/warning:",
+            )
+            return
+
+        if not dataset_name.strip():
+            st.warning(
+                "Enter a dataset name before saving.",
+                icon=":material/warning:",
+            )
+            return
+
+        try:
+            jobs_df = process_uploaded_jobs_file(uploaded_jobs_file)
+
+            if jobs_df.empty:
+                st.error(
+                    "Uploaded CSV was processed, but no usable job postings were found.",
+                    icon=":material/error:",
+                )
+                return
+
+            saved_dataset_name = save_uploaded_dataset_from_dataframe(
+                df=jobs_df,
+                filename=uploaded_jobs_file.name,
+                custom_name=dataset_name,
+            )
+
+            st.session_state.active_dataset_source = DATASET_SOURCE_DATABASE
+            st.session_state.selected_database_dataset = saved_dataset_name
+            st.session_state.dataset_upload_success_message = (
+                f"Saved and selected dataset `{saved_dataset_name}`."
+            )
+            st.rerun()
+        except pd.errors.EmptyDataError:
+            st.error("Uploaded CSV is empty. Please upload a valid jobs CSV.")
+        except pd.errors.ParserError:
+            st.error(
+                "Uploaded file could not be parsed as a valid CSV. "
+                "Please check the file formatting."
+            )
+        except UnicodeDecodeError:
+            st.error(
+                "Uploaded CSV could not be decoded. Please save it as UTF-8 and try again."
+            )
+        except ValueError as error:
+            st.error(str(error), icon=":material/error:")
+        except Exception as error:
+            st.error(
+                "Custom dataset could not be saved to PostgreSQL.",
+                icon=":material/error:",
+            )
+
+            with st.expander("Upload save error details"):
+                st.code(str(error))
+
+
+@st.dialog("Manage saved datasets", width="large")
+def manage_saved_datasets_dialog(
+    database_available: bool,
+    database_datasets: list[dict[str, Any]],
+) -> None:
+    if not database_available:
+        st.warning(
+            "PostgreSQL is unavailable, so saved datasets cannot be managed.",
+            icon=":material/warning:",
+        )
+        return
+
+    if not database_datasets:
+        st.info("No saved PostgreSQL datasets were found.")
+        return
+
+    st.caption("Uploaded CSV datasets can be renamed or deleted. Protected datasets are locked.")
+
+    for dataset_index, dataset in enumerate(database_datasets):
+        dataset_name = str(dataset["name"])
+        source_type = str(dataset["source_type"])
+        is_user_dataset = source_type == "uploaded_csv"
+
+        col_info, col_actions = st.columns([5, 2])
+
+        with col_info:
+            st.write(dataset_name)
+            st.caption(format_dataset_source_type(source_type))
+
+        with col_actions:
+            if st.button(
+                "Rename",
+                key=f"manage_edit_{dataset_name}",
+                icon=":material/edit:",
+                help=f"Rename {dataset_name}",
+                disabled=not is_user_dataset,
+                use_container_width=True,
+            ):
+                st.session_state.dataset_manager_action = {
+                    "type": "rename",
+                    "dataset_name": dataset_name,
+                }
+
+            if st.button(
+                "Delete",
+                key=f"manage_delete_{dataset_name}",
+                icon=":material/delete:",
+                help=f"Delete {dataset_name}",
+                disabled=not is_user_dataset,
+                use_container_width=True,
+            ):
+                st.session_state.dataset_manager_action = {
+                    "type": "delete",
+                    "dataset_name": dataset_name,
+                }
+
+        if dataset_index < len(database_datasets) - 1:
+            st.divider()
+
+    action = st.session_state.get("dataset_manager_action")
+
+    if not action:
+        return
+
+    target_dataset_name = str(action["dataset_name"])
+
+    st.divider()
+
+    if action["type"] == "rename":
+        st.markdown("**Rename dataset**")
+
+        new_dataset_name = st.text_input(
+            "New dataset name",
+            value=target_dataset_name,
+            help="Names are saved as lowercase, underscore-separated slugs.",
+            key=f"rename_dataset_name_{target_dataset_name}",
+        )
+
+        if new_dataset_name.strip():
+            st.caption(f"Saved name: `{build_custom_dataset_name(new_dataset_name)}`")
+
+        col_cancel, col_save = st.columns(2)
+
+        with col_cancel:
+            if st.button(
+                "Cancel",
+                key=f"cancel_rename_{target_dataset_name}",
+                icon=":material/close:",
+                use_container_width=True,
+            ):
+                del st.session_state.dataset_manager_action
+                st.rerun()
+
+        with col_save:
+            if st.button(
+                "Save name",
+                key=f"save_rename_{target_dataset_name}",
+                type="primary",
+                icon=":material/check_circle:",
+                use_container_width=True,
+            ):
+                if not new_dataset_name.strip():
+                    st.warning(
+                        "Enter a new dataset name before saving.",
+                        icon=":material/warning:",
+                    )
+                    return
+
+                try:
+                    renamed = rename_dataset(target_dataset_name, new_dataset_name)
+                    safe_new_dataset_name = build_custom_dataset_name(new_dataset_name)
+
+                    if renamed:
+                        if st.session_state.selected_database_dataset == target_dataset_name:
+                            st.session_state.selected_database_dataset = safe_new_dataset_name
+
+                        st.session_state.dataset_rename_success_message = (
+                            f"Renamed dataset `{target_dataset_name}` to `{safe_new_dataset_name}`."
+                        )
+                        del st.session_state.dataset_manager_action
+                        st.rerun()
+
+                    st.session_state.dataset_rename_warning_message = (
+                        f"Dataset `{target_dataset_name}` was not found."
+                    )
+                    del st.session_state.dataset_manager_action
+                    st.rerun()
+                except Exception as error:
+                    st.session_state.dataset_rename_error_message = str(error)
+                    del st.session_state.dataset_manager_action
+                    st.rerun()
+
+    if action["type"] == "delete":
+        st.markdown("**Delete dataset**")
+        st.warning(
+            f"You are about to delete `{target_dataset_name}`. This action cannot be undone.",
+            icon=":material/warning:",
+        )
+
+        col_cancel, col_delete = st.columns(2)
+
+        with col_cancel:
+            if st.button(
+                "Cancel",
+                key=f"cancel_delete_{target_dataset_name}",
+                icon=":material/close:",
+                use_container_width=True,
+            ):
+                del st.session_state.dataset_manager_action
+                st.rerun()
+
+        with col_delete:
+            if st.button(
+                "Delete dataset",
+                key=f"confirm_delete_{target_dataset_name}",
+                type="primary",
+                icon=":material/delete:",
+                use_container_width=True,
+            ):
+                try:
+                    deleted = delete_dataset(target_dataset_name)
+
+                    if deleted:
+                        if st.session_state.selected_database_dataset == target_dataset_name:
+                            st.session_state.selected_database_dataset = "sample_jobs"
+
+                        st.session_state.dataset_delete_success_message = (
+                            f"Deleted dataset `{target_dataset_name}`."
+                        )
+                        del st.session_state.dataset_manager_action
+                        st.rerun()
+
+                    st.session_state.dataset_delete_warning_message = (
+                        f"Dataset `{target_dataset_name}` was not found."
+                    )
+                    del st.session_state.dataset_manager_action
+                    st.rerun()
+                except Exception as error:
+                    st.session_state.dataset_delete_error_message = str(error)
+                    del st.session_state.dataset_manager_action
+                    st.rerun()
+
 def main() -> None:
     inject_global_styles()
 
     if "analysis_requested" not in st.session_state:
         st.session_state.analysis_requested = False
 
+    if "active_dataset_source" not in st.session_state:
+        st.session_state.active_dataset_source = DATASET_SOURCE_DEFAULT
+
+    if "selected_database_dataset" not in st.session_state:
+        st.session_state.selected_database_dataset = "sample_jobs"
+
+    if "dataset_delete_success_message" in st.session_state:
+        st.toast(
+            st.session_state.dataset_delete_success_message,
+            icon=":material/check_circle:",
+        )
+        del st.session_state.dataset_delete_success_message
+
+    if "dataset_delete_warning_message" in st.session_state:
+        st.warning(
+            st.session_state.dataset_delete_warning_message,
+            icon=":material/warning:",
+        )
+        del st.session_state.dataset_delete_warning_message
+
+    if "dataset_delete_error_message" in st.session_state:
+        st.error(
+            "Could not delete selected dataset.",
+            icon=":material/error:",
+        )
+
+        with st.expander("Dataset delete error details"):
+            st.code(st.session_state.dataset_delete_error_message)
+
+        del st.session_state.dataset_delete_error_message
+
+    if "dataset_rename_success_message" in st.session_state:
+        st.toast(
+            st.session_state.dataset_rename_success_message,
+            icon=":material/check_circle:",
+        )
+        del st.session_state.dataset_rename_success_message
+
+    if "dataset_rename_warning_message" in st.session_state:
+        st.warning(
+            st.session_state.dataset_rename_warning_message,
+            icon=":material/warning:",
+        )
+        del st.session_state.dataset_rename_warning_message
+
+    if "dataset_rename_error_message" in st.session_state:
+        st.error(
+            "Could not rename selected dataset.",
+            icon=":material/error:",
+        )
+
+        with st.expander("Dataset rename error details"):
+            st.code(st.session_state.dataset_rename_error_message)
+
+        del st.session_state.dataset_rename_error_message
+
+    if "dataset_upload_success_message" in st.session_state:
+        st.toast(
+            st.session_state.dataset_upload_success_message,
+            icon=":material/check_circle:",
+        )
+        del st.session_state.dataset_upload_success_message
+
+    if "dataset_select_success_message" in st.session_state:
+        st.toast(
+            st.session_state.dataset_select_success_message,
+            icon=":material/check_circle:",
+        )
+        del st.session_state.dataset_select_success_message
+
     selected_saved_analysis_run = None
 
     st.title("JobLens AI")
     st.caption("Personalized job market intelligence for role fit, skill gaps, and learning priorities.")
 
-    dataset_source = st.sidebar.selectbox(
-        "Dataset source",
-        options=[
-            "Default sample dataset",
-            "AI-extracted Greenhouse demo",
-        ],
-        help=(
-            "Choose the local sample dataset or a generated AI-extracted "
-            "Greenhouse experiment dataset if it exists."
-        ),
-    )
+    database_available = check_database_connection()
+    available_database_datasets: list[dict[str, Any]] = []
+    database_list_error: Exception | None = None
 
-    use_database = st.sidebar.toggle(
-        "Use PostgreSQL database",
-        value=False,
-        help="Load the curated sample jobs from PostgreSQL instead of the local processed CSV.",
-    )
-
-    uploaded_jobs_file = st.sidebar.file_uploader(
-        "Upload custom jobs CSV",
-        type=["csv"],
-        help=(
-            "CSV must include title, company, location, description, "
-            "and experience_level columns."
-        ),
-    )
-
-    persist_uploaded_dataset = st.sidebar.checkbox(
-        "Save uploaded CSV to PostgreSQL",
-        value=False,
-        help=(
-            "If enabled, a valid uploaded CSV will be processed and saved "
-            "as a reusable PostgreSQL dataset."
-        ),
-    )
-
-    selected_database_dataset = "sample_jobs"
-
-    if use_database and check_database_connection():
+    if database_available:
         try:
             available_database_datasets = list_datasets()
-            dataset_names = [dataset["name"] for dataset in available_database_datasets]
-
-            if dataset_names:
-                selected_database_dataset = st.sidebar.selectbox(
-                    "PostgreSQL dataset",
-                    options=dataset_names,
-                    index=dataset_names.index("sample_jobs")
-                    if "sample_jobs" in dataset_names
-                    else 0,
-                    help="Choose which saved PostgreSQL dataset to analyze.",
-                )
-            else:
-                st.sidebar.warning("No PostgreSQL datasets found.")
         except Exception as error:
-            st.sidebar.warning("Could not load PostgreSQL dataset list.")
+            database_list_error = error
 
-            with st.sidebar.expander("Dataset list error details"):
-                st.code(str(error))
+    database_dataset_names = get_database_dataset_names(available_database_datasets)
 
-        try:
-            saved_analysis_runs = list_analysis_runs()
-
-            if saved_analysis_runs:
-                saved_run_options = {
-                    f"{run['name']} — {run['dataset_name']}": run["id"]
-                    for run in saved_analysis_runs
-                }
-
-                selected_saved_run_label = st.sidebar.selectbox(
-                    "Saved analysis preview",
-                    options=["None"] + list(saved_run_options.keys()),
-                    help=(
-                        "Preview a previously saved analysis run. "
-                        "This does not change the current live analysis filters yet."
-                    ),
-                )
-
-                if selected_saved_run_label != "None":
-                    selected_saved_analysis_run = load_analysis_run(
-                        saved_run_options[selected_saved_run_label]
-                    )
-            else:
-                st.sidebar.caption("No saved analysis runs yet.")
-        except Exception as error:
-            st.sidebar.warning("Could not load saved analysis runs.")
-
-            with st.sidebar.expander("Saved runs error details"):
-                st.code(str(error))
-
-    if uploaded_jobs_file is not None:
-        try:
-            uploaded_raw_jobs_df = read_uploaded_jobs_csv(uploaded_jobs_file)
-        except pd.errors.EmptyDataError:
-            st.error("Uploaded CSV is empty. Please upload a valid jobs CSV.")
-            return
-        except pd.errors.ParserError:
-            st.error(
-                "Uploaded file could not be parsed as a valid CSV. "
-                "Please check the file formatting."
-            )
-            return
-        except UnicodeDecodeError:
-            st.error(
-                "Uploaded CSV could not be decoded. Please save it as UTF-8 and try again."
-            )
-            return
-
-        is_valid_upload, validation_message = validate_uploaded_jobs_csv(
-            uploaded_raw_jobs_df
+    if (
+        st.session_state.active_dataset_source == DATASET_SOURCE_DATABASE
+        and database_dataset_names
+        and st.session_state.selected_database_dataset not in database_dataset_names
+    ):
+        st.session_state.selected_database_dataset = get_default_database_dataset(
+            available_database_datasets
         )
 
-        if not is_valid_upload:
-            st.error(validation_message)
-            return
+    selected_database_dataset = st.session_state.selected_database_dataset
+    dataset_source = st.session_state.active_dataset_source
+    use_database = dataset_source == DATASET_SOURCE_DATABASE
 
-        temp_raw_path = "data/raw/uploaded_jobs.csv"
-        temp_processed_path = "data/processed/uploaded_processed_jobs.csv"
-
-        uploaded_raw_jobs_df.to_csv(temp_raw_path, index=False)
-
-        jobs_df = process_jobs(
-            input_path=temp_raw_path,
-            output_path=temp_processed_path,
+    with st.sidebar:
+        dataset_heading_col, dataset_help_col = st.columns(
+            [0.82, 0.18],
+            vertical_alignment="center",
         )
 
-        if jobs_df.empty:
-            st.error(
-                "Uploaded CSV was processed, but no usable job postings were found."
+        with dataset_heading_col:
+            st.header("Dataset")
+
+        with dataset_help_col:
+            st.markdown(
+                '<span class="dataset-info-popover-anchor"></span>',
+                unsafe_allow_html=True,
             )
-            return
-
-        if "extracted_skills" in jobs_df.columns:
-            has_extracted_skills = jobs_df["extracted_skills"].apply(
-                lambda skills: bool(skills)
-                if isinstance(skills, list)
-                else bool(str(skills).strip())
-            ).any()
-
-            if not has_extracted_skills:
-                st.warning(
-                    "Custom dataset loaded, but no known skills were extracted. "
-                    "Try using descriptions with skills such as Python, SQL, AWS, Docker, Pandas, or PyTorch."
+            with st.popover(
+                "Dataset info",
+                icon=":material/help:",
+                help="Dataset info",
+                width="content",
+            ):
+                st.markdown("**Expected dataset**")
+                st.write(
+                    "Use a jobs CSV with `title`, `company`, `location`, "
+                    "`description`, and `experience_level` columns."
+                )
+                st.write(
+                    "The selected dataset is the job market sample used for "
+                    "role-fit scoring, skill gaps, recommendations, and charts."
+                )
+                st.write(
+                    "Uploaded PostgreSQL datasets are reusable. Protected sample "
+                    "datasets cannot be renamed or deleted."
                 )
 
-        if persist_uploaded_dataset:
-            if use_database and check_database_connection():
-                try:
-                    saved_dataset_name = save_uploaded_dataset_from_dataframe(
-                        df=jobs_df,
-                        filename=uploaded_jobs_file.name,
-                    )
+        st.caption("Current dataset")
+        st.write(f"**{get_current_dataset_label(dataset_source, selected_database_dataset)}**")
 
-                    st.sidebar.success(
-                        f"Uploaded dataset saved to PostgreSQL as `{saved_dataset_name}`."
-                    )
-                except Exception as error:
-                    st.sidebar.warning(
-                        "Custom dataset loaded, but it could not be saved to PostgreSQL."
-                    )
-
-                    with st.sidebar.expander("Database save error details"):
-                        st.code(str(error))
-            else:
-                st.sidebar.warning(
-                    "Custom dataset loaded, but PostgreSQL saving was skipped because "
-                    "the database toggle is off or the database is unavailable."
-                )
-                
-        st.sidebar.success("Custom job dataset loaded.")
-    else:
         if use_database:
-            try:
-                if check_database_connection():
-                    jobs_df = load_processed_jobs_dataframe(dataset_name=selected_database_dataset)
-
-                    if jobs_df.empty:
-                        st.sidebar.warning(
-                            "PostgreSQL is connected, but no jobs were found. "
-                            "Using the local sample CSV instead."
-                        )
-                        jobs_df = load_processed_jobs()
-                    else:
-                        st.sidebar.success("Loaded sample jobs from PostgreSQL.")
-                else:
-                    st.sidebar.warning(
-                        "Could not connect to PostgreSQL. "
-                        "Using the local sample CSV instead."
-                    )
-                    jobs_df = load_processed_jobs()
-
-            except Exception as error:
-                st.sidebar.warning(
-                    "PostgreSQL is unavailable. "
-                    "Using the local sample CSV instead."
+            st.markdown(
+                '<span class="postgres-toggle-marker postgres-toggle-on"></span>',
+                unsafe_allow_html=True,
+            )
+            if st.button(
+                "Turn off PostgreSQL",
+                icon=":material/database_off:",
+                use_container_width=True,
+            ):
+                st.session_state.active_dataset_source = DATASET_SOURCE_DEFAULT
+                st.session_state.dataset_select_success_message = (
+                    f"Selected `{DATASET_SOURCE_DEFAULT}`."
                 )
+                st.rerun()
+        else:
+            st.markdown(
+                '<span class="postgres-toggle-marker postgres-toggle-off"></span>',
+                unsafe_allow_html=True,
+            )
+            if st.button(
+                "Turn on PostgreSQL",
+                icon=":material/database:",
+                use_container_width=True,
+            ):
+                if not database_available:
+                    st.warning(
+                        "PostgreSQL is unavailable right now.",
+                        icon=":material/warning:",
+                    )
+                elif not available_database_datasets:
+                    st.warning(
+                        "No PostgreSQL datasets were found.",
+                        icon=":material/warning:",
+                    )
+                else:
+                    selected_default_database_dataset = get_default_database_dataset(
+                        available_database_datasets
+                    )
+                    st.session_state.active_dataset_source = DATASET_SOURCE_DATABASE
+                    st.session_state.selected_database_dataset = (
+                        selected_default_database_dataset
+                    )
+                    st.session_state.dataset_select_success_message = (
+                        f"Selected `{selected_default_database_dataset}`."
+                    )
+                    st.rerun()
 
-                with st.sidebar.expander("Database error details"):
+        if database_list_error is not None:
+            st.warning("Could not load PostgreSQL dataset list.")
+
+            with st.expander("Dataset list error details"):
+                st.code(str(database_list_error))
+
+        if st.button(
+            "Choose dataset",
+            icon=":material/database:",
+            use_container_width=True,
+        ):
+            choose_dataset_dialog(
+                database_available=database_available,
+                database_datasets=available_database_datasets,
+            )
+
+        if st.button(
+            "Upload dataset",
+            icon=":material/upload_file:",
+            use_container_width=True,
+        ):
+            upload_dataset_dialog(database_available=database_available)
+
+        if st.button(
+            "Manage saved datasets",
+            icon=":material/settings:",
+            use_container_width=True,
+        ):
+            manage_saved_datasets_dialog(
+                database_available=database_available,
+                database_datasets=available_database_datasets,
+            )
+
+        if use_database and database_available:
+            try:
+                saved_analysis_runs = list_analysis_runs()
+
+                if saved_analysis_runs:
+                    saved_run_options = {
+                        f"{run['name']} — {run['dataset_name']}": run["id"]
+                        for run in saved_analysis_runs
+                    }
+
+                    selected_saved_run_label = st.selectbox(
+                        "Saved analysis preview",
+                        options=["None"] + list(saved_run_options.keys()),
+                        help=(
+                            "Preview a previously saved analysis run. "
+                            "This does not change the current live analysis filters yet."
+                        ),
+                    )
+
+                    if selected_saved_run_label != "None":
+                        selected_saved_analysis_run = load_analysis_run(
+                            saved_run_options[selected_saved_run_label]
+                        )
+                else:
+                    st.caption("No saved analysis runs yet.")
+            except Exception as error:
+                st.warning("Could not load saved analysis runs.")
+
+                with st.expander("Saved runs error details"):
                     st.code(str(error))
 
-                jobs_df = load_processed_jobs()
-        else:
-            if dataset_source == "AI-extracted Greenhouse sample":
-                jobs_df = load_processed_jobs_from_csv(GREENHOUSE_AI_DEMO_PATH)
+    if use_database:
+        try:
+            if database_available:
+                jobs_df = load_processed_jobs_dataframe(
+                    dataset_name=selected_database_dataset
+                )
 
                 if jobs_df.empty:
                     st.sidebar.warning(
-                        "AI-extracted Greenhouse demo dataset was not found. "
-                        "Using the default sample dataset instead."
+                        "PostgreSQL is connected, but no jobs were found. "
+                        "Using the local sample CSV instead."
                     )
                     jobs_df = load_processed_jobs()
                 else:
-                    st.sidebar.success("Loaded AI-extracted Greenhouse demo dataset.")
+                    st.sidebar.success(
+                        f"Loaded `{selected_database_dataset}` from PostgreSQL."
+                    )
             else:
+                st.sidebar.warning(
+                    "Could not connect to PostgreSQL. "
+                    "Using the local sample CSV instead."
+                )
                 jobs_df = load_processed_jobs()
+
+        except Exception as error:
+            st.sidebar.warning(
+                "PostgreSQL is unavailable. "
+                "Using the local sample CSV instead."
+            )
+
+            with st.sidebar.expander("Database error details"):
+                st.code(str(error))
+
+            jobs_df = load_processed_jobs()
+    else:
+        if dataset_source == DATASET_SOURCE_GREENHOUSE:
+            jobs_df = load_processed_jobs_from_csv(GREENHOUSE_AI_DEMO_PATH)
+
+            if jobs_df.empty:
+                st.sidebar.warning(
+                    "Curated Greenhouse demo dataset was not found. "
+                    "Using the default sample dataset instead."
+                )
+                jobs_df = load_processed_jobs()
+            else:
+                st.sidebar.success("Loaded curated Greenhouse demo dataset.")
+        else:
+            jobs_df = load_processed_jobs()
 
     available_target_roles = get_available_target_roles(jobs_df)
     available_skills = get_available_skills(jobs_df)
@@ -639,6 +1258,14 @@ def main() -> None:
         filtered_jobs_df=filtered_jobs,
     )
 
+    candidate_summary = align_candidate_summary_with_match_status(
+        candidate_summary=candidate_summary,
+        role_scores_df=role_scores_df,
+        best_score=best_score,
+        top_missing_skill=top_missing_skill,
+        jobs_analyzed=jobs_analyzed,
+    )
+
     role_sample_context_df = get_role_sample_context(filtered_jobs)
 
     st.subheader("Role Fit Overview")
@@ -728,9 +1355,7 @@ def main() -> None:
     jobs_by_location_df = get_jobs_by_location(filtered_jobs)
     job_match_details_df = get_job_match_details(filtered_jobs, current_skills)
 
-    if uploaded_jobs_file is not None:
-        report_dataset_name = uploaded_jobs_file.name
-    elif use_database:
+    if use_database:
         report_dataset_name = selected_database_dataset
     else:
         report_dataset_name = dataset_source

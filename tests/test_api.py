@@ -98,6 +98,25 @@ def make_api_processed_jobs_df() -> pd.DataFrame:
         ]
     )
 
+def make_zero_overlap_api_processed_jobs_df() -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            {
+                "job_id": None,
+                "title": "Backend Software Engineer",
+                "company": "TestCo",
+                "location": "Remote",
+                "description": "Build backend services using Go and Java.",
+                "experience_level": "Senior",
+                "clean_title": "backend software engineer",
+                "clean_description": "build backend services using go and java",
+                "extracted_skills": ["Go", "Java", "SQL"],
+                "role_category": "Software Engineering",
+                "skills_text": "Go, Java, SQL",
+            }
+        ]
+    )
+
 def make_saved_analysis_run() -> dict:
     return {
         "id": 1,
@@ -184,6 +203,35 @@ def test_analyze_can_use_database_dataset(monkeypatch) -> None:
     assert data["jobs_analyzed"] == 1
     assert data["best_role"] == "Data Science"
     assert data["top_matching_jobs"][0]["title"] == "Data Scientist"
+
+
+def test_analyze_omits_zero_score_top_matching_jobs(monkeypatch) -> None:
+    monkeypatch.setattr(api_main, "check_database_connection", lambda: True)
+    monkeypatch.setattr(
+        api_main,
+        "load_processed_jobs_dataframe",
+        lambda dataset_name: make_zero_overlap_api_processed_jobs_df(),
+    )
+
+    response = client.post(
+        "/analyze",
+        json={
+            "dataset_name": "sample_jobs",
+            "current_skills": ["Python", "Docker"],
+            "target_roles": ["Backend Software Engineer"],
+            "location": "Any",
+            "experience_level": "Any",
+            "top_n": 5,
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["best_role"] == "No skill overlap"
+    assert data["weighted_match_score"] == 0.0
+    assert data["top_matching_jobs"] == []
 
 
 def test_analyze_database_dataset_returns_404_when_dataset_missing(monkeypatch) -> None:
@@ -283,6 +331,140 @@ def test_get_analysis_run_returns_503_when_database_unavailable(monkeypatch) -> 
     monkeypatch.setattr(api_main, "check_database_connection", lambda: False)
 
     response = client.get("/analysis-runs/1")
+
+    assert response.status_code == 503
+    assert "PostgreSQL is unavailable" in response.json()["detail"]
+
+def test_delete_dataset_deletes_uploaded_dataset(monkeypatch) -> None:
+    monkeypatch.setattr(api_main, "check_database_connection", lambda: True)
+
+    def fake_delete_dataset(dataset_name: str) -> bool:
+        assert dataset_name == "uploaded_20260101_sample_jobs"
+        return True
+
+    monkeypatch.setattr(api_main, "delete_dataset", fake_delete_dataset)
+
+    response = client.delete("/datasets/uploaded_20260101_sample_jobs")
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["dataset_name"] == "uploaded_20260101_sample_jobs"
+    assert data["deleted"] is True
+
+
+def test_delete_dataset_returns_404_when_dataset_missing(monkeypatch) -> None:
+    monkeypatch.setattr(api_main, "check_database_connection", lambda: True)
+    monkeypatch.setattr(api_main, "delete_dataset", lambda dataset_name: False)
+
+    response = client.delete("/datasets/missing_dataset")
+
+    assert response.status_code == 404
+    assert "missing_dataset" in response.json()["detail"]
+
+
+def test_delete_dataset_returns_400_for_protected_dataset(monkeypatch) -> None:
+    monkeypatch.setattr(api_main, "check_database_connection", lambda: True)
+
+    def fake_delete_dataset(dataset_name: str) -> bool:
+        raise ValueError("Only uploaded CSV datasets can be deleted.")
+
+    monkeypatch.setattr(api_main, "delete_dataset", fake_delete_dataset)
+
+    response = client.delete("/datasets/sample_jobs")
+
+    assert response.status_code == 400
+    assert "Only uploaded CSV datasets can be deleted" in response.json()["detail"]
+
+
+def test_delete_dataset_returns_503_when_database_unavailable(monkeypatch) -> None:
+    monkeypatch.setattr(api_main, "check_database_connection", lambda: False)
+
+    response = client.delete("/datasets/uploaded_20260101_sample_jobs")
+
+    assert response.status_code == 503
+    assert "PostgreSQL is unavailable" in response.json()["detail"]
+
+
+def test_rename_dataset_renames_uploaded_dataset(monkeypatch) -> None:
+    monkeypatch.setattr(api_main, "check_database_connection", lambda: True)
+
+    def fake_rename_dataset(dataset_name: str, new_name: str) -> bool:
+        assert dataset_name == "uploaded_20260101_sample_jobs"
+        assert new_name == "My Custom Dataset"
+        return True
+
+    monkeypatch.setattr(api_main, "rename_dataset", fake_rename_dataset)
+
+    response = client.patch(
+        "/datasets/uploaded_20260101_sample_jobs",
+        json={"new_name": "My Custom Dataset"},
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["old_name"] == "uploaded_20260101_sample_jobs"
+    assert data["new_name"] == "my_custom_dataset"
+    assert data["renamed"] is True
+
+
+def test_rename_dataset_returns_404_when_dataset_missing(monkeypatch) -> None:
+    monkeypatch.setattr(api_main, "check_database_connection", lambda: True)
+    monkeypatch.setattr(api_main, "rename_dataset", lambda dataset_name, new_name: False)
+
+    response = client.patch(
+        "/datasets/missing_dataset",
+        json={"new_name": "renamed_dataset"},
+    )
+
+    assert response.status_code == 404
+    assert "missing_dataset" in response.json()["detail"]
+
+
+def test_rename_dataset_returns_400_for_protected_dataset(monkeypatch) -> None:
+    monkeypatch.setattr(api_main, "check_database_connection", lambda: True)
+
+    def fake_rename_dataset(dataset_name: str, new_name: str) -> bool:
+        raise ValueError("Only uploaded CSV datasets can be renamed.")
+
+    monkeypatch.setattr(api_main, "rename_dataset", fake_rename_dataset)
+
+    response = client.patch(
+        "/datasets/sample_jobs",
+        json={"new_name": "renamed_sample"},
+    )
+
+    assert response.status_code == 400
+    assert "Only uploaded CSV datasets can be renamed" in response.json()["detail"]
+
+
+def test_rename_dataset_returns_400_for_duplicate_target_name(monkeypatch) -> None:
+    monkeypatch.setattr(api_main, "check_database_connection", lambda: True)
+
+    def fake_rename_dataset(dataset_name: str, new_name: str) -> bool:
+        raise ValueError("Dataset name 'existing_dataset' already exists.")
+
+    monkeypatch.setattr(api_main, "rename_dataset", fake_rename_dataset)
+
+    response = client.patch(
+        "/datasets/uploaded_20260101_sample_jobs",
+        json={"new_name": "existing_dataset"},
+    )
+
+    assert response.status_code == 400
+    assert "already exists" in response.json()["detail"]
+
+
+def test_rename_dataset_returns_503_when_database_unavailable(monkeypatch) -> None:
+    monkeypatch.setattr(api_main, "check_database_connection", lambda: False)
+
+    response = client.patch(
+        "/datasets/uploaded_20260101_sample_jobs",
+        json={"new_name": "renamed_dataset"},
+    )
 
     assert response.status_code == 503
     assert "PostgreSQL is unavailable" in response.json()["detail"]

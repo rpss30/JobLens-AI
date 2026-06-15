@@ -185,6 +185,14 @@ def filter_jobs(
         def title_matches(clean_title: str) -> bool:
             clean_title = str(clean_title).lower()
 
+            def has_term(term: str) -> bool:
+                return bool(
+                    re.search(
+                        rf"(?<![a-z0-9]){re.escape(term)}(?![a-z0-9])",
+                        clean_title,
+                    )
+                )
+
             generic_role_words = {
                 "engineer",
                 "developer",
@@ -205,6 +213,22 @@ def filter_jobs(
 
             for role in role_keywords:
                 role_words = role.split()
+                role_cloud_terms = [
+                    term for term in cloud_role_terms if term in role_words
+                ]
+                role_specific_non_cloud_words = [
+                    word
+                    for word in role_words
+                    if word
+                    not in {
+                        "junior",
+                        "senior",
+                        "entry",
+                        "level",
+                        *generic_role_words,
+                        *cloud_role_terms,
+                    }
+                ]
 
                 # Full phrase match first.
                 if role in clean_title:
@@ -212,8 +236,9 @@ def filter_jobs(
 
                 # Role-family match for cloud/devops/platform roles.
                 if (
-                    any(term in role_words for term in cloud_role_terms)
-                    and any(term in clean_title for term in cloud_role_terms)
+                    role_cloud_terms
+                    and not role_specific_non_cloud_words
+                    and any(has_term(term) for term in role_cloud_terms)
                 ):
                     return True
 
@@ -231,7 +256,33 @@ def filter_jobs(
                     }
                 ]
 
-                if important_words and any(word in clean_title for word in important_words):
+                if not important_words or not all(
+                    has_term(word) for word in important_words
+                ):
+                    continue
+
+                role_family_words = [
+                    word for word in role_words if word in generic_role_words
+                ]
+
+                role_family_aliases = set(role_family_words)
+
+                if "engineer" in role_family_words:
+                    role_family_aliases.update({"developer", "architect"})
+                if "developer" in role_family_words:
+                    role_family_aliases.update({"engineer"})
+                if "analyst" in role_family_words:
+                    role_family_aliases.add("analytics")
+
+                if role_family_aliases and not any(
+                    has_term(word) for word in role_family_aliases
+                ):
+                    ai_or_ml_terms = {"ai", "ml", "machine", "learning"}
+
+                    if not any(word in ai_or_ml_terms for word in important_words):
+                        continue
+
+                if important_words:
                     return True
 
             return False
@@ -440,6 +491,18 @@ def get_job_match_details(
 
     return job_match_df
 
+def get_positive_job_matches(job_match_details_df: pd.DataFrame) -> pd.DataFrame:
+    """Return only job-level matches with positive skill overlap."""
+    if (
+        job_match_details_df.empty
+        or "job_match_score" not in job_match_details_df.columns
+    ):
+        return job_match_details_df.copy()
+
+    return job_match_details_df[
+        job_match_details_df["job_match_score"] > 0
+    ].copy()
+
 def get_recommended_skills(
     jobs_df: pd.DataFrame,
     user_skills: list[str],
@@ -581,7 +644,8 @@ def get_candidate_fit_summary(
     ).iloc[0]
 
     best_role = best_role_row["role_category"]
-    best_score = best_role_row["weighted_match_score"]
+    best_score = float(best_role_row["weighted_match_score"])
+    total_possible_weight = int(best_role_row.get("total_possible_weight", 0))
 
     matched_skills = best_role_row.get("matched_skills", [])
     missing_skills = best_role_row.get("missing_skills", [])
@@ -602,6 +666,30 @@ def get_candidate_fit_summary(
         top_missing_skills,
         fallback="no major gaps from the current filters",
     )
+
+    if best_score <= 0:
+        if total_possible_weight == 0:
+            summary = (
+                f"Based on <strong>{len(filtered_jobs)} matching postings</strong>, "
+                "JobLens could not calculate a meaningful skill-fit score because "
+                "the selected postings do not have extracted skills yet. "
+                "Try a broader filter or a dataset with richer skill extraction."
+            )
+        else:
+            summary = (
+                f"Based on <strong>{len(filtered_jobs)} matching postings</strong>, "
+                "JobLens found <strong>no overlap</strong> between your current "
+                f"skills and the extracted skills for "
+                f"<span class='summary-highlight'>{best_role}</span>. "
+                f"The highest-impact gaps are "
+                f"<span class='summary-warning'>{missing_text}</span>."
+            )
+
+        return {
+            "summary": summary,
+            "matched_skills": [],
+            "missing_skills": top_missing_skills,
+        }
 
     summary = (
         f"Based on <strong>{len(filtered_jobs)} matching postings</strong>, "
@@ -771,15 +859,19 @@ def generate_candidate_report_markdown(
         "",
     ])
 
-    if job_match_details_df.empty:
-        report_lines.append("No job-level matches are available for the current filters.")
+    positive_job_matches_df = get_positive_job_matches(job_match_details_df)
+
+    if positive_job_matches_df.empty:
+        report_lines.append(
+            "No positive job-level matches are available for the current filters."
+        )
     else:
         report_lines.extend([
             "| Title | Company | Location | Match Score | Matched Skills | Missing Skills |",
             "| --- | --- | --- | ---: | --- | --- |",
         ])
 
-        for _, row in job_match_details_df.head(10).iterrows():
+        for _, row in positive_job_matches_df.head(10).iterrows():
             report_lines.append(
                 "| "
                 f"{row.get('title', 'N/A')} | "

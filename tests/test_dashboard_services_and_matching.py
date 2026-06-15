@@ -4,7 +4,9 @@ import pytest
 from src.dashboard.services import (
     filter_jobs,
     generate_candidate_report_markdown,
+    get_candidate_fit_summary,
     get_job_match_details,
+    get_positive_job_matches,
     get_recommended_skills,
     read_uploaded_jobs_csv,
     validate_uploaded_jobs_csv,
@@ -111,6 +113,106 @@ def test_filter_jobs_does_not_match_only_generic_engineer_word() -> None:
     assert "Machine Learning Engineer" not in returned_titles
     assert "AWS Cloud Engineer" not in returned_titles
 
+
+def test_filter_jobs_requires_role_family_for_data_science_and_engineering() -> None:
+    jobs_df = pd.DataFrame(
+        [
+            {
+                "title": "Data Analyst",
+                "clean_title": "data analyst",
+                "company": "InsightCo",
+                "location": "Remote",
+                "experience_level": "Entry Level",
+            },
+            {
+                "title": "Data Scientist",
+                "clean_title": "data scientist",
+                "company": "ScienceCo",
+                "location": "Remote",
+                "experience_level": "Entry Level",
+            },
+            {
+                "title": "Data Engineer",
+                "clean_title": "data engineer",
+                "company": "PipelineCo",
+                "location": "Remote",
+                "experience_level": "Entry Level",
+            },
+        ]
+    )
+
+    data_science_df = filter_jobs(
+        df=jobs_df,
+        target_roles=["Data Scientist"],
+        location="Any",
+        experience_level="Any",
+    )
+
+    data_engineering_df = filter_jobs(
+        df=jobs_df,
+        target_roles=["Data Engineer"],
+        location="Any",
+        experience_level="Any",
+    )
+
+    assert data_science_df["title"].tolist() == ["Data Scientist"]
+    assert data_engineering_df["title"].tolist() == ["Data Engineer"]
+
+
+def test_filter_jobs_avoids_substring_and_overbroad_cloud_matches() -> None:
+    jobs_df = pd.DataFrame(
+        [
+            {
+                "title": "Treasury Finance AI and Quantitative Analytics",
+                "clean_title": "treasury finance ai and quantitative analytics",
+                "company": "AICo",
+                "location": "Remote",
+                "experience_level": "Entry Level",
+            },
+            {
+                "title": "Software Engineer, Security Analytics Infrastructure",
+                "clean_title": "software engineer, security analytics infrastructure",
+                "company": "SecurityCo",
+                "location": "Remote",
+                "experience_level": "Entry Level",
+            },
+            {
+                "title": "Cloud Security Engineer",
+                "clean_title": "cloud security engineer",
+                "company": "CloudCo",
+                "location": "Remote",
+                "experience_level": "Entry Level",
+            },
+            {
+                "title": "Cloud Data Engineer",
+                "clean_title": "cloud data engineer",
+                "company": "PipelineCo",
+                "location": "Remote",
+                "experience_level": "Entry Level",
+            },
+        ]
+    )
+
+    ai_roles_df = filter_jobs(
+        df=jobs_df,
+        target_roles=["AI Engineer"],
+        location="Any",
+        experience_level="Any",
+    )
+
+    cloud_data_roles_df = filter_jobs(
+        df=jobs_df,
+        target_roles=["Cloud Data Engineer"],
+        location="Any",
+        experience_level="Any",
+    )
+
+    assert ai_roles_df["title"].tolist() == [
+        "Treasury Finance AI and Quantitative Analytics"
+    ]
+    assert cloud_data_roles_df["title"].tolist() == ["Cloud Data Engineer"]
+
+
 def test_get_job_match_details_calculates_job_level_scores() -> None:
     jobs_df = make_sample_jobs_df()
 
@@ -130,6 +232,22 @@ def test_get_job_match_details_calculates_job_level_scores() -> None:
     assert top_job["job_match_score"] == 75.0
     assert top_job["matched_skills_count"] == 3
     assert top_job["missing_skills_count"] == 1
+
+
+def test_get_positive_job_matches_excludes_zero_score_jobs() -> None:
+    jobs_df = make_sample_jobs_df()
+
+    job_match_df = get_job_match_details(
+        filtered_jobs=jobs_df,
+        user_skills=["PyTorch"],
+    )
+
+    positive_matches_df = get_positive_job_matches(job_match_df)
+
+    assert not positive_matches_df.empty
+    assert all(positive_matches_df["job_match_score"] > 0)
+    assert "Data Scientist" not in set(positive_matches_df["title"])
+    assert "Machine Learning Engineer" in set(positive_matches_df["title"])
 
 
 def test_build_role_skill_weights_returns_weights_by_category() -> None:
@@ -237,6 +355,44 @@ def test_get_recommended_skills_empty_when_user_has_all_skills() -> None:
     )
 
     assert recommended_skills_df.empty
+
+
+def test_candidate_fit_summary_handles_zero_skill_overlap() -> None:
+    jobs_df = pd.DataFrame(
+        [
+            {
+                "title": "Backend Software Engineer",
+                "clean_title": "backend software engineer",
+                "company": "TestCo",
+                "location": "Remote",
+                "experience_level": "Senior",
+                "role_category": "Software Engineering",
+                "extracted_skills": ["Go", "Java", "SQL"],
+                "skills_text": "Go, Java, SQL",
+            }
+        ]
+    )
+
+    role_skill_weights = build_role_skill_weights(jobs_df)
+    role_scores_df = score_roles(jobs_df, user_skills=["Python", "Docker"])
+    recommended_skills_df = get_recommended_skills(
+        jobs_df=jobs_df,
+        user_skills=["Python", "Docker"],
+        role_skill_weights=role_skill_weights,
+        top_n=3,
+    )
+
+    summary = get_candidate_fit_summary(
+        filtered_jobs=jobs_df,
+        role_scores_df=role_scores_df,
+        recommended_skills_df=recommended_skills_df,
+    )
+
+    assert "no overlap" in summary["summary"]
+    assert "strongest fit" not in summary["summary"]
+    assert summary["matched_skills"] == []
+    assert summary["missing_skills"]
+
 
 def test_filter_jobs_returns_empty_for_no_matches() -> None:
     jobs_df = make_sample_jobs_df()
@@ -393,3 +549,38 @@ def test_generate_candidate_report_markdown_includes_key_sections() -> None:
 
     assert "<strong>" not in report_markdown
     assert "</strong>" not in report_markdown
+
+
+def test_generate_candidate_report_markdown_excludes_zero_score_top_jobs() -> None:
+    jobs_df = make_sample_jobs_df()
+    current_skills = ["PyTorch"]
+
+    role_skill_weights = build_role_skill_weights(jobs_df)
+    role_scores_df = score_roles(jobs_df, user_skills=current_skills)
+    recommended_skills_df = get_recommended_skills(
+        jobs_df=jobs_df,
+        user_skills=current_skills,
+        role_skill_weights=role_skill_weights,
+        top_n=10,
+    )
+    job_match_details_df = get_job_match_details(
+        filtered_jobs=jobs_df,
+        user_skills=current_skills,
+    )
+
+    report_markdown = generate_candidate_report_markdown(
+        current_skills=current_skills,
+        target_roles=["Machine Learning Engineer"],
+        location="Any",
+        experience_level="Any",
+        filtered_jobs=jobs_df,
+        role_scores_df=role_scores_df,
+        recommended_skills_df=recommended_skills_df,
+        job_match_details_df=job_match_details_df,
+        dataset_name="test_dataset",
+    )
+
+    top_jobs_section = report_markdown.split("## Top Matching Jobs", 1)[1]
+
+    assert "Machine Learning Engineer" in top_jobs_section
+    assert "Data Scientist" not in top_jobs_section

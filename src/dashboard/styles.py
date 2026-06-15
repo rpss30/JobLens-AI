@@ -57,6 +57,64 @@ def inject_global_styles() -> None:
             border-radius: 999px;
         }
 
+        section[data-testid="stSidebar"]
+        div[data-testid="stElementContainer"]:has(.dataset-info-popover-anchor),
+        section[data-testid="stSidebar"]
+        div[data-testid="stElementContainer"]:has(.postgres-toggle-marker) {
+            display: none !important;
+        }
+
+        section[data-testid="stSidebar"]
+        div[data-testid="stElementContainer"]:has(.dataset-info-popover-anchor)
+        + div button[data-testid="stPopoverButton"] {
+            width: 3.35rem !important;
+            min-width: 3.35rem !important;
+            height: 2.45rem !important;
+            padding: 0 0.55rem !important;
+            justify-content: center !important;
+            gap: 0.12rem !important;
+        }
+
+        section[data-testid="stSidebar"]
+        div[data-testid="stElementContainer"]:has(.dataset-info-popover-anchor)
+        + div button[data-testid="stPopoverButton"] p {
+            display: none !important;
+        }
+
+        section[data-testid="stSidebar"]
+        div[data-testid="stElementContainer"]:has(.postgres-toggle-off)
+        + div[data-testid="stElementContainer"] div.stButton > button {
+            background: rgba(220, 38, 38, 0.08) !important;
+            border-color: rgba(220, 38, 38, 0.72) !important;
+            color: #b91c1c !important;
+            font-weight: 700 !important;
+        }
+
+        section[data-testid="stSidebar"]
+        div[data-testid="stElementContainer"]:has(.postgres-toggle-off)
+        + div[data-testid="stElementContainer"] div.stButton > button:hover {
+            background: rgba(220, 38, 38, 0.14) !important;
+            border-color: #dc2626 !important;
+            color: #991b1b !important;
+        }
+
+        section[data-testid="stSidebar"]
+        div[data-testid="stElementContainer"]:has(.postgres-toggle-on)
+        + div[data-testid="stElementContainer"] div.stButton > button {
+            background: rgba(22, 163, 74, 0.10) !important;
+            border-color: rgba(22, 163, 74, 0.72) !important;
+            color: #166534 !important;
+            font-weight: 700 !important;
+        }
+
+        section[data-testid="stSidebar"]
+        div[data-testid="stElementContainer"]:has(.postgres-toggle-on)
+        + div[data-testid="stElementContainer"] div.stButton > button:hover {
+            background: rgba(22, 163, 74, 0.16) !important;
+            border-color: #16a34a !important;
+            color: #14532d !important;
+        }
+
         div[data-baseweb="tag"] {
             background-color: rgba(148, 163, 184, 0.16) !important;
             border: 1px solid rgba(148, 163, 184, 0.35) !important;

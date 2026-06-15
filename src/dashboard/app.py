@@ -750,17 +750,24 @@ def main() -> None:
     use_database = dataset_source == DATASET_SOURCE_DATABASE
 
     with st.sidebar:
-        dataset_heading_col, dataset_help_col = st.columns([0.65, 0.35])
+        dataset_heading_col, dataset_help_col = st.columns(
+            [0.82, 0.18],
+            vertical_alignment="center",
+        )
 
         with dataset_heading_col:
             st.header("Dataset")
 
         with dataset_help_col:
+            st.markdown(
+                '<span class="dataset-info-popover-anchor"></span>',
+                unsafe_allow_html=True,
+            )
             with st.popover(
-                "Info",
+                "Dataset info",
                 icon=":material/help:",
                 help="Dataset info",
-                use_container_width=True,
+                width="content",
             ):
                 st.markdown("**Expected dataset**")
                 st.write(
@@ -780,6 +787,10 @@ def main() -> None:
         st.write(f"**{get_current_dataset_label(dataset_source, selected_database_dataset)}**")
 
         if use_database:
+            st.markdown(
+                '<span class="postgres-toggle-marker postgres-toggle-on"></span>',
+                unsafe_allow_html=True,
+            )
             if st.button(
                 "Turn off PostgreSQL",
                 icon=":material/database_off:",
@@ -791,6 +802,10 @@ def main() -> None:
                 )
                 st.rerun()
         else:
+            st.markdown(
+                '<span class="postgres-toggle-marker postgres-toggle-off"></span>',
+                unsafe_allow_html=True,
+            )
             if st.button(
                 "Turn on PostgreSQL",
                 icon=":material/database:",

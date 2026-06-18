@@ -309,7 +309,7 @@ def main() -> None:
     if not PROCESSED_INPUT_PATH.exists():
         raise FileNotFoundError(
             f"Could not find {PROCESSED_INPUT_PATH}. "
-            "Run the Adzuna processing step first."
+            "Run the job processing pipeline first."
         )
 
     df = pd.read_csv(PROCESSED_INPUT_PATH)

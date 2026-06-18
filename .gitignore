@@ -12,6 +12,10 @@ build/
 data/raw/greenhouse_jobs.csv
 data/raw/lever_jobs.csv
 
+# Runtime CSV upload artifacts
+data/raw/uploaded_jobs.csv
+data/processed/uploaded_processed_jobs.csv
+
 # Generated AI extraction experiment outputs
 data/processed/greenhouse_processed_jobs.csv
 data/processed/greenhouse_ai_processed_jobs_sample.csv

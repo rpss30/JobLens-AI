@@ -115,6 +115,16 @@ The processed dataset is generated at:
 data/processed/processed_jobs.csv
 ```
 
+The repository also ships a curated, AI-extracted Greenhouse demo dataset:
+
+```text
+data/processed/greenhouse_ai_demo_jobs.csv
+```
+
+This is the packaged real-job demo used by the dashboard. Larger raw
+Greenhouse fetches and intermediate processing outputs are generated locally
+and excluded from Git.
+
 
 
 ## How Matching Works

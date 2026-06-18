@@ -1,24 +1,43 @@
-## Data Ingestion (Legacy)
+## Data Ingestion
 
-The previous ingestion pipeline (including Adzuna API and LLM-based extraction scripts) has been removed as part of a simplification and CI speed optimization effort.
+JobLens AI uses public applicant-tracking-system job boards for optional
+real-job ingestion experiments. Greenhouse is the primary source for the
+packaged demo dataset.
 
 ### Current Data Flow
 
-JobLens AI now operates exclusively on curated or user-provided datasets:
+```text
+Public Greenhouse job boards
+        |
+        v
+scripts/fetch_greenhouse_jobs.py
+        |
+        v
+data/raw/greenhouse_jobs.csv
+        |
+        +--> scripts/process_greenhouse_jobs.py
+        |
+        +--> scripts/process_greenhouse_jobs_ai_first.py
+        |
+        v
+data/processed/greenhouse_ai_demo_jobs.csv
+```
 
-- **Processed CSV datasets** (local development and demo data)
-- **PostgreSQL dataset storage** (persistent dataset management and saved analysis runs)
-- **Uploaded CSV ingestion via dashboard** (runtime user-provided datasets processed on demand)
+The full raw fetch and intermediate experiment outputs are generated locally
+and ignored by Git. The curated `greenhouse_ai_demo_jobs.csv` file is packaged
+with the dashboard so the demo remains deterministic and reproducible.
 
-### Design Decision
+Lever normalization support is also available as an optional ingestion module,
+but it is not the source of the packaged demo.
 
-This change was made to:
+### Supporting Workflows
 
-- Reduce CI complexity and runtime overhead
-- Eliminate external API dependencies during tests
-- Ensure deterministic and reproducible job analysis outputs
-- Centralize all preprocessing within the `job_processor.py` pipeline
+- `scripts/fetch_greenhouse_jobs.py` fetches and normalizes public job postings.
+- `scripts/process_greenhouse_jobs.py` applies deterministic processing.
+- `scripts/process_greenhouse_jobs_ai_first.py` runs the AI-first extraction experiment.
+- `scripts/build_greenhouse_ai_demo_jobs.py` builds the curated dashboard demo.
+- `scripts/extract_skills_greenhouse_gemini.py` compares Gemini extraction on a small sample.
 
-### Future Direction (Optional)
-
-External ingestion sources (e.g., job APIs or LLM-based enrichment) may be reintroduced later as modular plugins, but are intentionally excluded from the current MVP scope.
+External APIs and LLMs are not required at dashboard runtime. This keeps the
+core application stable while preserving a realistic ingestion and enrichment
+workflow for portfolio demonstrations.

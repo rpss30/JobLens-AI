@@ -2,7 +2,7 @@
 
 JobLens AI is a personalized job market intelligence dashboard that helps candidates understand how well their current skills align with target roles.
 
-The dashboard analyzes job postings, extracts required technical skills, groups roles into market categories, calculates role-specific match scores, recommends high-impact skills to learn next, and generates a downloadable candidate skill-gap report.
+The dashboard analyzes job postings, extracts required technical skills, groups roles into market categories, calculates role-specific match scores, recommends high-impact skills to learn next, and generates downloadable Markdown and PDF candidate skill-gap reports.
 
 Current MVP uses a curated sample dataset of job postings to simulate role-specific market analysis. The app can run from the local processed CSV dataset or from PostgreSQL, supports saving uploaded CSV datasets to PostgreSQL, and allows saved database datasets to be reloaded from the dashboard. Future iterations will expand to larger real-world ingestion pipelines.
 
@@ -47,7 +47,7 @@ The dashboard also shows market-level insights such as top required skills, role
 - Skill-gap analysis based on selected candidate skills
 - Recommended skills ranked by market demand and role importance
 - Candidate fit summary with highlighted strengths and gaps
-- Downloadable Markdown candidate skill-gap report
+- Downloadable Markdown and PDF candidate skill-gap reports
 - Top matching job cards with job-level evidence
 - Jobs-by-location market insight
 - Role distribution and top hiring companies
@@ -56,10 +56,12 @@ The dashboard also shows market-level insights such as top required skills, role
 - Local database seeding script for processed job postings
 - Custom CSV upload validation and error handling
 - Uploaded CSV datasets can be saved to PostgreSQL
+- Uploaded CSV datasets can be named, renamed, and deleted safely
 - Saved PostgreSQL datasets can be selected and reloaded from the dashboard
 - FastAPI backend with health check and candidate analysis endpoint
 - Docker Compose support for running the dashboard, API, and PostgreSQL together
-- FastAPI dataset listing and PostgreSQL-backed analysis support
+- FastAPI dataset, analysis run, and PostgreSQL-backed analysis support
+- AWS deployment guide for Amazon ECR, RDS PostgreSQL, and container web services
 
 
 
@@ -191,13 +193,14 @@ By default, uploaded CSVs are processed during the active Streamlit session. If 
 - PostgreSQL
 - SQLAlchemy
 - psycopg
+- FastAPI
+- Pydantic
+- Docker
+- Docker Compose
+- reportlab
 - pytest
 - GitHub Actions
 - Streamlit Cloud
-
-Planned future additions:
-
-- AWS
 
 
 
@@ -212,6 +215,8 @@ JobLens AI
 │   │   └── processed_jobs.csv
 │   └── examples
 │       └── sample_upload_jobs.csv
+├── docs
+│   └── aws-deployment.md
 ├── scripts
 │   └── seed_database.py
 ├── src
@@ -363,6 +368,19 @@ To stop the services and remove the PostgreSQL volume:
 docker compose down -v
 ```
 
+## AWS Deployment Path
+
+JobLens AI includes a production-style [AWS deployment guide](docs/aws-deployment.md)
+for running the containerized dashboard and API with managed PostgreSQL.
+
+The guide covers Amazon ECR image publishing, Amazon RDS for PostgreSQL,
+separate Streamlit and FastAPI web services from the same Docker image,
+database initialization, sample dataset seeding, verification, and teardown.
+
+It documents the original App Runner + RDS path for AWS accounts that still
+have App Runner access, and an ECS Express Mode/ECS Fargate path for AWS
+accounts that cannot create new App Runner services.
+
 ## Local PostgreSQL Setup
 
 JobLens AI can run with either the default processed CSV dataset or a local PostgreSQL database.
@@ -506,11 +524,12 @@ Completed:
 - Search presets
 - Candidate profile presets
 - Candidate fit summary
-- Downloadable candidate skill-gap report
+- Downloadable Markdown and PDF candidate skill-gap reports
 - Top matching job cards
 - Jobs-by-location chart
 - Role and skill visualizations
 - Custom CSV upload with validation
+- Dataset naming, rename, and delete controls for uploaded CSV datasets
 - PostgreSQL database schema
 - PostgreSQL seeding script for processed jobs
 - Optional PostgreSQL dashboard loading with CSV fallback
@@ -521,17 +540,17 @@ Completed:
 - PostgreSQL dataset selector in the dashboard
 - Saved analysis runs can be persisted to PostgreSQL and previewed later from the dashboard sidebar.
 - FastAPI backend with `/health` and `/analyze` endpoints
+- FastAPI endpoints for datasets and saved analysis runs
 - Docker Compose setup for Streamlit, FastAPI, and PostgreSQL
 - FastAPI can list PostgreSQL datasets and analyze a selected saved dataset
+- AWS deployment guide for ECR, RDS PostgreSQL, App Runner, and ECS
 
 Not built yet:
 
 - Real job scraping or external job ingestion
-- Dataset management features such as renaming or deleting saved datasets
-- FastAPI backend
-- Dockerized deployment
 - Authentication or multi-user support
 - Production-grade NLP role classification
+- Infrastructure-as-code deployment automation
 
 
 
@@ -542,8 +561,9 @@ Not built yet:
 - Role classification is rule-based and title-first, not ML-based yet.
 - Match scores are designed for explainability, not as a production hiring recommendation system.
 - PostgreSQL support is currently local-first and optional; uploaded CSVs are only persisted when PostgreSQL is enabled and the save option is selected.
-- Saved datasets can be selected from the dashboard, but dataset rename/delete controls are not implemented yet.
+- Dataset management currently supports naming, renaming, and deleting uploaded CSV datasets, but not editing individual job posting rows.
 - Saved analysis run loading currently shows a preview only; it does not yet repopulate sidebar filters or automatically rerun the dashboard.
+- The AWS deployment path is documented, but infrastructure provisioning is not yet automated with Terraform, CloudFormation, or CDK.
 
 
 
@@ -552,13 +572,10 @@ Not built yet:
 Planned next steps:
 
 - Add real job ingestion from public job sources or APIs
-- Add saved analysis runs and dataset history in PostgreSQL
-- Add FastAPI endpoints for saved analysis runs
-- Add AWS deployment option beyond the current Streamlit Cloud deployment
 - Improve skill alias matching for terms like `JS`, `JavaScript`, `Node`, and `Node.js`
 - Add trend analysis for skills by role and location
-- Add PDF export for candidate skill-gap reports
-- Add dataset management controls for renaming and deleting saved datasets
+- Add infrastructure-as-code templates for AWS deployment
+- Add authentication and multi-user saved profiles
 
 
 

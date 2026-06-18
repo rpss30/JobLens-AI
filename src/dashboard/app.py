@@ -72,7 +72,7 @@ from src.database.repository import (
 
 st.set_page_config(
     page_title="JobLens AI",
-    page_icon="🔎",
+    page_icon=":material/search_insights:",
     layout="wide",
 )
 

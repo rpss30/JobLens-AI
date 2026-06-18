@@ -1,15 +1,51 @@
 # JobLens AI
 
-JobLens AI is a personalized job market intelligence dashboard that helps candidates understand how well their current skills align with target roles.
+[![Tests](https://github.com/rpss30/JobLens-AI/actions/workflows/tests.yml/badge.svg)](https://github.com/rpss30/JobLens-AI/actions/workflows/tests.yml)
+![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
+![AWS](https://img.shields.io/badge/AWS-ECS%20Fargate-FF9900?logo=amazonwebservices&logoColor=white)
 
-The dashboard analyzes job postings, extracts required technical skills, groups roles into market categories, calculates role-specific match scores, recommends high-impact skills to learn next, and generates downloadable Markdown and PDF candidate skill-gap reports.
+JobLens AI is a production-style data and AI analytics system for personalized job market intelligence. It turns job postings into explainable role-fit scores, skill-gap recommendations, market insights, and downloadable candidate reports.
 
-Current MVP uses a curated sample dataset of job postings to simulate role-specific market analysis. The app can run from the local processed CSV dataset or from PostgreSQL, supports saving uploaded CSV datasets to PostgreSQL, and allows saved database datasets to be reloaded from the dashboard. Future iterations will expand to larger real-world ingestion pipelines.
+The runtime is deterministic and reproducible, while the optional ingestion pipeline can fetch public Greenhouse postings and enrich a curated demo dataset through Groq, Gemini, and deterministic fallback extraction.
 
+## Live Deployments
 
-## Live Demo
+| Surface | Link |
+| --- | --- |
+| Streamlit Cloud dashboard | [Open live dashboard](https://joblens-ai-rpss-30.streamlit.app/) |
+| AWS ECS Fargate dashboard | [Open AWS deployment](http://joblens-alb-134373356.ca-central-1.elb.amazonaws.com/) |
+| FastAPI documentation | [Open Swagger UI](http://joblens-alb-134373356.ca-central-1.elb.amazonaws.com/docs) |
 
-[View the live dashboard](https://joblens-ai-rpss-30.streamlit.app/)
+The AWS deployment runs Streamlit and FastAPI in one ECS Fargate task behind an Application Load Balancer, with a private Amazon RDS PostgreSQL database and credentials stored in AWS Secrets Manager.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    A["Curated CSV / Uploaded CSV / Public Greenhouse jobs"] --> B["Processing and skill extraction"]
+    B --> C["Processed JobLens dataframe"]
+    C --> D["Dashboard services"]
+    D --> E["Weighted matching engine"]
+    E --> F["Streamlit dashboard"]
+    E --> G["FastAPI backend"]
+    F --> H["PostgreSQL datasets and saved analyses"]
+    G --> H
+```
+
+The deployed AWS path is:
+
+```text
+Amazon ECR image
+      |
+      v
+Application Load Balancer
+      |
+      +--> Streamlit :8501
+      +--> FastAPI   :8000
+      |
+      v
+One ECS Fargate task --> Private RDS PostgreSQL
+```
 
 ## Demo Preview
 
@@ -61,7 +97,9 @@ The dashboard also shows market-level insights such as top required skills, role
 - FastAPI backend with health check and candidate analysis endpoint
 - Docker Compose support for running the dashboard, API, and PostgreSQL together
 - FastAPI dataset, analysis run, and PostgreSQL-backed analysis support
-- AWS deployment guide for Amazon ECR, RDS PostgreSQL, and container web services
+- Public Greenhouse and Lever ATS normalization support
+- Groq-first, Gemini-fallback skill extraction for offline dataset enrichment
+- AWS deployment automation for Amazon ECR, ECS Fargate, ALB, Secrets Manager, and RDS PostgreSQL
 
 
 
@@ -79,9 +117,11 @@ JobLens AI currently groups jobs into the following role categories:
 
 
 
-## Dataset
+## Data Sources
 
-The current MVP uses a curated sample dataset located at:
+The repository ships two deterministic demo datasets.
+
+Curated sample postings:
 
 ```text
 data/raw/sample_jobs.csv
@@ -115,15 +155,17 @@ The processed dataset is generated at:
 data/processed/processed_jobs.csv
 ```
 
-The repository also ships a curated, AI-extracted Greenhouse demo dataset:
+Curated, AI-extracted real-job demo:
 
 ```text
 data/processed/greenhouse_ai_demo_jobs.csv
 ```
 
-This is the packaged real-job demo used by the dashboard. Larger raw
-Greenhouse fetches and intermediate processing outputs are generated locally
-and excluded from Git.
+The Greenhouse pipeline fetches public ATS postings, normalizes them into the
+JobLens schema, and supports Groq-first extraction with Gemini and deterministic
+fallbacks. Large raw fetches and intermediate experiments are generated locally
+and excluded from Git; the small curated output is committed so the dashboard
+remains stable and reproducible.
 
 
 
@@ -195,22 +237,16 @@ By default, uploaded CSVs are processed during the active Streamlit session. If 
 
 ## Tech Stack
 
-- Python
-- Pandas
-- Streamlit
-- Altair
-- Plotly
-- PostgreSQL
-- SQLAlchemy
-- psycopg
-- FastAPI
-- Pydantic
-- Docker
-- Docker Compose
-- reportlab
-- pytest
-- GitHub Actions
-- Streamlit Cloud
+| Layer | Technologies |
+| --- | --- |
+| Data and matching | Python, Pandas, scikit-learn |
+| Dashboard | Streamlit, Altair, Plotly |
+| API | FastAPI, Pydantic, Uvicorn |
+| Persistence | PostgreSQL, SQLAlchemy, psycopg |
+| AI enrichment | Groq, Google Gemini, deterministic fallback |
+| Reports | ReportLab, pypdf |
+| Infrastructure | Docker, Docker Compose, Amazon ECR, ECS Fargate, ALB, RDS, Secrets Manager, CloudWatch |
+| Quality and delivery | pytest, GitHub Actions, Streamlit Cloud |
 
 
 
@@ -218,17 +254,24 @@ By default, uploaded CSVs are processed during the active Streamlit session. If 
 
 ```text
 JobLens AI
+├── assets/screenshots
 ├── data
 │   ├── raw
 │   │   └── sample_jobs.csv
 │   ├── processed
-│   │   └── processed_jobs.csv
+│   │   ├── processed_jobs.csv
+│   │   └── greenhouse_ai_demo_jobs.csv
 │   └── examples
 │       └── sample_upload_jobs.csv
 ├── docs
 │   └── aws-deployment.md
 ├── scripts
-│   └── seed_database.py
+│   ├── fetch_greenhouse_jobs.py
+│   ├── process_greenhouse_jobs_ai_first.py
+│   ├── publish_aws_image.sh
+│   ├── provision_aws_foundation.sh
+│   ├── seed_aws_database.sh
+│   └── deploy_aws_service.sh
 ├── src
 │   ├── api
 │   │   ├── main.py
@@ -240,6 +283,14 @@ JobLens AI
 │   │   ├── init_db.py
 │   │   ├── models.py
 │   │   └── repository.py
+│   ├── ingestion
+│   │   ├── ats_normalizers.py
+│   │   ├── greenhouse_client.py
+│   │   └── lever_client.py
+│   ├── skill_extraction
+│   │   ├── extraction_service.py
+│   │   ├── gemini_extractor.py
+│   │   └── groq_extractor.py
 │   ├── processing
 │   │   └── job_processor.py
 │   ├── matching
@@ -337,6 +388,18 @@ curl -X POST http://127.0.0.1:8000/analyze \
     "top_n": 5
   }'
 ```
+
+### API Endpoints
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `GET` | `/health` | Check API availability |
+| `GET` | `/datasets` | List PostgreSQL datasets |
+| `PATCH` | `/datasets/{dataset_name}` | Rename an uploaded dataset |
+| `DELETE` | `/datasets/{dataset_name}` | Delete an uploaded dataset |
+| `GET` | `/analysis-runs` | List saved analysis runs |
+| `GET` | `/analysis-runs/{analysis_run_id}` | Load one saved analysis run |
+| `POST` | `/analyze` | Run role-fit and skill-gap analysis |
 
 ## Running with Docker
 
@@ -482,8 +545,10 @@ The current PostgreSQL schema includes:
 - `processed_jobs`
 - `skills`
 - `job_skills`
+- `analysis_runs`
 
-This keeps the current MVP simple while preparing the project for future saved datasets, skill trend snapshots, analysis history, and real job ingestion.
+This supports persistent datasets and analysis history while keeping the core
+matching workflow deterministic.
 
 ### Saved Analysis Runs
 
@@ -521,7 +586,9 @@ Tests are also run automatically through GitHub Actions on pushes and pull reque
 
 ## Current Status
 
-This project is currently a polished MVP focused on dashboard experience, role-specific scoring, skill-gap analysis, CSV upload support, and optional PostgreSQL-backed data loading.
+JobLens AI is a portfolio-ready end-to-end system with deterministic analytics,
+optional AI-enriched ingestion, persistent PostgreSQL workflows, API access,
+containerized local development, and a verified AWS deployment.
 
 Completed:
 
@@ -554,10 +621,12 @@ Completed:
 - Docker Compose setup for Streamlit, FastAPI, and PostgreSQL
 - FastAPI can list PostgreSQL datasets and analyze a selected saved dataset
 - AWS deployment helpers for ECR, RDS PostgreSQL, ALB, and ECS Fargate
+- Public Greenhouse ingestion and curated AI-extracted demo data
+- Verified AWS deployment with private RDS, Secrets Manager, ALB, and ECS Fargate
 
 Not built yet:
 
-- Real job scraping or external job ingestion
+- Scheduled or continuously running ingestion
 - Authentication or multi-user support
 - Production-grade NLP role classification
 - Infrastructure-as-code deployment automation
@@ -566,14 +635,15 @@ Not built yet:
 
 ## Known Limitations
 
-- The current MVP uses a curated sample dataset instead of live job postings.
-- Skill extraction is dictionary-based, so it may miss aliases or uncommon phrasing.
+- The dashboard uses committed demo snapshots rather than fetching live jobs at runtime.
+- Greenhouse and Lever ingestion run on demand and are not scheduled.
+- Core runtime skill extraction is dictionary-based, so it may miss aliases or uncommon phrasing.
 - Role classification is rule-based and title-first, not ML-based yet.
 - Match scores are designed for explainability, not as a production hiring recommendation system.
-- PostgreSQL support is currently local-first and optional; uploaded CSVs are only persisted when PostgreSQL is enabled and the save option is selected.
 - Dataset management currently supports naming, renaming, and deleting uploaded CSV datasets, but not editing individual job posting rows.
 - Saved analysis run loading currently shows a preview only; it does not yet repopulate sidebar filters or automatically rerun the dashboard.
 - AWS provisioning is automated with shell helpers, but not yet managed as declarative infrastructure with Terraform, CloudFormation, or CDK.
+- The current AWS demo uses an HTTP ALB endpoint without a custom domain or TLS certificate.
 
 
 
@@ -581,7 +651,7 @@ Not built yet:
 
 Planned next steps:
 
-- Add real job ingestion from public job sources or APIs
+- Schedule ingestion and dataset refresh workflows
 - Improve skill alias matching for terms like `JS`, `JavaScript`, `Node`, and `Node.js`
 - Add trend analysis for skills by role and location
 - Add infrastructure-as-code templates for AWS deployment
@@ -591,13 +661,19 @@ Planned next steps:
 
 ## Why This Project Matters
 
-JobLens AI is designed to be a practical portfolio project that combines data processing, analytics, dashboard design, and matching logic.
+JobLens AI demonstrates how a data product can move from ingestion to
+explainable analytics and then into a deployed application.
 
-It demonstrates:
+Engineering highlights:
 
 - Building a data pipeline from raw job postings
 - Extracting structured skills from unstructured text
 - Designing role-specific scoring logic
 - Creating an interactive analytics dashboard
+- Building persistent dataset-management and saved-analysis workflows
+- Exposing the same analysis through a typed FastAPI backend
+- Packaging and deploying a multi-process container on AWS ECS Fargate
+- Protecting private database credentials with AWS Secrets Manager
+- Testing the system with more than 130 automated tests
 - Turning raw data into useful product insights
 - Communicating technical results in a user-friendly way

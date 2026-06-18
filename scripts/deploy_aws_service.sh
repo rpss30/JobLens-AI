@@ -484,7 +484,7 @@ DASHBOARD_URL="http://${LOAD_BALANCER_DNS}"
 API_HEALTH_URL="${DASHBOARD_URL}/health"
 
 for attempt in {1..20}; do
-    if curl --fail --silent --show-error \
+    if curl --fail --silent \
         "${API_HEALTH_URL}" \
         | grep -q '"status":"ok"'; then
         break

@@ -384,12 +384,12 @@ JobLens AI includes a production-style [AWS deployment guide](docs/aws-deploymen
 for running the containerized dashboard and API with managed PostgreSQL.
 
 The guide covers Amazon ECR image publishing, Amazon RDS for PostgreSQL,
-separate Streamlit and FastAPI web services from the same Docker image,
-database initialization, sample dataset seeding, verification, and teardown.
+a cost-conscious Amazon ECS Fargate service running Streamlit and FastAPI,
+Application Load Balancer path routing, database initialization, sample dataset
+seeding, verification, and teardown.
 
-It documents the original App Runner + RDS path for AWS accounts that still
-have App Runner access, and an ECS Express Mode/ECS Fargate path for AWS
-accounts that cannot create new App Runner services.
+The repository includes shell helpers for image publishing, AWS foundation
+provisioning, database seeding, and repeatable Fargate deployments.
 
 ## Local PostgreSQL Setup
 
@@ -553,7 +553,7 @@ Completed:
 - FastAPI endpoints for datasets and saved analysis runs
 - Docker Compose setup for Streamlit, FastAPI, and PostgreSQL
 - FastAPI can list PostgreSQL datasets and analyze a selected saved dataset
-- AWS deployment guide for ECR, RDS PostgreSQL, App Runner, and ECS
+- AWS deployment helpers for ECR, RDS PostgreSQL, ALB, and ECS Fargate
 
 Not built yet:
 
@@ -573,7 +573,7 @@ Not built yet:
 - PostgreSQL support is currently local-first and optional; uploaded CSVs are only persisted when PostgreSQL is enabled and the save option is selected.
 - Dataset management currently supports naming, renaming, and deleting uploaded CSV datasets, but not editing individual job posting rows.
 - Saved analysis run loading currently shows a preview only; it does not yet repopulate sidebar filters or automatically rerun the dashboard.
-- The AWS deployment path is documented, but infrastructure provisioning is not yet automated with Terraform, CloudFormation, or CDK.
+- AWS provisioning is automated with shell helpers, but not yet managed as declarative infrastructure with Terraform, CloudFormation, or CDK.
 
 
 

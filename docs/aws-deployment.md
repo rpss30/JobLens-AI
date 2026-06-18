@@ -1,46 +1,38 @@
 # AWS Deployment Guide
 
-This guide describes a production-style AWS deployment path for JobLens AI.
-It is intended as portfolio documentation, not a fully automated Terraform or
-CloudFormation deployment.
+This guide describes the AWS deployment used for JobLens AI. The repository
+includes repeatable shell helpers for the container image, network and database
+foundation, database seed task, and ECS service. It is not a replacement for
+declarative infrastructure such as Terraform or CloudFormation.
 
 ## Deployment status
 
-The recommended architecture for the original project roadmap is:
+The deployed architecture is:
 
 ```text
 GitHub repo
    |
    v
-Docker image
+Docker image --> Amazon ECR
    |
    v
-Amazon ECR
+Application Load Balancer
    |
-   +--> Web service: Streamlit dashboard
-   |
-   +--> Web service: FastAPI backend
+   +--> Default routes --> Streamlit :8501
+   +--> API paths      --> FastAPI :8000
    |
    v
-Amazon RDS for PostgreSQL
+One Amazon ECS Fargate task
+   |
+   v
+Private Amazon RDS for PostgreSQL
 ```
 
-AWS App Runner was the simplest fit for this style of deployment because it can
-run a web service directly from a container image in Amazon ECR. However, AWS
-now states that App Runner is no longer open to new customers. Existing App
-Runner customers can keep using it, but new AWS accounts should use Amazon ECS
-Express Mode or ECS on Fargate instead.
-
-Use this guide in one of two ways:
-
-| AWS account status | Recommended path |
-| --- | --- |
-| Existing account with App Runner access | Use the App Runner + RDS path below. |
-| New AWS account without App Runner access | Use the same ECR image and RDS database, but deploy the containers with ECS Express Mode or ECS Fargate. |
-
-The current live demo can remain on Streamlit Cloud. The AWS path is a
-resume-ready deployment plan that shows how the same system would run with a
-managed container platform and managed PostgreSQL.
+One task runs both web processes from the same image. This keeps the portfolio
+deployment smaller than two independent services while preserving separate
+health checks and routing for the dashboard and API. The current listener uses
+HTTP for a temporary demo; a long-lived public deployment should add an ACM
+certificate and an HTTPS listener.
 
 ## AWS resources
 
@@ -51,26 +43,19 @@ Create these resources in one AWS Region, for example `us-east-1` or
 | --- | --- |
 | Amazon ECR repository | Stores the JobLens AI Docker image. |
 | Amazon RDS for PostgreSQL | Stores saved datasets and analysis runs. |
-| App Runner or ECS service: `joblens-dashboard` | Runs Streamlit on port `8501`. |
-| App Runner or ECS service: `joblens-api` | Runs FastAPI on port `8000`. |
-| VPC connector or ECS VPC networking | Allows the app services to reach private RDS. |
-| Security groups | Restrict PostgreSQL access to only the app service security group. |
-| CloudWatch Logs | Captures container logs for both web services. |
+| ECS cluster and service | Runs one Fargate task with Streamlit and FastAPI. |
+| Application Load Balancer | Routes dashboard and API requests to separate container ports. |
+| ECS VPC networking | Allows the application task to reach private RDS. |
+| Security groups | Restrict application access to the ALB and PostgreSQL access to the task. |
+| AWS Secrets Manager | Injects `DATABASE_URL` into the task without storing it in source control. |
+| CloudWatch Logs | Captures both application processes in one retained log group. |
 
 ## Runtime configuration
 
-Use one image for both services. Override the start command per service.
-
-Dashboard service:
+The ECS task uses one image and starts both processes with:
 
 ```bash
-streamlit run src/dashboard/app.py --server.address=0.0.0.0 --server.port=8501
-```
-
-API service:
-
-```bash
-uvicorn src.api.main:app --host 0.0.0.0 --port 8000
+/app/scripts/start_aws_services.sh
 ```
 
 Required environment variables:
@@ -81,9 +66,8 @@ DATABASE_URL=postgresql+psycopg://<db_user>:<db_password>@<rds-endpoint>:5432/jo
 ```
 
 Keep `DATABASE_URL` in AWS Secrets Manager or AWS Systems Manager Parameter
-Store for a real deployment. App Runner supports referencing secrets and
-parameters as runtime environment variables. ECS task definitions can also load
-secrets into container environment variables.
+Store. The task definition loads the `database_url` JSON key from the
+`joblens/database` secret.
 
 Do not set ingestion or LLM API keys unless those optional scripts are being
 run in the deployed environment.
@@ -129,7 +113,9 @@ needed, builds the Linux AMD64 image, and pushes both the Git commit tag and
 `latest`:
 
 ```bash
-AWS_REGION=ca-central-1 ./scripts/publish_aws_image.sh
+AWS_PROFILE=joblens-deployer \
+AWS_REGION=ca-central-1 \
+./scripts/publish_aws_image.sh
 ```
 
 For repeated deployments, tag the same image as `latest` if the AWS service is
@@ -161,6 +147,15 @@ Security group setup:
 
 The app only needs the RDS endpoint, database name, username, and password in
 the `DATABASE_URL`.
+
+The repository helper provisions the default-VPC security groups, private RDS
+instance, ECS cluster, execution role, log groups, and Secrets Manager value:
+
+```bash
+AWS_PROFILE=joblens-deployer \
+AWS_REGION=ca-central-1 \
+./scripts/provision_aws_foundation.sh
+```
 
 ## 3. Initialize and seed the database
 
@@ -199,85 +194,53 @@ Database tables created successfully.
 Seeded <number> processed jobs into PostgreSQL.
 ```
 
-## 4. Deploy with App Runner, if available
-
-Use this path only if the AWS account already has App Runner access.
-
-Create an App Runner VPC connector:
-
-- Select private subnets in the same VPC as RDS.
-- Attach `joblens-app-sg`.
-- Point RDS inbound rules at `joblens-app-sg`.
-
-Important networking note: when App Runner uses a VPC connector, outbound
-traffic goes through the selected VPC. If the app later needs public internet
-or AWS API access from runtime code, add NAT Gateway access or VPC endpoints.
-The current dashboard/API runtime primarily needs RDS.
-
-Create the API service:
-
-- Source: container registry
-- Provider: Amazon ECR
-- Image: `$IMAGE_URI`
-- Port: `8000`
-- Start command:
+For the private RDS instance, run the included one-off Fargate seed task:
 
 ```bash
-uvicorn src.api.main:app --host 0.0.0.0 --port 8000
+AWS_PROFILE=joblens-deployer \
+AWS_REGION=ca-central-1 \
+./scripts/seed_aws_database.sh
 ```
 
-- Environment variables:
-  - `PYTHONPATH=/app`
-  - `DATABASE_URL=<secret or parameter reference>`
-- Health check protocol: HTTP
-- Health check path: `/health`
-- Outgoing network traffic: custom VPC connector
+## 4. Deploy the combined ECS Fargate service
 
-Create the dashboard service:
-
-- Source: container registry
-- Provider: Amazon ECR
-- Image: `$IMAGE_URI`
-- Port: `8501`
-- Start command:
+Deploy the current image tag:
 
 ```bash
-streamlit run src/dashboard/app.py --server.address=0.0.0.0 --server.port=8501
+AWS_PROFILE=joblens-deployer \
+AWS_REGION=ca-central-1 \
+IMAGE_TAG=$(git rev-parse --short HEAD) \
+./scripts/deploy_aws_service.sh
 ```
 
-- Environment variables:
-  - `PYTHONPATH=/app`
-  - `DATABASE_URL=<secret or parameter reference>`
-- Health check protocol: TCP
-- Outgoing network traffic: custom VPC connector
+The deployment helper:
 
-## 5. ECS Express Mode fallback for new AWS accounts
+- creates an internet-facing ALB and HTTP listener,
+- creates dashboard and API target groups,
+- routes API paths such as `/health`, `/datasets`, and `/analyze` to port `8000`,
+- sends all other paths to Streamlit on port `8501`,
+- allows the ALB to reach only the application ports,
+- registers an X86_64 Fargate task definition,
+- injects the private RDS URL from Secrets Manager,
+- deploys one desired task with rollback enabled,
+- and waits for the API health check to pass.
 
-For new AWS accounts that cannot create App Runner services, use Amazon ECS
-Express Mode with the same ECR image and RDS database.
+The script is safe to rerun for a new image. It reuses the existing networking
+and load-balancer resources and creates a new task definition revision.
 
-Carry over these settings from the App Runner plan:
+## 5. Optional managed-service alternatives
 
-| Service | Container port | Command | Health check |
-| --- | --- | --- | --- |
-| `joblens-dashboard` | `8501` | Streamlit command above | `/` or TCP/load balancer default |
-| `joblens-api` | `8000` | Uvicorn command above | `/health` |
-
-ECS Express Mode creates a Fargate-backed ECS service with a load balancer,
-TLS, auto scaling, monitoring, and networking defaults. Use private networking
-and security groups so the service can connect to RDS without exposing the
-database publicly.
-
-If ECS Express Mode does not expose every runtime override needed in the
-console, use standard ECS on Fargate with two task definitions or two services
-from the same image.
+Existing AWS accounts with App Runner access can still deploy two services from
+the same image, one for Streamlit and one for FastAPI. New accounts can also use
+ECS Express Mode. Those options are simpler in the console but generally run
+more always-on service and load-balancer capacity than this one-task demo.
 
 ## 6. Verify the deployment
 
-API health check:
+The deployment helper prints one ALB base URL. API health check:
 
 ```bash
-curl https://<api-service-url>/health
+curl http://<load-balancer-url>/health
 ```
 
 Expected response:
@@ -289,13 +252,13 @@ Expected response:
 List saved datasets:
 
 ```bash
-curl https://<api-service-url>/datasets
+curl http://<load-balancer-url>/datasets
 ```
 
 Analyze the seeded sample dataset:
 
 ```bash
-curl -X POST https://<api-service-url>/analyze \
+curl -X POST http://<load-balancer-url>/analyze \
   -H "Content-Type: application/json" \
   -d '{
     "dataset_name": "sample_jobs",
@@ -309,7 +272,7 @@ curl -X POST https://<api-service-url>/analyze \
 
 Dashboard verification:
 
-1. Open the dashboard service URL.
+1. Open the load balancer base URL.
 2. Turn on PostgreSQL mode.
 3. Choose `sample_jobs`.
 4. Run an analysis.
@@ -321,10 +284,10 @@ Dashboard verification:
 Before sharing a deployed AWS demo:
 
 - Confirm RDS is not publicly accessible.
-- Confirm the app service is the only security group allowed to reach RDS.
+- Confirm the application task security group is the only group allowed to reach RDS.
 - Store database credentials in Secrets Manager or Parameter Store.
 - Keep the RDS instance small for demos.
-- Enable CloudWatch logs for both services.
+- Enable CloudWatch logs for both application processes.
 - Use a predictable service name and tag resources with `Project=JobLensAI`.
 - Set AWS Budgets or billing alerts.
 - Document the deployed URLs in a private note, not in the public repo if the
@@ -334,13 +297,12 @@ Before sharing a deployed AWS demo:
 
 For temporary demos, remove resources in this order:
 
-1. Delete the dashboard service.
-2. Delete the API service.
-3. Delete the App Runner VPC connector or ECS service resources.
-4. Delete the RDS instance after taking any snapshot you want to keep.
-5. Delete old ECR images or the ECR repository.
-6. Delete unused security groups.
-7. Confirm CloudWatch log groups are removed or have retention configured.
+1. Scale the ECS service to zero, then delete it.
+2. Delete the ALB listener, ALB, and both target groups.
+3. Delete the RDS instance after taking any snapshot you want to keep.
+4. Delete old ECR images or the ECR repository.
+5. Delete unused security groups and IAM roles.
+6. Confirm CloudWatch log groups are removed or have retention configured.
 
 ## References
 

@@ -124,6 +124,14 @@ docker tag $ECR_REPOSITORY:$IMAGE_TAG $IMAGE_URI
 docker push $IMAGE_URI
 ```
 
+The repository also includes a helper that creates the ECR repository when
+needed, builds the Linux AMD64 image, and pushes both the Git commit tag and
+`latest`:
+
+```bash
+AWS_REGION=ca-central-1 ./scripts/publish_aws_image.sh
+```
+
 For repeated deployments, tag the same image as `latest` if the AWS service is
 configured to track the `latest` tag:
 

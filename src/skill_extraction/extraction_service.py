@@ -1,11 +1,9 @@
 """AI-first skill extraction service.
 
 Current behavior:
-1. Try Gemini first.
-2. If Gemini fails, use the existing deterministic extractor as an emergency fallback.
-
-Later:
-- Add Groq between Gemini and deterministic fallback.
+1. Try Groq first.
+2. If Groq fails, try Gemini.
+3. If both providers fail, use deterministic extraction as an emergency fallback.
 """
 
 from __future__ import annotations
@@ -31,6 +29,7 @@ class SkillExtractionServiceResult:
     skills: list[str]
     provider: str
     error: str
+
 
 def extract_skills_ai_first(
     title: str,

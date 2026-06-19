@@ -10,13 +10,17 @@ The runtime is deterministic and reproducible, while the optional ingestion pipe
 
 ## Live Deployments
 
-| Surface | Link |
-| --- | --- |
-| Streamlit Cloud dashboard | [Open live dashboard](https://joblens-ai-rpss-30.streamlit.app/) |
-| AWS ECS Fargate dashboard | [Open AWS deployment](http://joblens-alb-134373356.ca-central-1.elb.amazonaws.com/) |
-| FastAPI documentation | [Open Swagger UI](http://joblens-alb-134373356.ca-central-1.elb.amazonaws.com/docs) |
+| Surface | Link | Status |
+| --- | --- | --- |
+| Streamlit Cloud dashboard | [Open live dashboard](https://joblens-ai-rpss-30.streamlit.app/) | Available; may need to wake after inactivity |
+| AWS ECS Fargate dashboard | [Open AWS deployment](http://joblens-alb-134373356.ca-central-1.elb.amazonaws.com/) | Inactive to avoid ongoing AWS charges |
+| FastAPI documentation | [Open Swagger UI](http://joblens-alb-134373356.ca-central-1.elb.amazonaws.com/docs) | Inactive to avoid ongoing AWS charges |
+| AWS deployment architecture | [View deployment guide](docs/aws-deployment.md) | Available |
 
-The AWS deployment runs Streamlit and FastAPI in one ECS Fargate task behind an Application Load Balancer, with a private Amazon RDS PostgreSQL database and credentials stored in AWS Secrets Manager.
+The AWS deployment was verified end to end before its runtime resources were
+stopped for cost control. It runs Streamlit and FastAPI in one ECS Fargate task
+behind an Application Load Balancer, with a private Amazon RDS PostgreSQL
+database and credentials stored in AWS Secrets Manager.
 
 ## Architecture
 

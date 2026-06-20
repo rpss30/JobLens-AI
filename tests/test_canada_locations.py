@@ -65,3 +65,29 @@ def test_normalize_canadian_location_requires_context_for_ambiguous_city():
 
     assert location is not None
     assert location.normalized_location == "London, ON"
+
+
+def test_normalize_canadian_location_uses_city_province_for_multi_location_text():
+    location = normalize_canadian_location("British Columbia; Calgary")
+
+    assert location is not None
+    assert location.normalized_location == "Calgary, AB"
+
+
+def test_normalize_canadian_location_collapses_multi_province_remote_role():
+    location = normalize_canadian_location(
+        "Alberta; British Columbia; Ontario; Quebec",
+        is_remote=True,
+    )
+
+    assert location is not None
+    assert location.normalized_location == "Remote, Canada"
+
+
+def test_normalize_canadian_location_does_not_pick_city_from_multi_province_role():
+    location = normalize_canadian_location(
+        "Alberta; British Columbia; Calgary; Ontario; Toronto",
+    )
+
+    assert location is not None
+    assert location.normalized_location == "Canada"

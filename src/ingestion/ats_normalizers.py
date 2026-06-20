@@ -37,9 +37,26 @@ def current_utc_timestamp() -> str:
     return datetime.now(UTC).isoformat()
 
 
+def epoch_milliseconds_to_iso(value: object) -> str:
+    """Convert an epoch-millisecond value to an ISO UTC timestamp."""
+    if value is None or value == "":
+        return ""
+
+    try:
+        milliseconds = int(value)
+    except (TypeError, ValueError):
+        return ""
+
+    return datetime.fromtimestamp(
+        milliseconds / 1000,
+        tz=UTC,
+    ).isoformat()
+
+
 def infer_experience_level_from_text(title: object, description: object) -> str:
     """Infer a simple experience level label from title and description text."""
-    combined_text = f"{title or ''} {description or ''}".lower()
+    title_text = str(title or "").lower()
+    description_text = str(description or "").lower()
 
     senior_terms = [
         "senior",
@@ -63,11 +80,38 @@ def infer_experience_level_from_text(title: object, description: object) -> str:
         "co-op",
         "coop",
     ]
+    description_entry_terms = [
+        "entry level",
+        "entry-level",
+        "new grad",
+        "new graduate",
+        "recent graduate",
+    ]
 
-    if any(term in combined_text for term in senior_terms):
+    if any(term in title_text for term in senior_terms):
         return "Senior"
 
-    if any(term in combined_text for term in entry_terms):
+    if any(term in title_text for term in entry_terms):
         return "Entry Level"
+
+    if any(term in description_text for term in description_entry_terms):
+        return "Entry Level"
+
+    years_of_experience = [
+        int(match)
+        for match in re.findall(
+            r"(?<!\d)(\d{1,2})(?:\s*[-–]\s*\d{1,2})?\+?\s*(?:years?|yrs?)",
+            description_text,
+        )
+    ]
+
+    if years_of_experience:
+        minimum_years = min(years_of_experience)
+
+        if minimum_years >= 5:
+            return "Senior"
+
+        if minimum_years <= 2:
+            return "Entry Level"
 
     return "Mid Level"

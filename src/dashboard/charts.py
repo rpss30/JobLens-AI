@@ -6,7 +6,7 @@ import pandas as pd
 
 
 def create_role_match_chart(role_scores_df: pd.DataFrame):
-    """Create horizontal bar chart for weighted role match scores."""
+    """Create horizontal bar chart for role skill fit scores."""
     chart_df = role_scores_df.sort_values(
         by="weighted_match_score",
         ascending=True,
@@ -16,11 +16,13 @@ def create_role_match_chart(role_scores_df: pd.DataFrame):
         alt.Chart(chart_df)
         .mark_bar()
         .encode(
-            x=alt.X("weighted_match_score:Q", title="Weighted Match Score (%)"),
+            x=alt.X("weighted_match_score:Q", title="Role Skill Fit (%)"),
             y=alt.Y("role_category:N", sort=None, title="Role Category"),
             tooltip=[
                 "role_category",
                 "sample_size",
+                "representative_job_count",
+                "sample_confidence",
                 "weighted_match_score",
                 "unweighted_match_score",
                 "matched_weight",
@@ -32,7 +34,7 @@ def create_role_match_chart(role_scores_df: pd.DataFrame):
 
 
 def create_weighted_vs_unweighted_chart(role_scores_df: pd.DataFrame):
-    """Compare weighted and unweighted match scores."""
+    """Compare importance-weighted and unweighted role skill fit."""
     chart_df = role_scores_df[
         ["role_category", "weighted_match_score", "unweighted_match_score"]
     ].melt(
@@ -42,7 +44,7 @@ def create_weighted_vs_unweighted_chart(role_scores_df: pd.DataFrame):
     )
 
     chart_df["score_type"] = chart_df["score_type"].replace({
-        "weighted_match_score": "Weighted",
+        "weighted_match_score": "Importance weighted",
         "unweighted_match_score": "Unweighted",
     })
 

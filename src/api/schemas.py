@@ -85,10 +85,14 @@ class RoleScore(BaseModel):
     sample_size: int
     weighted_match_score: float
     unweighted_match_score: float
-    matched_weight: int
-    total_possible_weight: int
+    matched_weight: float
+    total_possible_weight: float
     matched_skills: list[str]
+    related_skills: list[str]
     missing_skills: list[str]
+    representative_job_count: int
+    sample_confidence: str
+    headline_eligible: bool
 
 
 class JobMatch(BaseModel):
@@ -99,8 +103,10 @@ class JobMatch(BaseModel):
     role_category: str
     job_match_score: float
     matched_skills_count: int
+    related_skills_count: int
     missing_skills_count: int
     matched_skills_preview: str
+    related_skills_preview: str
     missing_skills_preview: str
 
 

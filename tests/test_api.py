@@ -48,7 +48,16 @@ def test_analyze_returns_candidate_fit_summary() -> None:
     assert "role_category" in first_role_score
     assert "weighted_match_score" in first_role_score
     assert "matched_skills" in first_role_score
+    assert "related_skills" in first_role_score
     assert "missing_skills" in first_role_score
+    assert "representative_job_count" in first_role_score
+    assert "sample_confidence" in first_role_score
+    assert "headline_eligible" in first_role_score
+
+    first_job_match = data["top_matching_jobs"][0]
+
+    assert "related_skills_count" in first_job_match
+    assert "related_skills_preview" in first_job_match
 
 
 def test_analyze_returns_404_when_no_jobs_match() -> None:

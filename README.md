@@ -59,7 +59,7 @@ One ECS Fargate task --> Private RDS PostgreSQL
 
 ![Role Fit Overview](assets/screenshots/role-fit-overview.png)
 
-The dashboard summarizes the candidate's best-fit role, weighted match score, top skill gap, number of jobs analyzed, and current skill count.
+The dashboard summarizes the candidate's best-fit role, role skill fit, sample confidence, top skill gap, number of jobs analyzed, and current skill count.
 
 ### Candidate Fit Summary
 
@@ -85,7 +85,9 @@ The dashboard also shows market-level insights such as top required skills, role
 
 - Role-specific skill extraction from job descriptions
 - Title-first role categorization with description fallback
-- Weighted and unweighted role match scoring
+- Representative job-level role fit with weighted and unweighted scoring
+- TF-IDF character similarity for related skill names and formatting variants
+- Sample-confidence protection for role categories with limited postings
 - Skill-gap analysis based on selected candidate skills
 - Recommended skills ranked by market demand and role importance
 - Candidate fit summary with highlighted strengths and gaps
@@ -181,19 +183,28 @@ stable and reproducible.
 
 JobLens AI extracts technical skills from job descriptions using a configurable skill dictionary.
 
-The matching engine calculates two types of scores:
+The matching engine scores each job posting independently, then summarizes the
+top quartile of representative opportunities for each role category. This
+avoids treating every technology mentioned across an entire category as one
+impossible combined job requirement.
+
+The engine calculates two types of scores:
 
 ### Unweighted Match Score
 
 Treats every required skill equally.
 
-### Weighted Match Score
+### Role Skill Fit
 
 Uses role-specific skill weights so that more important skills matter more for each role category.
 
 For example, Python, PyTorch, TensorFlow, model deployment, and MLflow may matter more for AI/ML roles, while AWS, Docker, Terraform, Lambda, and CloudWatch may matter more for Cloud/AWS roles.
 
-This helps avoid the "big pond problem," where a candidate appears to match a role just because they know many minor tools, even if they are missing the most important skills.
+Character n-gram TF-IDF also recognizes conservative related-skill evidence,
+such as formatting variants and compound skill names, while exact matches still
+receive full credit. Categories backed by only one or two postings remain
+visible but are marked as limited-confidence and cannot displace a category with
+a representative sample in the headline result.
 
 
 
@@ -203,10 +214,11 @@ Skill weights are generated from the job dataset instead of being manually hardc
 
 For each role category, JobLens AI:
 
-1. Counts how often each skill appears across relevant postings.
-2. Converts skill frequency into a role-specific weight.
-3. Applies smoothing based on sample size so small categories do not produce unrealistic weights.
-4. Uses those weights to calculate weighted candidate fit.
+1. Builds role documents from skills observed in individual postings.
+2. Uses TF-IDF to estimate role-specific skill importance.
+3. Scores every posting against the candidate's exact and related skills.
+4. Aggregates the strongest representative quartile for each role category.
+5. Calculates a smooth confidence score from the available role sample.
 
 This keeps the scoring system data-driven while still being simple enough to explain in a demo.
 
@@ -574,7 +586,8 @@ When PostgreSQL mode is enabled, a user can save an analysis run after generatin
 - selected experience level
 - current skills
 - best-fit role
-- weighted match score
+- role skill fit score
+- representative posting count and sample confidence
 - top missing skill
 - jobs analyzed
 - recommended skills

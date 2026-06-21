@@ -36,7 +36,10 @@ def show_role_summary_cards(role_scores_df: pd.DataFrame) -> None:
             st.metric(
                 label=row["role_category"],
                 value=f"{row['weighted_match_score']}%",
-                delta=f"{row['matched_weight']} / {row['total_possible_weight']} pts",
+                delta=(
+                    f"{row.get('sample_confidence', 'N/A')} confidence, "
+                    f"{row.get('representative_job_count', 0)} representative"
+                ),
             )
 
 
@@ -79,7 +82,8 @@ def show_role_explanations(role_scores_df: pd.DataFrame) -> None:
 
         with st.container():
             st.markdown(
-                f"### {row['role_category']} — {row['weighted_match_score']}% weighted match"
+                f"### {row['role_category']} — "
+                f"{row['weighted_match_score']}% role skill fit"
             )
 
             col1, col2, col3 = st.columns([1.2, 1.2, 0.8])
@@ -101,8 +105,14 @@ def show_role_explanations(role_scores_df: pd.DataFrame) -> None:
             with col3:
                 st.write("**Context**")
                 st.write(f"Jobs analyzed: {row['sample_size']}")
+                st.write(
+                    "Representative jobs: "
+                    f"{row.get('representative_job_count', 0)}"
+                )
+                st.write(
+                    f"Confidence: {row.get('sample_confidence', 'N/A')}"
+                )
                 st.write(f"Unweighted: {row['unweighted_match_score']}%")
-                st.write(f"Score: {row['matched_weight']} / {row['total_possible_weight']}")
 
 def show_candidate_fit_summary(candidate_summary: dict) -> None:
     """Show a natural-language explanation of the candidate's fit."""
@@ -174,6 +184,7 @@ def show_top_job_match_cards(
         matched_skills = escape(
             str(row.get("matched_skills_preview", "None"))
         )
+        related_skills = str(row.get("related_skills_preview", "None"))
         missing_skills = escape(
             str(row.get("missing_skills_preview", "None"))
         )
@@ -217,6 +228,9 @@ def show_top_job_match_cards(
         ).strip()
 
         st.markdown(card_html, unsafe_allow_html=True)
+
+        if related_skills != "None":
+            st.caption(f"Related-skill credit: {related_skills}")
 
         if source_url.startswith(("https://", "http://")):
             st.link_button(

@@ -284,10 +284,14 @@ def test_score_roles_returns_weighted_and_unweighted_scores() -> None:
         "weighted_match_score",
         "unweighted_match_score",
         "matched_skills",
+        "related_skills",
         "missing_skills",
         "matched_weight",
         "total_possible_weight",
         "role_skill_weights",
+        "representative_job_count",
+        "sample_confidence",
+        "headline_eligible",
     }
 
     assert expected_columns.issubset(set(role_scores_df.columns))

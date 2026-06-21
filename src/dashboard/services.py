@@ -20,6 +20,15 @@ from reportlab.platypus import (
     TableStyle,
 )
 
+from src.matching.match_engine import (
+    RELATED_SKILL_THRESHOLD,
+    build_role_skill_weights,
+    build_skill_match_map,
+    get_sample_confidence,
+    normalize_skill,
+    score_skill_set,
+    select_best_role_row,
+)
 from src.processing.job_processor import process_jobs
 
 
@@ -492,7 +501,18 @@ def get_job_match_details(
     user_skills: list[str],
 ) -> pd.DataFrame:
     """Build job-level match details for matching job postings."""
-    normalized_user_skills = {skill.strip().lower() for skill in user_skills if skill.strip()}
+    role_skill_weights = build_role_skill_weights(filtered_jobs)
+    all_required_skills = sorted({
+        normalize_skill(skill)
+        for skills in filtered_jobs.get("extracted_skills", pd.Series(dtype=object))
+        if isinstance(skills, list)
+        for skill in skills
+        if normalize_skill(skill)
+    })
+    skill_match_map = build_skill_match_map(
+        user_skills=user_skills,
+        required_skills=all_required_skills,
+    )
 
     rows = []
 
@@ -505,34 +525,33 @@ def get_job_match_details(
         elif isinstance(job_skills_raw, str):
             job_skills = [skill.strip() for skill in job_skills_raw.split(",") if skill.strip()]
 
-        normalized_job_skills = [skill.strip().lower() for skill in job_skills]
-
-        matched_skills = [
-            skill for skill, normalized in zip(job_skills, normalized_job_skills)
-            if normalized in normalized_user_skills
-        ]
-
-        missing_skills = [
-            skill for skill, normalized in zip(job_skills, normalized_job_skills)
-            if normalized not in normalized_user_skills
-        ]
-
-        total_skills = len(normalized_job_skills)
-        match_score = round((len(matched_skills) / total_skills) * 100, 2) if total_skills else 0.0
+        role_category = str(row.get("role_category", "Other"))
+        job_score = score_skill_set(
+            required_skills=job_skills,
+            role_category=role_category,
+            role_skill_weights=role_skill_weights,
+            skill_match_map=skill_match_map,
+        )
+        matched_skills = job_score["matched_skills"]
+        related_skills = job_score["related_skills"]
+        missing_skills = job_score["missing_skills"]
 
         rows.append({
             "title": row["title"],
             "company": row["company"],
             "location": row["location"],
             "experience_level": row["experience_level"],
-            "role_category": row["role_category"],
+            "role_category": role_category,
             "skills_text": row["skills_text"],
             "source": row.get("source", ""),
             "source_url": row.get("source_url", ""),
-            "job_match_score": match_score,
+            "job_match_score": job_score["weighted_match_score"],
+            "unweighted_job_match_score": job_score["unweighted_match_score"],
             "matched_skills_count": len(matched_skills),
+            "related_skills_count": len(related_skills),
             "missing_skills_count": len(missing_skills),
             "matched_skills_preview": ", ".join(matched_skills[:5]) if matched_skills else "None",
+            "related_skills_preview": ", ".join(related_skills[:3]) if related_skills else "None",
             "missing_skills_preview": ", ".join(missing_skills[:5]) if missing_skills else "None",
         })
 
@@ -578,10 +597,17 @@ def get_recommended_skills(
             columns=["skill", "score", "job_count", "avg_weight"]
         )
 
-    user_skills_normalized = {
-        skill.lower().strip()
-        for skill in user_skills
-    }
+    available_skills = sorted({
+        normalize_skill(skill)
+        for skills in jobs_df.get("extracted_skills", pd.Series(dtype=object))
+        if isinstance(skills, list)
+        for skill in skills
+        if normalize_skill(skill)
+    })
+    skill_match_map = build_skill_match_map(
+        user_skills=user_skills,
+        required_skills=available_skills,
+    )
 
     skill_scores = {}
 
@@ -599,12 +625,17 @@ def get_recommended_skills(
             ]
 
         for skill in skills:
-            normalized_skill = skill.lower().strip()
+            normalized_skill = normalize_skill(skill)
 
             if not normalized_skill:
                 continue
 
-            if normalized_skill in user_skills_normalized:
+            match_quality, _ = skill_match_map.get(
+                normalized_skill,
+                (0.0, None),
+            )
+
+            if match_quality >= RELATED_SKILL_THRESHOLD:
                 continue
 
             weight = category_weights.get(normalized_skill, 1)
@@ -693,10 +724,7 @@ def get_candidate_fit_summary(
             "missing_skills": [],
         }
 
-    best_role_row = role_scores_df.sort_values(
-        by="weighted_match_score",
-        ascending=False,
-    ).iloc[0]
+    best_role_row = select_best_role_row(role_scores_df)
 
     best_role = best_role_row["role_category"]
     best_score = float(best_role_row["weighted_match_score"])
@@ -704,13 +732,21 @@ def get_candidate_fit_summary(
 
     matched_skills = best_role_row.get("matched_skills", [])
     missing_skills = best_role_row.get("missing_skills", [])
+    representative_job_count = int(
+        best_role_row.get("representative_job_count", 1)
+    )
+    sample_confidence = str(
+        best_role_row.get("sample_confidence", "Limited")
+    )
 
     top_matched_skills = matched_skills[:4]
 
-    if not recommended_skills_df.empty and "skill" in recommended_skills_df.columns:
+    if missing_skills:
+        top_missing_skills = missing_skills[:3]
+    elif not recommended_skills_df.empty and "skill" in recommended_skills_df.columns:
         top_missing_skills = recommended_skills_df["skill"].head(3).tolist()
     else:
-        top_missing_skills = missing_skills[:3]
+        top_missing_skills = []
 
     matched_text = format_skills_for_sentence(
         top_matched_skills,
@@ -750,7 +786,10 @@ def get_candidate_fit_summary(
         f"Based on <strong>{len(filtered_jobs)} matching postings</strong>, "
         f"your strongest fit is "
         f"<span class='summary-highlight'>{best_role}</span> "
-        f"with a <strong>{best_score:.1f}% weighted match</strong>. "
+        f"with a <strong>{best_score:.1f}% role skill fit</strong>, based on "
+        f"<strong>{representative_job_count} representative "
+        f"{'posting' if representative_job_count == 1 else 'postings'}</strong> "
+        f"with {sample_confidence.lower()} sample confidence. "
         f"You already match <span class='summary-positive'>{matched_text}</span>. "
         f"Your highest-impact gaps are "
         f"<span class='summary-warning'>{missing_text}</span>."
@@ -813,21 +852,30 @@ def generate_candidate_report_markdown(
     best_role = "N/A"
     best_score = 0.0
     top_missing_skill = "N/A"
+    representative_job_count = 0
+    sample_confidence = "Insufficient"
 
     if not role_scores_df.empty and "weighted_match_score" in role_scores_df.columns:
-        best_role_row = role_scores_df.sort_values(
-            by="weighted_match_score",
-            ascending=False,
-        ).iloc[0]
+        best_role_row = select_best_role_row(role_scores_df)
 
         best_role = str(best_role_row.get("role_category", "N/A"))
         best_score = float(best_role_row.get("weighted_match_score", 0.0))
+        representative_job_count = int(
+            best_role_row.get("representative_job_count", 0)
+        )
+        sample_confidence = str(
+            best_role_row.get("sample_confidence", "Insufficient")
+        )
 
         missing_skills = best_role_row.get("missing_skills", [])
         if isinstance(missing_skills, list) and missing_skills:
             top_missing_skill = str(missing_skills[0])
 
-    if not recommended_skills_df.empty and "skill" in recommended_skills_df.columns:
+    if (
+        top_missing_skill == "N/A"
+        and not recommended_skills_df.empty
+        and "skill" in recommended_skills_df.columns
+    ):
         top_missing_skill = str(recommended_skills_df.iloc[0]["skill"])
 
     report_lines = [
@@ -845,7 +893,9 @@ def generate_candidate_report_markdown(
         "",
         f"- Jobs analyzed: {jobs_analyzed}",
         f"- Best-fit role category: {best_role}",
-        f"- Weighted match score: {best_score:.1f}%",
+        f"- Role skill fit: {best_score:.1f}%",
+        f"- Representative postings: {representative_job_count}",
+        f"- Sample confidence: {sample_confidence}",
         f"- Top recommended skill gap: {top_missing_skill}",
         "",
     ]
@@ -890,8 +940,8 @@ def generate_candidate_report_markdown(
         report_lines.append("No role score breakdown is available for the current filters.")
     else:
         report_lines.extend([
-            "| Role Category | Weighted Match Score | Matched Skills | Missing Skills |",
-            "| --- | ---: | --- | --- |",
+            "| Role Category | Role Skill Fit | Confidence | Representative Jobs | Matched Skills | Missing Skills |",
+            "| --- | ---: | --- | ---: | --- | --- |",
         ])
 
         sorted_role_scores = role_scores_df.sort_values(
@@ -904,6 +954,8 @@ def generate_candidate_report_markdown(
                 "| "
                 f"{row.get('role_category', 'N/A')} | "
                 f"{float(row.get('weighted_match_score', 0)):.1f}% | "
+                f"{row.get('sample_confidence', 'N/A')} | "
+                f"{int(row.get('representative_job_count', 0))} | "
                 f"{format_skill_list(row.get('matched_skills', []))} | "
                 f"{format_skill_list(row.get('missing_skills', []))} |"
             )
@@ -1060,21 +1112,30 @@ def generate_candidate_report_pdf(
     best_role = "N/A"
     best_score = 0.0
     top_missing_skill = "N/A"
+    representative_job_count = 0
+    sample_confidence = "Insufficient"
 
     if not role_scores_df.empty and "weighted_match_score" in role_scores_df.columns:
-        best_role_row = role_scores_df.sort_values(
-            by="weighted_match_score",
-            ascending=False,
-        ).iloc[0]
+        best_role_row = select_best_role_row(role_scores_df)
 
         best_role = str(best_role_row.get("role_category", "N/A"))
         best_score = float(best_role_row.get("weighted_match_score", 0.0))
+        representative_job_count = int(
+            best_role_row.get("representative_job_count", 0)
+        )
+        sample_confidence = str(
+            best_role_row.get("sample_confidence", "Insufficient")
+        )
 
         missing_skills = best_role_row.get("missing_skills", [])
         if isinstance(missing_skills, list) and missing_skills:
             top_missing_skill = str(missing_skills[0])
 
-    if not recommended_skills_df.empty and "skill" in recommended_skills_df.columns:
+    if (
+        top_missing_skill == "N/A"
+        and not recommended_skills_df.empty
+        and "skill" in recommended_skills_df.columns
+    ):
         top_missing_skill = str(recommended_skills_df.iloc[0]["skill"])
 
     buffer = BytesIO()
@@ -1175,7 +1236,9 @@ def generate_candidate_report_pdf(
             rows=[
                 ["Jobs analyzed", jobs_analyzed],
                 ["Best-fit role category", best_role],
-                ["Weighted match score", f"{best_score:.1f}%"],
+                ["Role skill fit", f"{best_score:.1f}%"],
+                ["Representative postings", representative_job_count],
+                ["Sample confidence", sample_confidence],
                 ["Top recommended skill gap", top_missing_skill],
             ],
             column_widths=[2.1 * inch, 5.2 * inch],
@@ -1240,6 +1303,8 @@ def generate_candidate_report_pdf(
             role_rows.append([
                 row.get("role_category", "N/A"),
                 f"{float(row.get('weighted_match_score', 0)):.1f}%",
+                row.get("sample_confidence", "N/A"),
+                int(row.get("representative_job_count", 0)),
                 format_skill_list(row.get("matched_skills", [])),
                 format_skill_list(row.get("missing_skills", [])),
             ])
@@ -1248,16 +1313,20 @@ def generate_candidate_report_pdf(
             build_table(
                 headers=[
                     "Role Category",
-                    "Weighted Match",
+                    "Role Skill Fit",
+                    "Confidence",
+                    "Rep. Jobs",
                     "Matched Skills",
                     "Missing Skills",
                 ],
                 rows=role_rows,
                 column_widths=[
-                    1.45 * inch,
-                    0.95 * inch,
-                    2.1 * inch,
-                    2.7 * inch,
+                    1.2 * inch,
+                    0.75 * inch,
+                    0.7 * inch,
+                    0.55 * inch,
+                    1.8 * inch,
+                    2.2 * inch,
                 ],
             )
         )
@@ -1328,17 +1397,8 @@ def get_role_sample_context(jobs_df: pd.DataFrame) -> pd.DataFrame:
         .sort_values("job_count", ascending=False)
     )
 
-    def confidence_label(job_count: int) -> str:
-        if job_count >= 5:
-            return "Strong sample"
-        if job_count >= 3:
-            return "Moderate sample"
-        if job_count >= 1:
-            return "Limited sample"
-        return "No data"
-
     sample_context_df["confidence"] = sample_context_df["job_count"].apply(
-        confidence_label
+        lambda job_count: get_sample_confidence(job_count)[1]
     )
 
     return sample_context_df

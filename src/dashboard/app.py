@@ -54,6 +54,7 @@ from src.matching.match_engine import (
     get_role_weighted_top_skills,
     get_top_skills,
     score_roles,
+    select_best_role_row,
 )
 from src.processing.job_processor import process_jobs
 from src.database.repository import (
@@ -205,10 +206,7 @@ def get_top_insights(
     if role_scores_df.empty:
         return "No match", 0.0, "No skill gap", 0
 
-    best_role_row = role_scores_df.sort_values(
-        by="weighted_match_score",
-        ascending=False,
-    ).iloc[0]
+    best_role_row = select_best_role_row(role_scores_df)
 
     best_role = best_role_row["role_category"]
     best_score = float(best_role_row["weighted_match_score"])
@@ -221,10 +219,14 @@ def get_top_insights(
             else "Insufficient skill data"
         )
 
-    if recommended_skills_df.empty:
-        top_missing_skill = "No major gaps"
+    missing_skills = best_role_row.get("missing_skills", [])
+
+    if isinstance(missing_skills, list) and missing_skills:
+        top_missing_skill = str(missing_skills[0])
+    elif not recommended_skills_df.empty:
+        top_missing_skill = str(recommended_skills_df.iloc[0]["skill"])
     else:
-        top_missing_skill = recommended_skills_df.iloc[0]["skill"]
+        top_missing_skill = "No major gaps"
 
     jobs_analyzed = len(filtered_jobs_df)
 
@@ -260,10 +262,7 @@ def align_candidate_summary_with_match_status(
     if best_score > 0 or role_scores_df.empty:
         return candidate_summary
 
-    best_role_row = role_scores_df.sort_values(
-        by="weighted_match_score",
-        ascending=False,
-    ).iloc[0]
+    best_role_row = select_best_role_row(role_scores_df)
 
     scored_role = str(best_role_row.get("role_category", "selected roles"))
     total_possible_weight = int(best_role_row.get("total_possible_weight", 0))
@@ -1082,10 +1081,10 @@ def main() -> None:
             st.write(f"**Dataset:** {selected_saved_analysis_run['dataset_name']}")
             st.write(f"**Best-fit role:** {selected_saved_analysis_run['best_role']}")
             st.write(
-                f"**Weighted match:** "
+                f"**Role skill fit:** "
                 f"{selected_saved_analysis_run['weighted_match_score']:.1f}%"
                 if selected_saved_analysis_run["weighted_match_score"] is not None
-                else "**Weighted match:** N/A"
+                else "**Role skill fit:** N/A"
             )
             st.write(f"**Top skill gap:** {selected_saved_analysis_run['top_missing_skill']}")
             st.write(f"**Jobs analyzed:** {selected_saved_analysis_run['jobs_analyzed']}")
@@ -1118,6 +1117,8 @@ def main() -> None:
                 saved_score_columns = [
                     "role_category",
                     "sample_size",
+                    "representative_job_count",
+                    "sample_confidence",
                     "weighted_match_score",
                     "unweighted_match_score",
                     "matched_weight",
@@ -1293,7 +1294,7 @@ def main() -> None:
         st.metric("Best-fit role", best_role)
 
     with col2:
-        st.metric("Weighted match", f"{best_score:.1f}%")
+        st.metric("Role skill fit", f"{best_score:.1f}%")
 
     with col3:
         st.metric("Top skill gap", top_missing_skill)
@@ -1305,7 +1306,8 @@ def main() -> None:
         st.metric("Current skills", len(current_skills))
     
     st.caption(
-        "Weighted match prioritizes skills that appear more often within each role category."
+        "Role skill fit scores individual postings, weights market-relevant skills, "
+        "and summarizes the strongest representative opportunities."
     )
 
     if use_database and check_database_connection():
@@ -1456,6 +1458,8 @@ def main() -> None:
             [
                 "role_category",
                 "sample_size",
+                "representative_job_count",
+                "sample_confidence",
                 "weighted_match_score",
                 "unweighted_match_score",
                 "matched_weight",
@@ -1465,7 +1469,10 @@ def main() -> None:
 
         st.dataframe(score_table, use_container_width=True)
 
-        st.caption("Weighted score uses role-specific skill importance. Unweighted score treats all skills equally.")
+        st.caption(
+            "Role skill fit uses role-specific importance and related-skill credit. "
+            "The unweighted score treats every extracted skill equally."
+        )
         st.altair_chart(
             create_role_match_chart(role_scores_df),
             use_container_width=True,
@@ -1582,7 +1589,7 @@ def main() -> None:
 
     for _, row in role_scores_df.iterrows():
         with st.expander(
-            f"{row['role_category']} — {row['weighted_match_score']}% weighted match"
+            f"{row['role_category']} — {row['weighted_match_score']}% role skill fit"
         ):
             col_a, col_b = st.columns(2)
 
@@ -1593,6 +1600,12 @@ def main() -> None:
                 else:
                     st.write("No matched skills yet.")
 
+                st.write("**Related Skill Credit**")
+                if row.get("related_skills", []):
+                    st.write(", ".join(row["related_skills"]))
+                else:
+                    st.write("No related-skill matches.")
+
                 st.write("**Missing Skills**")
                 if row["missing_skills"]:
                     st.write(", ".join(row["missing_skills"]))
@@ -1600,6 +1613,16 @@ def main() -> None:
                     st.write("No major missing skills.")
 
             with col_b:
+                st.write("**Model Context**")
+                st.write(
+                    f"Representative postings: "
+                    f"{row.get('representative_job_count', 0)}"
+                )
+                st.write(
+                    f"Sample confidence: "
+                    f"{row.get('sample_confidence', 'N/A')}"
+                )
+
                 st.write("**Role-Specific Skill Weights**")
 
                 weights_df = pd.DataFrame(

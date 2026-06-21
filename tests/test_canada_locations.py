@@ -51,6 +51,16 @@ def test_normalize_canadian_location_accepts_remote_description_eligibility():
     assert location.normalized_location == "Remote, Canada"
 
 
+def test_normalize_canadian_location_rejects_country_name_despite_canada_mention():
+    location = normalize_canadian_location(
+        "Spain - Remote",
+        description="Build travel products for partners such as Air Canada.",
+        is_remote=True,
+    )
+
+    assert location is None
+
+
 def test_normalize_canadian_location_rejects_non_canadian_job():
     assert normalize_canadian_location("Seattle, WA") is None
     assert normalize_canadian_location("Remote - USA") is None

@@ -81,6 +81,7 @@ def process_selected_jobs(
     *,
     existing_rows: dict[str, dict[str, object]] | None = None,
     delay_seconds: float = 1,
+    checkpoint_path: Path | None = None,
 ) -> list[dict[str, object]]:
     """Groq-enrich selected jobs and preserve resumable completed rows."""
     existing_rows = existing_rows or {}
@@ -119,6 +120,11 @@ def process_selected_jobs(
                 "skill_extraction_error": extraction_error,
             }
         )
+
+        if checkpoint_path is not None:
+            checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+            pd.DataFrame(processed_rows).to_csv(checkpoint_path, index=False)
+
         time.sleep(delay_seconds)
 
     return processed_rows
@@ -146,6 +152,7 @@ def main(
         selected_jobs,
         existing_rows=existing_rows,
         delay_seconds=delay_seconds,
+        checkpoint_path=output_path,
     )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)

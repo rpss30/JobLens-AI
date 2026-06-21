@@ -86,7 +86,11 @@ def categorize_role(title: str, description: str) -> str:
 
     if any(
         word in title_text
-        for word in ["data engineer", "analytics engineer"]
+        for word in [
+            "data engineer",
+            "analytics engineer",
+            "data platform engineer",
+        ]
     ):
         return "Data Engineering"
 
@@ -104,7 +108,17 @@ def categorize_role(title: str, description: str) -> str:
     ):
         return "Cloud/AWS"
 
-    if any(word in title_text for word in ["backend developer", "backend engineer", "software engineer", "full stack developer", "developer"]):
+    if any(
+        word in title_text
+        for word in [
+            "backend developer",
+            "backend engineer",
+            "software engineer",
+            "full stack developer",
+            "full stack engineer",
+            "developer",
+        ]
+    ):
         return "Software Engineering"
 
     if any(word in title_text for word in ["analyst", "business intelligence", "product analyst"]):

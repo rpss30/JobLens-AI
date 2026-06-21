@@ -17,6 +17,13 @@ def test_is_target_technical_job_accepts_target_roles():
 def test_is_target_technical_job_rejects_non_target_and_management_roles():
     assert is_target_technical_job({"title": "Account Executive"}) is False
     assert is_target_technical_job({"title": "Engineering Manager, Data"}) is False
+    assert is_target_technical_job(
+        {"title": "Future Opportunities: Software Engineer"}
+    ) is False
+    assert is_target_technical_job({"title": "VP, AI Platform Engineering"}) is False
+    assert is_target_technical_job(
+        {"title": "Data Annotation Specialist, Software Engineering"}
+    ) is False
 
 
 def test_is_posting_active_uses_explicit_valid_through_date():
@@ -64,6 +71,27 @@ def test_deduplicate_jobs_prefers_stable_job_id():
     jobs = [
         {"job_id": "greenhouse:example:1", "title": "Data Engineer"},
         {"job_id": "greenhouse:example:1", "title": "Updated title"},
+    ]
+
+    assert deduplicate_jobs(jobs) == [jobs[0]]
+
+
+def test_deduplicate_jobs_removes_visible_duplicate_with_different_ids():
+    jobs = [
+        {
+            "job_id": "ashby:example:1",
+            "source_url": "https://example.com/jobs/1",
+            "company": "Example",
+            "title": "Software Engineer",
+            "location": "Remote, Canada",
+        },
+        {
+            "job_id": "ashby:example:2",
+            "source_url": "https://example.com/jobs/2",
+            "company": "Example",
+            "title": "Software Engineer",
+            "location": "Remote, Canada",
+        },
     ]
 
     assert deduplicate_jobs(jobs) == [jobs[0]]

@@ -36,6 +36,7 @@ from src.dashboard.services import (
     get_available_skills,
     get_available_target_roles,
     get_candidate_fit_summary,
+    get_dataset_snapshot_summary,
     get_job_match_details,
     get_jobs_by_location,
     get_recommended_skills,
@@ -44,7 +45,7 @@ from src.dashboard.services import (
     validate_uploaded_jobs_csv,
     read_uploaded_jobs_csv,
     load_processed_jobs,
-    GREENHOUSE_AI_DEMO_PATH,
+    CANADA_JOBS_SNAPSHOT_PATH,
     load_processed_jobs_from_csv,
 )
 from src.dashboard.styles import inject_global_styles
@@ -188,7 +189,7 @@ SEARCH_PRESETS = {
 }
 
 DATASET_SOURCE_DEFAULT = "Default sample dataset"
-DATASET_SOURCE_GREENHOUSE = "Curated Greenhouse demo"
+DATASET_SOURCE_CANADA = "Canada jobs snapshot"
 DATASET_SOURCE_DATABASE = "PostgreSQL dataset"
 
 
@@ -397,31 +398,31 @@ def choose_dataset_dialog(
             )
             st.rerun()
 
-    col_greenhouse_info, col_greenhouse_action = st.columns([5, 1.35])
-    is_greenhouse_active = (
-        st.session_state.active_dataset_source == DATASET_SOURCE_GREENHOUSE
+    col_canada_info, col_canada_action = st.columns([5, 1.35])
+    is_canada_active = (
+        st.session_state.active_dataset_source == DATASET_SOURCE_CANADA
     )
 
-    with col_greenhouse_info:
-        st.write(DATASET_SOURCE_GREENHOUSE)
-        st.caption("Generated AI-extracted demo dataset, when available")
+    with col_canada_info:
+        st.write(DATASET_SOURCE_CANADA)
+        st.caption("Current first-party Canadian postings enriched with Groq")
 
-    with col_greenhouse_action:
-        if is_greenhouse_active:
+    with col_canada_action:
+        if is_canada_active:
             st.markdown(
                 '<span class="active-dataset-button-marker"></span>',
                 unsafe_allow_html=True,
             )
         if st.button(
-            "Active" if is_greenhouse_active else "Use",
-            key="use_greenhouse_dataset",
+            "Active" if is_canada_active else "Use",
+            key="use_canada_dataset",
             icon=":material/check_circle:",
-            disabled=is_greenhouse_active,
+            disabled=is_canada_active,
             use_container_width=True,
         ):
-            st.session_state.active_dataset_source = DATASET_SOURCE_GREENHOUSE
+            st.session_state.active_dataset_source = DATASET_SOURCE_CANADA
             st.session_state.dataset_select_success_message = (
-                f"Selected `{DATASET_SOURCE_GREENHOUSE}`."
+                f"Selected `{DATASET_SOURCE_CANADA}`."
             )
             st.rerun()
 
@@ -1042,23 +1043,38 @@ def main() -> None:
 
             jobs_df = load_processed_jobs()
     else:
-        if dataset_source == DATASET_SOURCE_GREENHOUSE:
-            jobs_df = load_processed_jobs_from_csv(GREENHOUSE_AI_DEMO_PATH)
+        if dataset_source == DATASET_SOURCE_CANADA:
+            jobs_df = load_processed_jobs_from_csv(CANADA_JOBS_SNAPSHOT_PATH)
 
             if jobs_df.empty:
                 st.sidebar.warning(
-                    "Curated Greenhouse demo dataset was not found. "
+                    "Canada jobs snapshot was not found. "
                     "Using the default sample dataset instead."
                 )
                 jobs_df = load_processed_jobs()
             else:
-                st.sidebar.success("Loaded curated Greenhouse demo dataset.")
+                st.sidebar.success("Loaded Canada jobs snapshot.")
         else:
             jobs_df = load_processed_jobs()
 
     available_target_roles = get_available_target_roles(jobs_df)
     available_skills = get_available_skills(jobs_df)
     available_locations = get_available_locations(jobs_df)
+
+    if dataset_source == DATASET_SOURCE_CANADA:
+        snapshot_summary = get_dataset_snapshot_summary(jobs_df)
+        snapshot_caption = (
+            f"{snapshot_summary['job_count']} jobs from "
+            f"{snapshot_summary['company_count']} employers across "
+            f"{snapshot_summary['location_count']} locations"
+        )
+
+        if snapshot_summary["refreshed_date"]:
+            snapshot_caption += (
+                f" • refreshed {snapshot_summary['refreshed_date']}"
+            )
+
+        st.sidebar.caption(snapshot_caption)
 
     if selected_saved_analysis_run:
         with st.expander("Saved Analysis Preview", expanded=True):

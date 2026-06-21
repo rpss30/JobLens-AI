@@ -105,6 +105,7 @@ NON_CANADIAN_COUNTRY_TERMS = {
     "germany",
     "india",
     "ireland",
+    "spain",
     "singapore",
     "united kingdom",
     "united states",
@@ -165,34 +166,68 @@ def infer_workplace_type(
 
 
 def find_city(location_text: str) -> tuple[str, str, str] | None:
-    """Find the most specific known Canadian city in text."""
-    for city_key in sorted(CITY_PROVINCES, key=len, reverse=True):
-        if has_term(location_text, city_key):
-            city, province = CITY_PROVINCES[city_key]
-            return city_key, city, province
+    """Find the first known Canadian city mentioned in text."""
+    matches: list[tuple[int, int, str, str, str]] = []
+
+    for city_key, (city, province) in CITY_PROVINCES.items():
+        match = re.search(
+            rf"(?<![a-z0-9]){re.escape(city_key)}(?![a-z0-9])",
+            location_text,
+        )
+
+        if match:
+            matches.append(
+                (match.start(), -len(city_key), city_key, city, province)
+            )
+
+    if matches:
+        _, _, city_key, city, province = min(matches)
+        return city_key, city, province
 
     return None
 
 
-def find_province(location_text: str) -> str:
-    """Find a Canadian province or territory in text."""
-    for province_name in sorted(PROVINCE_NAMES, key=len, reverse=True):
-        if has_term(location_text, province_name):
-            return PROVINCE_NAMES[province_name]
+def find_provinces(location_text: str) -> list[str]:
+    """Find every Canadian province or territory mentioned in text."""
+    provinces: list[str] = []
+
+    for province_name, abbreviation in PROVINCE_NAMES.items():
+        if has_term(location_text, province_name) and abbreviation not in provinces:
+            provinces.append(abbreviation)
 
     for abbreviation in PROVINCE_LABELS:
-        if re.search(
-            rf"(?:^|[\s,;/(-]){re.escape(abbreviation.lower())}(?:$|[\s,;/)-])",
-            location_text,
+        if (
+            re.search(
+                rf"(?:^|[\s,;/(-]){re.escape(abbreviation.lower())}(?:$|[\s,;/)-])",
+                location_text,
+            )
+            and abbreviation not in provinces
         ):
-            return abbreviation
+            provinces.append(abbreviation)
 
-    return ""
+    return provinces
 
 
 def has_canada_signal(text: str) -> bool:
     """Return whether text explicitly indicates Canadian eligibility."""
     return any(term in text for term in CANADA_COUNTRY_TERMS)
+
+
+def has_remote_canada_eligibility(description_text: str) -> bool:
+    """Detect explicit Canada eligibility language for generic remote roles."""
+    eligibility_patterns = [
+        r"\bbased in canada\b",
+        r"\bcandidates? (?:must be )?(?:based|located) in canada\b",
+        r"\bcanada[- ]only\b",
+        r"\blocated (?:anywhere )?in canada\b",
+        r"\breside in canada\b",
+        r"\bremote (?:role|position|work) (?:in|within) canada\b",
+        r"\bwork(?:ing)? from canada\b",
+    ]
+    return any(
+        re.search(pattern, description_text)
+        for pattern in eligibility_patterns
+    )
 
 
 def normalize_canadian_location(
@@ -220,7 +255,6 @@ def normalize_canadian_location(
         " ".join(part for part in (str(location or ""), structured_location) if part)
     )
     description_text = normalize_search_text(description)
-    combined_text = f"{raw_location_text} {description_text}".strip()
     normalized_workplace_type = infer_workplace_type(
         raw_location_text,
         is_remote=is_remote,
@@ -228,7 +262,8 @@ def normalize_canadian_location(
     )
 
     city_match = find_city(raw_location_text)
-    province = find_province(raw_location_text)
+    provinces = find_provinces(raw_location_text)
+    province = provinces[0] if len(provinces) == 1 else ""
     country_text = normalize_search_text(address_country)
     explicit_non_canada_country = (
         country_text not in {"", "canada", "ca", "can"}
@@ -242,9 +277,22 @@ def normalize_canadian_location(
         or country_text in {"canada", "ca", "can"}
         or (
             normalized_workplace_type == "Remote"
-            and has_canada_signal(combined_text)
+            and has_remote_canada_eligibility(description_text)
         )
     )
+
+    if len(provinces) > 1:
+        return CanadianLocation(
+            city="",
+            province="",
+            country="Canada",
+            workplace_type=normalized_workplace_type,
+            normalized_location=(
+                "Remote, Canada"
+                if normalized_workplace_type == "Remote"
+                else "Canada"
+            ),
+        )
 
     if city_match:
         city_key, city, city_province = city_match
@@ -263,17 +311,16 @@ def normalize_canadian_location(
         if (
             city_key in AMBIGUOUS_CITY_KEYS
             and not explicit_canada
-            and not province
+            and city_province not in provinces
         ):
             return None
 
-        province = province or city_province
         return CanadianLocation(
             city=city,
-            province=province,
+            province=city_province,
             country="Canada",
             workplace_type=normalized_workplace_type,
-            normalized_location=f"{city}, {province}",
+            normalized_location=f"{city}, {city_province}",
         )
 
     if province:

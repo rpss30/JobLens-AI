@@ -6,7 +6,9 @@
 
 JobLens AI is a production-style data and AI analytics system for personalized job market intelligence. It turns job postings into explainable role-fit scores, skill-gap recommendations, market insights, and downloadable candidate reports.
 
-The runtime is deterministic and reproducible, while the optional ingestion pipeline can fetch public Greenhouse postings and enrich a curated demo dataset through Groq, Gemini, and deterministic fallback extraction.
+The runtime is deterministic and reproducible, while the ingestion pipeline
+collects first-party Canadian postings from Greenhouse, Lever, and Ashby and
+uses Groq to extract skills from complete job descriptions.
 
 ## Live Deployments
 
@@ -26,7 +28,7 @@ database and credentials stored in AWS Secrets Manager.
 
 ```mermaid
 flowchart LR
-    A["Curated CSV / Uploaded CSV / Public Greenhouse jobs"] --> B["Processing and skill extraction"]
+    A["Curated CSV / Uploaded CSV / Canadian employer job boards"] --> B["Processing and Groq skill extraction"]
     B --> C["Processed JobLens dataframe"]
     C --> D["Dashboard services"]
     D --> E["Weighted matching engine"]
@@ -101,8 +103,9 @@ The dashboard also shows market-level insights such as top required skills, role
 - FastAPI backend with health check and candidate analysis endpoint
 - Docker Compose support for running the dashboard, API, and PostgreSQL together
 - FastAPI dataset, analysis run, and PostgreSQL-backed analysis support
-- Public Greenhouse and Lever ATS normalization support
-- Groq-first, Gemini-fallback skill extraction for offline dataset enrichment
+- First-party Greenhouse, Lever, Ashby, and JSON-LD ingestion support
+- Canada-only location normalization, deduplication, and balanced snapshots
+- Groq skill extraction from complete first-party job descriptions
 - AWS deployment automation for Amazon ECR, ECS Fargate, ALB, Secrets Manager, and RDS PostgreSQL
 
 
@@ -159,17 +162,18 @@ The processed dataset is generated at:
 data/processed/processed_jobs.csv
 ```
 
-Curated, AI-extracted real-job demo:
+Curated Canada-wide real-job snapshot:
 
 ```text
-data/processed/greenhouse_ai_demo_jobs.csv
+data/processed/canada_jobs_snapshot.csv
 ```
 
-The Greenhouse pipeline fetches public ATS postings, normalizes them into the
-JobLens schema, and supports Groq-first extraction with Gemini and deterministic
-fallbacks. Large raw fetches and intermediate experiments are generated locally
-and excluded from Git; the small curated output is committed so the dashboard
-remains stable and reproducible.
+The snapshot contains 60 active postings from 19 employers across 14 normalized
+Canadian location labels. It combines first-party Greenhouse, Lever, and Ashby
+boards, preserves original application links, and uses Groq for every packaged
+skill extraction. The raw multi-employer fetch is generated locally and excluded
+from Git; the balanced processed snapshot is committed so the dashboard remains
+stable and reproducible.
 
 
 
@@ -264,13 +268,17 @@ JobLens AI
 │   │   └── sample_jobs.csv
 │   ├── processed
 │   │   ├── processed_jobs.csv
-│   │   └── greenhouse_ai_demo_jobs.csv
+│   │   └── canada_jobs_snapshot.csv
+│   ├── sources
+│   │   └── canada_employers.json
 │   └── examples
 │       └── sample_upload_jobs.csv
 ├── docs
 │   └── aws-deployment.md
 ├── scripts
 │   ├── fetch_greenhouse_jobs.py
+│   ├── fetch_canada_jobs.py
+│   ├── build_canada_jobs_snapshot.py
 │   ├── process_greenhouse_jobs_ai_first.py
 │   ├── publish_aws_image.sh
 │   ├── provision_aws_foundation.sh
@@ -625,7 +633,7 @@ Completed:
 - Docker Compose setup for Streamlit, FastAPI, and PostgreSQL
 - FastAPI can list PostgreSQL datasets and analyze a selected saved dataset
 - AWS deployment helpers for ECR, RDS PostgreSQL, ALB, and ECS Fargate
-- Public Greenhouse ingestion and curated AI-extracted demo data
+- Multi-employer Canadian ingestion and a curated Groq-enriched snapshot
 - Verified AWS deployment with private RDS, Secrets Manager, ALB, and ECS Fargate
 
 Not built yet:
@@ -640,7 +648,7 @@ Not built yet:
 ## Known Limitations
 
 - The dashboard uses committed demo snapshots rather than fetching live jobs at runtime.
-- Greenhouse and Lever ingestion run on demand and are not scheduled.
+- Canadian employer-board ingestion runs on demand and is not scheduled.
 - Core runtime skill extraction is dictionary-based, so it may miss aliases or uncommon phrasing.
 - Role classification is rule-based and title-first, not ML-based yet.
 - Match scores are designed for explainability, not as a production hiring recommendation system.

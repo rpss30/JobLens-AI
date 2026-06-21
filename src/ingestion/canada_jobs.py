@@ -39,7 +39,9 @@ TARGET_TITLE_TERMS = {
 EXCLUDED_TITLE_TERMS = {
     "account executive",
     "customer success",
+    "data annotation",
     "director",
+    "future opportunities",
     "legal",
     "manager",
     "marketing",
@@ -66,6 +68,9 @@ def is_target_technical_job(job: dict[str, object]) -> bool:
         return False
 
     if any(term in title for term in EXCLUDED_TITLE_TERMS):
+        return False
+
+    if title.startswith("vp ") or title.startswith("vp,"):
         return False
 
     return any(term in title for term in TARGET_TITLE_TERMS)
@@ -144,28 +149,31 @@ def deduplicate_jobs(
 ) -> list[dict[str, object]]:
     """Deduplicate jobs by stable ID, source URL, then visible identity."""
     deduplicated: list[dict[str, object]] = []
-    seen_keys: set[tuple[str, ...]] = set()
+    seen_job_ids: set[str] = set()
+    seen_source_urls: set[str] = set()
+    seen_visible_keys: set[tuple[str, str, str]] = set()
 
     for job in jobs:
         job_id = str(job.get("job_id", "")).strip().lower()
         source_url = str(job.get("source_url", "")).strip().lower()
+        visible_key = (
+            str(job.get("company", "")).strip().lower(),
+            str(job.get("title", "")).strip().lower(),
+            str(job.get("location", "")).strip().lower(),
+        )
 
-        if job_id:
-            key = ("job_id", job_id)
-        elif source_url:
-            key = ("source_url", source_url)
-        else:
-            key = (
-                "visible",
-                str(job.get("company", "")).strip().lower(),
-                str(job.get("title", "")).strip().lower(),
-                str(job.get("location", "")).strip().lower(),
-            )
-
-        if key in seen_keys:
+        if (
+            (job_id and job_id in seen_job_ids)
+            or (source_url and source_url in seen_source_urls)
+            or visible_key in seen_visible_keys
+        ):
             continue
 
-        seen_keys.add(key)
+        if job_id:
+            seen_job_ids.add(job_id)
+        if source_url:
+            seen_source_urls.add(source_url)
+        seen_visible_keys.add(visible_key)
         deduplicated.append(job)
 
     return deduplicated

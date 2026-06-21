@@ -53,3 +53,36 @@ def test_extract_skills_groq_first_falls_back_after_failures(monkeypatch):
     assert skills == ["python"]
     assert provider == "deterministic_fallback"
     assert "Groq attempt 2" in error
+
+
+def test_process_selected_jobs_writes_incremental_checkpoint(
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.setattr(
+        build_canada_jobs_snapshot,
+        "extract_skills_groq_first",
+        lambda **kwargs: (["python"], "groq", ""),
+    )
+    monkeypatch.setattr(
+        build_canada_jobs_snapshot.time,
+        "sleep",
+        lambda seconds: None,
+    )
+    checkpoint_path = tmp_path / "snapshot.csv"
+
+    rows = build_canada_jobs_snapshot.process_selected_jobs(
+        [
+            {
+                "job_id": "job-1",
+                "title": "Data Engineer",
+                "company": "Example",
+                "description": "Build pipelines with Python.",
+            }
+        ],
+        checkpoint_path=checkpoint_path,
+        delay_seconds=0,
+    )
+
+    assert checkpoint_path.exists()
+    assert rows[0]["skill_extraction_provider"] == "groq"

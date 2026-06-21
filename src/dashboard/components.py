@@ -38,7 +38,7 @@ def show_role_summary_cards(role_scores_df: pd.DataFrame) -> None:
                 value=f"{row['weighted_match_score']}%",
                 delta=(
                     f"{row.get('sample_confidence', 'N/A')} confidence, "
-                    f"{row.get('representative_job_count', 0)} representative"
+                    f"{row.get('representative_job_count', 0)} representative jobs"
                 ),
             )
 

@@ -136,11 +136,25 @@ def build_skill_match_map(
                     len(shorter) >= 4
                     and longer.startswith(shorter)
                     and character_similarity >= 0.40
+                    and longer.removeprefix(shorter) in {"db", "js", "sql"}
                 )
                 else 0.0
             )
             match_quality = max(character_similarity, lexical_similarity)
             match_quality = max(match_quality, prefix_similarity)
+
+            if (
+                len(shorter) >= 3
+                and shorter != longer
+                and len(required_skill.split()) == 1
+                and len(user_skill.split()) == 1
+                and longer.startswith(shorter)
+                and longer.removeprefix(shorter) not in {"db", "js", "sql"}
+            ):
+                match_quality = min(
+                    match_quality,
+                    RELATED_SKILL_THRESHOLD - 0.01,
+                )
 
             if match_quality > best_quality:
                 best_quality = match_quality

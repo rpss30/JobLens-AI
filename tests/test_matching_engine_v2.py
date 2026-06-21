@@ -2,6 +2,7 @@ import pandas as pd
 
 from src.dashboard.services import filter_jobs, load_processed_jobs_from_csv
 from src.matching.match_engine import (
+    build_skill_match_map,
     get_skill_similarity,
     score_roles,
     select_best_role_row,
@@ -39,6 +40,21 @@ def test_skill_similarity_recognizes_variants_without_conflating_languages() -> 
     assert get_skill_similarity("PostgreSQL", "SQL") >= 0.60
     assert get_skill_similarity("Mongo", "MongoDB") >= 0.60
     assert get_skill_similarity("Java", "JavaScript") < 0.60
+
+    corpus_match_map = build_skill_match_map(
+        user_skills=["Java", "Mongo"],
+        required_skills=[
+            "Java",
+            "JavaScript",
+            "MongoDB",
+            "Python",
+            "TypeScript",
+        ],
+    )
+
+    assert corpus_match_map["java"][0] == 1.0
+    assert corpus_match_map["javascript"][0] == 0.0
+    assert corpus_match_map["mongodb"][0] >= 0.60
 
 
 def test_role_fit_uses_representative_jobs_instead_of_the_full_skill_union() -> None:

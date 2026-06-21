@@ -69,19 +69,56 @@ def categorize_role(title: str, description: str) -> str:
     full_text = normalize_text(title + " " + description)
 
     # Title-based rules first because they are more reliable.
-    if any(word in title_text for word in ["machine learning", "ml engineer", "ml platform", "ai engineer"]):
+    if any(
+        word in title_text
+        for word in [
+            "machine learning",
+            "ml engineer",
+            "ml platform",
+            "ai engineer",
+            "applied scientist",
+        ]
+    ):
         return "AI/ML"
 
     if "data scientist" in title_text:
         return "Data Science"
 
-    if "data engineer" in title_text:
+    if any(
+        word in title_text
+        for word in [
+            "data engineer",
+            "analytics engineer",
+            "data platform engineer",
+        ]
+    ):
         return "Data Engineering"
 
-    if any(word in title_text for word in ["cloud engineer", "aws cloud", "devops", "platform engineer", "cloud developer"]):
+    if any(
+        word in title_text
+        for word in [
+            "cloud engineer",
+            "aws cloud",
+            "devops",
+            "platform engineer",
+            "cloud developer",
+            "site reliability engineer",
+            "infrastructure engineer",
+        ]
+    ):
         return "Cloud/AWS"
 
-    if any(word in title_text for word in ["backend developer", "backend engineer", "software engineer", "full stack developer", "developer"]):
+    if any(
+        word in title_text
+        for word in [
+            "backend developer",
+            "backend engineer",
+            "software engineer",
+            "full stack developer",
+            "full stack engineer",
+            "developer",
+        ]
+    ):
         return "Software Engineering"
 
     if any(word in title_text for word in ["analyst", "business intelligence", "product analyst"]):

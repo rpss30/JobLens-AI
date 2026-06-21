@@ -1,5 +1,6 @@
 # src/dashboard/components.py
 
+from html import escape
 from textwrap import dedent
 
 import pandas as pd
@@ -163,17 +164,22 @@ def show_top_job_match_cards(
     top_jobs = positive_job_matches_df.head(top_n)
 
     for _, row in top_jobs.iterrows():
-        title = row.get("title", "Untitled Role")
-        company = row.get("company", "Unknown Company")
-        location = row.get("location", "Unknown Location")
-        experience_level = row.get("experience_level", "N/A")
-        role_category = row.get("role_category", "Other")
+        title = escape(str(row.get("title", "Untitled Role")))
+        company = escape(str(row.get("company", "Unknown Company")))
+        location = escape(str(row.get("location", "Unknown Location")))
+        experience_level = escape(str(row.get("experience_level", "N/A")))
+        role_category = escape(str(row.get("role_category", "Other")))
         job_match_score = row.get("job_match_score", 0)
 
-        matched_skills = row.get("matched_skills_preview", "None")
-        missing_skills = row.get("missing_skills_preview", "None")
+        matched_skills = escape(
+            str(row.get("matched_skills_preview", "None"))
+        )
+        missing_skills = escape(
+            str(row.get("missing_skills_preview", "None"))
+        )
         matched_count = row.get("matched_skills_count", 0)
         missing_count = row.get("missing_skills_count", 0)
+        source_url = str(row.get("source_url", "")).strip()
 
         card_html = dedent(
             f"""
@@ -211,3 +217,10 @@ def show_top_job_match_cards(
         ).strip()
 
         st.markdown(card_html, unsafe_allow_html=True)
+
+        if source_url.startswith(("https://", "http://")):
+            st.link_button(
+                "View original posting",
+                source_url,
+                icon=":material/open_in_new:",
+            )

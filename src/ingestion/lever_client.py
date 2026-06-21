@@ -10,6 +10,7 @@ from src.ingestion.ats_normalizers import (
     build_ats_job_id,
     clean_html_text,
     current_utc_timestamp,
+    epoch_milliseconds_to_iso,
     infer_experience_level_from_text,
 )
 
@@ -75,6 +76,10 @@ def normalize_lever_posting(
             description_text_parts.append(clean_html_text(part))
 
     description = clean_html_text(" ".join(description_text_parts))
+    workplace_type = clean_html_text(
+        posting.get("workplaceType")
+        or posting.get("categories", {}).get("commitment")
+    )
 
     return {
         "job_id": build_ats_job_id("lever", company_slug, posting_id),
@@ -86,4 +91,20 @@ def normalize_lever_posting(
         "source": "lever",
         "source_url": posting.get("hostedUrl", ""),
         "fetched_at": fetched_at or current_utc_timestamp(),
+        "date_posted": epoch_milliseconds_to_iso(posting.get("createdAt")),
+        "valid_through": "",
+        "employment_type": clean_html_text(
+            posting.get("categories", {}).get("commitment")
+        ),
+        "workplace_type": workplace_type,
+        "is_remote": (
+            "remote" in location.lower()
+            or "remote" in workplace_type.lower()
+        ),
+        "address_locality": "",
+        "address_region": "",
+        "address_country": "",
+        "source_updated_at": epoch_milliseconds_to_iso(
+            posting.get("updatedAt")
+        ),
     }

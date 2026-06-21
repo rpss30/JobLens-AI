@@ -88,4 +88,13 @@ def normalize_greenhouse_job(
         "source": "greenhouse",
         "source_url": job.get("absolute_url", ""),
         "fetched_at": fetched_at or current_utc_timestamp(),
+        "date_posted": "",
+        "valid_through": "",
+        "employment_type": "",
+        "workplace_type": "",
+        "is_remote": "remote" in location.lower(),
+        "address_locality": "",
+        "address_region": "",
+        "address_country": "",
+        "source_updated_at": clean_html_text(job.get("updated_at")),
     }

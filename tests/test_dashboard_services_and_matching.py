@@ -229,6 +229,7 @@ def test_get_job_match_details_calculates_job_level_scores() -> None:
     assert "job_match_score" in job_match_df.columns
     assert "matched_skills_preview" in job_match_df.columns
     assert "missing_skills_preview" in job_match_df.columns
+    assert "source_url" in job_match_df.columns
 
     top_job = job_match_df.iloc[0]
 

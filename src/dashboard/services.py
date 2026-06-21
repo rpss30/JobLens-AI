@@ -25,6 +25,7 @@ from src.processing.job_processor import process_jobs
 
 RAW_DATA_PATH = "data/raw/sample_jobs.csv"
 PROCESSED_DATA_PATH = "data/processed/processed_jobs.csv"
+CANADA_JOBS_SNAPSHOT_PATH = "data/processed/canada_jobs_snapshot.csv"
 GREENHOUSE_AI_DEMO_PATH = "data/processed/greenhouse_ai_demo_jobs.csv"
 
 
@@ -417,6 +418,45 @@ def get_available_locations(df: pd.DataFrame) -> list[str]:
         .tolist()
     )
 
+
+def get_dataset_snapshot_summary(df: pd.DataFrame) -> dict[str, object]:
+    """Return compact source metadata for a processed jobs snapshot."""
+    if df.empty:
+        return {
+            "job_count": 0,
+            "company_count": 0,
+            "location_count": 0,
+            "refreshed_date": "",
+        }
+
+    refreshed_date = ""
+
+    if "fetched_at" in df.columns:
+        fetched_dates = pd.to_datetime(
+            df["fetched_at"],
+            errors="coerce",
+            utc=True,
+        ).dropna()
+
+        if not fetched_dates.empty:
+            refreshed_date = fetched_dates.max().strftime("%B %d, %Y")
+
+    return {
+        "job_count": len(df),
+        "company_count": (
+            df["company"].dropna().nunique()
+            if "company" in df.columns
+            else 0
+        ),
+        "location_count": (
+            df["location"].dropna().nunique()
+            if "location" in df.columns
+            else 0
+        ),
+        "refreshed_date": refreshed_date,
+    }
+
+
 def get_top_companies(df: pd.DataFrame, top_n: int = 10) -> pd.DataFrame:
     """Return companies with the most matching jobs."""
     company_counts = df["company"].value_counts().head(top_n)
@@ -487,6 +527,8 @@ def get_job_match_details(
             "experience_level": row["experience_level"],
             "role_category": row["role_category"],
             "skills_text": row["skills_text"],
+            "source": row.get("source", ""),
+            "source_url": row.get("source_url", ""),
             "job_match_score": match_score,
             "matched_skills_count": len(matched_skills),
             "missing_skills_count": len(missing_skills),

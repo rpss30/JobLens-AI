@@ -11,6 +11,7 @@ build/
 # Generated real-job ingestion outputs
 data/raw/greenhouse_jobs.csv
 data/raw/lever_jobs.csv
+data/raw/canada_jobs.csv
 
 # Runtime CSV upload artifacts
 data/raw/uploaded_jobs.csv
@@ -23,6 +24,8 @@ data/processed/greenhouse_*_ai_skills.csv
 data/processed/greenhouse_gemini_skill_extraction_comparison.csv
 data/processed/*comparison*.csv
 data/processed/greenhouse_ai_demo_jobs.csv
+data/processed/canada_jobs_snapshot.csv
 
 # Curated small dashboard demo data that should ship with the app
 !data/processed/greenhouse_ai_demo_jobs.csv
+!data/processed/canada_jobs_snapshot.csv

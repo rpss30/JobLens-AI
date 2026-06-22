@@ -1,6 +1,7 @@
 # JobLens AI
 
 [![Tests](https://github.com/rpss30/JobLens-AI/actions/workflows/tests.yml/badge.svg)](https://github.com/rpss30/JobLens-AI/actions/workflows/tests.yml)
+[![Canada Jobs Refresh](https://github.com/rpss30/JobLens-AI/actions/workflows/refresh-canada-jobs.yml/badge.svg)](https://github.com/rpss30/JobLens-AI/actions/workflows/refresh-canada-jobs.yml)
 ![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
 ![AWS](https://img.shields.io/badge/AWS-ECS%20Fargate-FF9900?logo=amazonwebservices&logoColor=white)
 
@@ -108,6 +109,7 @@ The dashboard also shows market-level insights such as top required skills, role
 - First-party Greenhouse, Lever, Ashby, and JSON-LD ingestion support
 - Canada-only location normalization, deduplication, and balanced snapshots
 - Groq skill extraction from complete first-party job descriptions
+- Weekly Canada snapshot refreshes with automated quality gates and reviewable pull requests
 - AWS deployment automation for Amazon ECR, ECS Fargate, ALB, Secrets Manager, and RDS PostgreSQL
 
 
@@ -170,12 +172,16 @@ Curated Canada-wide real-job snapshot:
 data/processed/canada_jobs_snapshot.csv
 ```
 
-The snapshot contains 60 active postings from 19 employers across 14 normalized
-Canadian location labels. It combines first-party Greenhouse, Lever, and Ashby
-boards, preserves original application links, and uses Groq for every packaged
-skill extraction. The raw multi-employer fetch is generated locally and excluded
-from Git; the balanced processed snapshot is committed so the dashboard remains
+The snapshot contains a balanced set of up to 72 active postings across
+normalized Canadian location labels. It combines first-party Greenhouse, Lever,
+and Ashby boards, preserves original application links, and uses Groq for
+packaged skill extraction. The raw multi-employer fetch is generated outside
+Git; the validated processed snapshot is committed so the dashboard remains
 stable and reproducible.
+
+A GitHub Actions workflow refreshes the snapshot weekly, runs quality checks
+and the full test suite, and opens a pull request when the dataset changes.
+This keeps data updates reviewable rather than modifying `main` automatically.
 
 
 
@@ -291,6 +297,7 @@ JobLens AI
 │   ├── fetch_greenhouse_jobs.py
 │   ├── fetch_canada_jobs.py
 │   ├── build_canada_jobs_snapshot.py
+│   ├── validate_canada_jobs_snapshot.py
 │   ├── process_greenhouse_jobs_ai_first.py
 │   ├── publish_aws_image.sh
 │   ├── provision_aws_foundation.sh
@@ -637,6 +644,7 @@ Completed:
 - Optional PostgreSQL dashboard loading with CSV fallback
 - pytest test suite
 - GitHub Actions test workflow
+- Weekly GitHub Actions Canada snapshot refresh workflow
 - Streamlit Cloud deployment
 - Uploaded CSV persistence to PostgreSQL
 - PostgreSQL dataset selector in the dashboard
@@ -651,7 +659,7 @@ Completed:
 
 Not built yet:
 
-- Scheduled or continuously running ingestion
+- Continuously running ingestion
 - Authentication or multi-user support
 - Production-grade NLP role classification
 - Infrastructure-as-code deployment automation
@@ -660,8 +668,7 @@ Not built yet:
 
 ## Known Limitations
 
-- The dashboard uses committed demo snapshots rather than fetching live jobs at runtime.
-- Canadian employer-board ingestion runs on demand and is not scheduled.
+- The dashboard uses a weekly committed snapshot rather than fetching live jobs at runtime.
 - Core runtime skill extraction is dictionary-based, so it may miss aliases or uncommon phrasing.
 - Role classification is rule-based and title-first, not ML-based yet.
 - Match scores are designed for explainability, not as a production hiring recommendation system.
@@ -676,7 +683,7 @@ Not built yet:
 
 Planned next steps:
 
-- Schedule ingestion and dataset refresh workflows
+- Add free-text job search alongside structured filters
 - Improve skill alias matching for terms like `JS`, `JavaScript`, `Node`, and `Node.js`
 - Add trend analysis for skills by role and location
 - Add infrastructure-as-code templates for AWS deployment

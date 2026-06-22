@@ -86,3 +86,77 @@ def test_process_selected_jobs_writes_incremental_checkpoint(
 
     assert checkpoint_path.exists()
     assert rows[0]["skill_extraction_provider"] == "groq"
+
+
+def test_process_selected_jobs_reuses_skills_with_current_source_metadata(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        build_canada_jobs_snapshot,
+        "extract_skills_groq_first",
+        lambda **kwargs: (_ for _ in ()).throw(
+            AssertionError("Groq should not run for an unchanged description")
+        ),
+    )
+
+    rows = build_canada_jobs_snapshot.process_selected_jobs(
+        [
+            {
+                "job_id": "job-1",
+                "title": "Data Engineer",
+                "company": "Example",
+                "description": "Build pipelines with Python.",
+                "fetched_at": "2026-06-21T00:00:00+00:00",
+            }
+        ],
+        existing_rows={
+            "job-1": {
+                "job_id": "job-1",
+                "clean_description": "build pipelines with python.",
+                "extracted_skills": ["python"],
+                "skills_text": "python",
+                "skill_extraction_provider": "groq",
+                "skill_extraction_error": "",
+                "fetched_at": "2026-06-14T00:00:00+00:00",
+            }
+        },
+        delay_seconds=0,
+    )
+
+    assert rows[0]["extracted_skills"] == ["python"]
+    assert rows[0]["fetched_at"] == "2026-06-21T00:00:00+00:00"
+
+
+def test_process_selected_jobs_reextracts_changed_descriptions(monkeypatch):
+    monkeypatch.setattr(
+        build_canada_jobs_snapshot,
+        "extract_skills_groq_first",
+        lambda **kwargs: (["python", "sql"], "groq", ""),
+    )
+    monkeypatch.setattr(
+        build_canada_jobs_snapshot.time,
+        "sleep",
+        lambda seconds: None,
+    )
+
+    rows = build_canada_jobs_snapshot.process_selected_jobs(
+        [
+            {
+                "job_id": "job-1",
+                "title": "Data Engineer",
+                "company": "Example",
+                "description": "Build new pipelines with Python and SQL.",
+            }
+        ],
+        existing_rows={
+            "job-1": {
+                "clean_description": "build pipelines with python",
+                "extracted_skills": ["python"],
+                "skills_text": "python",
+                "skill_extraction_provider": "groq",
+            }
+        },
+        delay_seconds=0,
+    )
+
+    assert rows[0]["extracted_skills"] == ["python", "sql"]

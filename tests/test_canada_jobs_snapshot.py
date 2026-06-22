@@ -8,6 +8,7 @@ from src.dashboard.services import (
     get_job_match_details,
     load_processed_jobs_from_csv,
 )
+from src.ingestion.canada_jobs import TARGET_ROLE_CATEGORIES
 from src.matching.match_engine import score_roles
 
 
@@ -108,14 +109,18 @@ def test_canada_jobs_snapshot_is_packaged_and_enriched():
 
     jobs_df = load_processed_jobs_from_csv(str(snapshot_path))
 
-    assert len(jobs_df) == 60
-    assert jobs_df["company"].nunique() >= 15
-    assert jobs_df["location"].nunique() >= 10
+    assert len(jobs_df) >= 40
+    assert jobs_df["company"].nunique() >= 12
+    assert jobs_df["location"].nunique() >= 8
     assert jobs_df["job_id"].is_unique
     assert jobs_df["source_url"].is_unique
     assert jobs_df["extracted_skills"].apply(bool).all()
-    assert set(jobs_df["skill_extraction_provider"]) == {"groq"}
-    assert set(jobs_df["source"]) == {"ashby", "greenhouse", "lever"}
+    assert (
+        jobs_df["skill_extraction_provider"].eq("groq").mean()
+        >= 0.95
+    )
+    assert jobs_df["source"].nunique() >= 2
+    assert TARGET_ROLE_CATEGORIES.issubset(set(jobs_df["role_category"]))
 
 
 def test_canada_jobs_snapshot_exposes_dataset_locations_and_metadata():
@@ -129,9 +134,9 @@ def test_canada_jobs_snapshot_exposes_dataset_locations_and_metadata():
     assert "Ottawa, ON" in locations
     assert "Calgary, AB" in locations
     assert "Remote, Canada" in locations
-    assert summary["job_count"] == 60
-    assert summary["company_count"] >= 15
-    assert summary["location_count"] >= 10
+    assert summary["job_count"] == len(jobs_df)
+    assert summary["company_count"] >= 12
+    assert summary["location_count"] >= 8
     assert summary["refreshed_date"]
 
 

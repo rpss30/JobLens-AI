@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class AnalyzeRequest(BaseModel):
@@ -11,9 +11,13 @@ class AnalyzeRequest(BaseModel):
         description="Candidate's current skills.",
     )
     target_roles: list[str] = Field(
-        ...,
-        min_length=1,
+        default_factory=list,
         description="Target job titles or role keywords.",
+    )
+    search_query: str = Field(
+        default="",
+        max_length=200,
+        description="Optional free-text query used to rank relevant jobs.",
     )
     location: str = Field(
         default="Any",
@@ -36,6 +40,17 @@ class AnalyzeRequest(BaseModel):
             "the local sample dataset."
         ),
     )
+
+    @model_validator(mode="after")
+    def require_search_scope(self) -> "AnalyzeRequest":
+        if not self.search_query.strip() and not any(
+            role.strip() for role in self.target_roles
+        ):
+            raise ValueError(
+                "Provide a search query or at least one target role."
+            )
+
+        return self
 
 
 class DatasetSummary(BaseModel):
@@ -101,6 +116,7 @@ class JobMatch(BaseModel):
     location: str
     experience_level: str
     role_category: str
+    search_relevance: float
     job_match_score: float
     matched_skills_count: int
     related_skills_count: int

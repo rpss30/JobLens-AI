@@ -161,18 +161,32 @@ def show_top_job_match_cards(
 ) -> None:
     """Show top matching job postings as product-style cards."""
 
-    st.subheader("Top Matching Jobs")
+    has_search_relevance = (
+        "search_relevance" in job_match_details_df.columns
+        and job_match_details_df["search_relevance"].gt(0).any()
+    )
+    st.subheader(
+        "Relevant Job Matches"
+        if has_search_relevance
+        else "Top Matching Jobs"
+    )
     positive_job_matches_df = get_positive_job_matches(job_match_details_df)
     positive_match_count = len(positive_job_matches_df)
     filtered_job_count = len(job_match_details_df)
 
-    st.caption(
+    caption = (
         f"Showing {positive_match_count} positive skill "
         f"{'match' if positive_match_count == 1 else 'matches'} from "
         f"{filtered_job_count} filtered "
         f"{'posting' if filtered_job_count == 1 else 'postings'}. "
         "Zero-overlap postings are omitted."
     )
+    if has_search_relevance:
+        caption += (
+            " Results are ordered by text relevance; card scores show "
+            "candidate skill fit."
+        )
+    st.caption(caption)
 
     if positive_job_matches_df.empty:
         st.info(
@@ -190,6 +204,7 @@ def show_top_job_match_cards(
         experience_level = escape(str(row.get("experience_level", "N/A")))
         role_category = escape(str(row.get("role_category", "Other")))
         job_match_score = row.get("job_match_score", 0)
+        search_relevance = float(row.get("search_relevance", 0))
 
         matched_skills = escape(
             str(row.get("matched_skills_preview", "None"))
@@ -232,6 +247,11 @@ def show_top_job_match_cards(
                 <div class="job-card-footer">
                     <span>{matched_count} matched</span>
                     <span>{missing_count} missing</span>
+                    {
+                        f"<span>{search_relevance:.1f}% relevant</span>"
+                        if has_search_relevance
+                        else ""
+                    }
                 </div>
             </div>
             """

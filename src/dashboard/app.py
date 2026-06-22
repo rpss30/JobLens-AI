@@ -1142,6 +1142,16 @@ def main() -> None:
     with st.sidebar:
         st.header("Your Job Search")
 
+        search_query = st.text_input(
+            "Search jobs",
+            placeholder="backend Python fintech",
+            help=(
+                "Search job titles, skills, role categories, companies, "
+                "locations, and descriptions."
+            ),
+            icon=":material/search:",
+        )
+
         search_preset = st.selectbox(
             "Try a sample search",
             list(SEARCH_PRESETS.keys()),
@@ -1157,6 +1167,7 @@ def main() -> None:
             "Target roles",
             options=target_role_options,
             default=selected_search["target_roles"],
+            help="Optional when a free-text job search is provided.",
         )
 
         location_options = sorted(
@@ -1223,12 +1234,15 @@ def main() -> None:
             st.session_state.analysis_requested = True
 
     if not st.session_state.analysis_requested:
-        st.info("Enter your target roles and skills, then click **Analyze Jobs**.")
+        st.info(
+            "Search for jobs or select target roles, add your skills, "
+            "then click **Analyze Jobs**."
+        )
         return
 
-    if not target_roles:
+    if not target_roles and not search_query.strip():
         st.warning(
-            "Please select at least one target role before analyzing jobs."
+            "Please enter a job search or select at least one target role."
         )
         return
 
@@ -1243,11 +1257,13 @@ def main() -> None:
         target_roles=target_roles,
         location=location,
         experience_level=experience_level,
+        search_query=search_query,
     )
 
     if filtered_jobs.empty:
         st.warning(
-            "No matching jobs found. Try selecting a broader sample search, removing some target roles, or clearing the location filter."
+            "No matching jobs found. Try a broader search, removing target "
+            "roles, or clearing the location filter."
         )
         return
     role_skill_weights = build_role_skill_weights(filtered_jobs)
@@ -1390,6 +1406,7 @@ def main() -> None:
         job_match_details_df=job_match_details_df,
         candidate_fit_summary=candidate_summary,
         dataset_name=report_dataset_name,
+        search_query=search_query,
     )
 
     candidate_report_pdf = generate_candidate_report_pdf(
@@ -1403,6 +1420,7 @@ def main() -> None:
         job_match_details_df=job_match_details_df,
         candidate_fit_summary=candidate_summary,
         dataset_name=report_dataset_name,
+        search_query=search_query,
     )
 
     markdown_download_col, pdf_download_col = st.columns(2)

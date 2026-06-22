@@ -4,6 +4,7 @@ import ast
 import re
 from html import escape
 from io import BytesIO
+from math import ceil
 from pathlib import Path
 
 import pandas as pd
@@ -19,6 +20,8 @@ from reportlab.platypus import (
     Table,
     TableStyle,
 )
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
 from src.matching.match_engine import (
     RELATED_SKILL_THRESHOLD,
@@ -184,11 +187,111 @@ def validate_uploaded_jobs_csv(uploaded_df: pd.DataFrame) -> tuple[bool, str]:
 
     return True, "Uploaded CSV is valid."
 
+
+def rank_jobs_by_search_query(
+    df: pd.DataFrame,
+    search_query: str,
+) -> pd.DataFrame:
+    """Filter and rank jobs with explainable TF-IDF text relevance."""
+    query = str(search_query or "").strip()
+
+    if not query:
+        return df.copy()
+
+    if df.empty:
+        empty_df = df.copy()
+        empty_df["search_relevance"] = pd.Series(dtype=float)
+        return empty_df
+
+    def column_text(column: str) -> pd.Series:
+        if column not in df.columns:
+            return pd.Series("", index=df.index, dtype=str)
+
+        return df[column].fillna("").astype(str)
+
+    search_documents = (
+        (column_text("title") + " ") * 4
+        + (column_text("role_category") + " ") * 3
+        + (column_text("skills_text") + " ") * 4
+        + (column_text("company") + " ") * 2
+        + (column_text("location") + " ") * 2
+        + column_text("description")
+    ).str.strip()
+
+    word_vectorizer = TfidfVectorizer(
+        ngram_range=(1, 2),
+        stop_words="english",
+        sublinear_tf=True,
+        token_pattern=r"(?u)(?<!\w)\w[\w+#./-]*(?!\w)",
+    )
+    char_vectorizer = TfidfVectorizer(
+        analyzer="char_wb",
+        ngram_range=(3, 5),
+        sublinear_tf=True,
+    )
+
+    try:
+        word_job_vectors = word_vectorizer.fit_transform(search_documents)
+        word_query_vector = word_vectorizer.transform([query])
+        word_scores = cosine_similarity(
+            word_job_vectors,
+            word_query_vector,
+        ).ravel()
+
+        char_job_vectors = char_vectorizer.fit_transform(search_documents)
+        char_query_vector = char_vectorizer.transform([query])
+        char_scores = cosine_similarity(
+            char_job_vectors,
+            char_query_vector,
+        ).ravel()
+    except ValueError:
+        empty_df = df.iloc[0:0].copy()
+        empty_df["search_relevance"] = pd.Series(dtype=float)
+        return empty_df
+
+    combined_scores = (word_scores * 0.8) + (char_scores * 0.2)
+    token_analyzer = TfidfVectorizer(
+        stop_words="english",
+        token_pattern=r"(?u)(?<!\w)\w[\w+#./-]*(?!\w)",
+    ).build_analyzer()
+    query_tokens = set(token_analyzer(query))
+
+    if not query_tokens:
+        empty_df = df.iloc[0:0].copy()
+        empty_df["search_relevance"] = pd.Series(dtype=float)
+        return empty_df
+
+    minimum_token_matches = (
+        len(query_tokens)
+        if len(query_tokens) <= 2
+        else ceil(len(query_tokens) * 0.6)
+    )
+    token_coverage_mask = search_documents.apply(
+        lambda document: len(
+            query_tokens.intersection(token_analyzer(document))
+        )
+        >= minimum_token_matches
+    ).to_numpy()
+    relevant_mask = token_coverage_mask | (char_scores >= 0.35)
+
+    ranked_df = df.loc[relevant_mask].copy()
+    ranked_df["search_relevance"] = (
+        combined_scores[relevant_mask] * 100
+    ).round(1)
+
+    return ranked_df.sort_values(
+        by="search_relevance",
+        ascending=False,
+        kind="stable",
+    )
+
+
 def filter_jobs(
     df: pd.DataFrame,
     target_roles: list[str],
     location: str,
     experience_level: str,
+    search_query: str = "",
 ) -> pd.DataFrame:
     """
     Filter jobs based on user input.
@@ -362,7 +465,7 @@ def filter_jobs(
             .str.contains(selected_experience, na=False)
         ]
 
-    return filtered_df
+    return rank_jobs_by_search_query(filtered_df, search_query)
 
 def get_available_target_roles(df: pd.DataFrame) -> list[str]:
     """
@@ -545,6 +648,7 @@ def get_job_match_details(
             "skills_text": row["skills_text"],
             "source": row.get("source", ""),
             "source_url": row.get("source_url", ""),
+            "search_relevance": float(row.get("search_relevance", 0.0)),
             "job_match_score": job_score["weighted_match_score"],
             "unweighted_job_match_score": job_score["unweighted_match_score"],
             "matched_skills_count": len(matched_skills),
@@ -558,9 +662,20 @@ def get_job_match_details(
     job_match_df = pd.DataFrame(rows)
 
     if not job_match_df.empty:
+        sort_columns = ["job_match_score", "matched_skills_count"]
+        sort_ascending = [False, False]
+
+        if job_match_df["search_relevance"].gt(0).any():
+            sort_columns = [
+                "search_relevance",
+                "job_match_score",
+                "matched_skills_count",
+            ]
+            sort_ascending = [False, False, False]
+
         job_match_df = job_match_df.sort_values(
-            by=["job_match_score", "matched_skills_count"],
-            ascending=[False, False],
+            by=sort_columns,
+            ascending=sort_ascending,
         )
 
     return job_match_df
@@ -812,6 +927,7 @@ def generate_candidate_report_markdown(
     job_match_details_df: pd.DataFrame,
     candidate_fit_summary: dict | None = None,
     dataset_name: str = "Current dataset",
+    search_query: str = "",
 ) -> str:
     """
     Generate a downloadable Markdown candidate skill-gap report.
@@ -884,6 +1000,7 @@ def generate_candidate_report_markdown(
         "## Analysis Inputs",
         "",
         f"- Dataset: {dataset_name}",
+        f"- Free-text search: {search_query.strip() or 'None'}",
         f"- Target roles: {format_list(target_roles)}",
         f"- Location filter: {location or 'Any'}",
         f"- Experience level filter: {experience_level or 'Any'}",
@@ -1028,6 +1145,7 @@ def generate_candidate_report_pdf(
     job_match_details_df: pd.DataFrame,
     candidate_fit_summary: dict | None = None,
     dataset_name: str = "Current dataset",
+    search_query: str = "",
 ) -> bytes:
     """
     Generate a downloadable PDF candidate skill-gap report.
@@ -1233,6 +1351,7 @@ def generate_candidate_report_pdf(
             headers=["Field", "Value"],
             rows=[
                 ["Dataset", dataset_name],
+                ["Free-text search", search_query.strip() or "None"],
                 ["Target roles", format_list(target_roles)],
                 ["Location filter", location or "Any"],
                 ["Experience level filter", experience_level or "Any"],

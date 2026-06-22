@@ -58,6 +58,29 @@ def test_analyze_returns_candidate_fit_summary() -> None:
 
     assert "related_skills_count" in first_job_match
     assert "related_skills_preview" in first_job_match
+    assert "search_relevance" in first_job_match
+
+
+def test_analyze_supports_free_text_search_without_target_roles() -> None:
+    response = client.post(
+        "/analyze",
+        json={
+            "current_skills": ["Python", "SQL", "Pandas"],
+            "target_roles": [],
+            "search_query": "data scientist",
+            "location": "Any",
+            "experience_level": "Any",
+            "top_n": 5,
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["jobs_analyzed"] > 0
+    assert data["top_matching_jobs"]
+    assert data["top_matching_jobs"][0]["search_relevance"] > 0
 
 
 def test_analyze_returns_404_when_no_jobs_match() -> None:
@@ -81,6 +104,21 @@ def test_analyze_validates_required_skills_and_roles() -> None:
         json={
             "current_skills": [],
             "target_roles": [],
+            "location": "Any",
+            "experience_level": "Any",
+        },
+    )
+
+    assert response.status_code == 422
+
+
+def test_analyze_requires_a_search_query_or_target_role() -> None:
+    response = client.post(
+        "/analyze",
+        json={
+            "current_skills": ["Python"],
+            "target_roles": [],
+            "search_query": " ",
             "location": "Any",
             "experience_level": "Any",
         },

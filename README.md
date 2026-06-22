@@ -97,6 +97,7 @@ The dashboard also shows market-level insights such as top required skills, role
 - Jobs-by-location market insight
 - Role distribution and top hiring companies
 - Interactive Streamlit dashboard with controlled search presets and profile presets
+- Free-text TF-IDF job search across titles, skills, employers, locations, and descriptions
 - Optional PostgreSQL-backed data loading with CSV fallback
 - Local database seeding script for processed job postings
 - Custom CSV upload validation and error handling
@@ -211,6 +212,12 @@ such as formatting variants and compound skill names, while exact matches still
 receive full credit. Categories backed by only one or two postings remain
 visible but are marked as limited-confidence and cannot displace a category with
 a representative sample in the headline result.
+
+Free-text job search is calculated separately from candidate skill fit. Word
+and character TF-IDF rank postings across titles, extracted skills, role
+categories, employers, locations, and descriptions. Structured role, location,
+and experience filters can further narrow that relevant posting set before the
+matching engine calculates role fit and skill gaps.
 
 
 
@@ -392,9 +399,10 @@ curl -X POST http://127.0.0.1:8000/analyze \
   -H "Content-Type: application/json" \
   -d '{
     "current_skills": ["Python", "SQL", "Pandas"],
-    "target_roles": ["Data Scientist"],
+    "search_query": "data scientist experimentation",
+    "target_roles": [],
     "location": "Any",
-    "experience_level": "Entry Level",
+    "experience_level": "Any",
     "top_n": 5
   }'
 ```
@@ -430,7 +438,7 @@ curl -X POST http://127.0.0.1:8000/analyze \
 | `DELETE` | `/datasets/{dataset_name}` | Delete an uploaded dataset |
 | `GET` | `/analysis-runs` | List saved analysis runs |
 | `GET` | `/analysis-runs/{analysis_run_id}` | Load one saved analysis run |
-| `POST` | `/analyze` | Run role-fit and skill-gap analysis |
+| `POST` | `/analyze` | Search jobs and run role-fit and skill-gap analysis |
 
 ## Running with Docker
 

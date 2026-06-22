@@ -12,6 +12,7 @@ from src.dashboard.services import (
     get_job_match_details,
     get_positive_job_matches,
     get_recommended_skills,
+    rank_jobs_by_search_query,
     read_uploaded_jobs_csv,
     validate_uploaded_jobs_csv,
 )
@@ -101,6 +102,62 @@ def test_filter_jobs_allows_any_location_and_experience() -> None:
 
     assert "AWS Cloud Engineer" in returned_titles
     assert "Machine Learning Engineer" not in returned_titles
+
+
+def test_rank_jobs_by_search_query_uses_multiple_text_fields() -> None:
+    jobs_df = make_sample_jobs_df()
+
+    ranked_df = rank_jobs_by_search_query(
+        jobs_df,
+        "backend PostgreSQL",
+    )
+
+    assert ranked_df["title"].tolist() == ["Backend Developer"]
+    assert ranked_df.iloc[0]["search_relevance"] > 0
+
+
+def test_rank_jobs_by_search_query_returns_empty_for_unmatched_query() -> None:
+    ranked_df = rank_jobs_by_search_query(
+        make_sample_jobs_df(),
+        "quantum cryptography",
+    )
+
+    assert ranked_df.empty
+    assert "search_relevance" in ranked_df.columns
+
+
+def test_rank_jobs_by_search_query_preserves_skill_punctuation() -> None:
+    jobs_df = pd.DataFrame(
+        [
+            {
+                "title": "Platform Engineer",
+                "skills_text": "C#, .NET, CI/CD",
+                "description": "Build deployment tooling.",
+            },
+            {
+                "title": "Frontend Engineer",
+                "skills_text": "JavaScript, React",
+                "description": "Build web interfaces.",
+            },
+        ]
+    )
+
+    ranked_df = rank_jobs_by_search_query(jobs_df, "C# CI/CD")
+
+    assert ranked_df["title"].tolist() == ["Platform Engineer"]
+
+
+def test_filter_jobs_combines_free_text_and_structured_filters() -> None:
+    filtered_df = filter_jobs(
+        df=make_sample_jobs_df(),
+        target_roles=["Cloud Engineer"],
+        location="Toronto ON",
+        experience_level="Entry Level",
+        search_query="AWS Terraform",
+    )
+
+    assert filtered_df["title"].tolist() == ["AWS Cloud Engineer"]
+    assert filtered_df.iloc[0]["search_relevance"] > 0
 
 def test_filter_jobs_does_not_match_only_generic_engineer_word() -> None:
     jobs_df = make_sample_jobs_df()
@@ -539,9 +596,14 @@ def test_generate_candidate_report_markdown_includes_key_sections() -> None:
             "missing_skills": ["statistics"],
         },
         dataset_name="test_dataset",
+        search_query="data scientist experimentation",
     )
 
     assert "# JobLens AI Candidate Skill-Gap Report" in report_markdown
+    assert (
+        "- Free-text search: data scientist experimentation"
+        in report_markdown
+    )
     assert "## Analysis Inputs" in report_markdown
     assert "## Fit Overview" in report_markdown
     assert "## Candidate Fit Summary" in report_markdown

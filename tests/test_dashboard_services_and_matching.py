@@ -284,10 +284,14 @@ def test_score_roles_returns_weighted_and_unweighted_scores() -> None:
         "weighted_match_score",
         "unweighted_match_score",
         "matched_skills",
+        "related_skills",
         "missing_skills",
         "matched_weight",
         "total_possible_weight",
         "role_skill_weights",
+        "representative_job_count",
+        "sample_confidence",
+        "headline_eligible",
     }
 
     assert expected_columns.issubset(set(role_scores_df.columns))
@@ -587,6 +591,7 @@ def test_generate_candidate_report_markdown_excludes_zero_score_top_jobs() -> No
 
     top_jobs_section = report_markdown.split("## Top Matching Jobs", 1)[1]
 
+    assert "Showing 1 positive skill match from 4 filtered postings." in top_jobs_section
     assert "Machine Learning Engineer" in top_jobs_section
     assert "Data Scientist" not in top_jobs_section
 

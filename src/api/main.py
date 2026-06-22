@@ -30,7 +30,11 @@ from src.database.repository import (
     load_processed_jobs_dataframe,
     rename_dataset,
 )
-from src.matching.match_engine import build_role_skill_weights, score_roles
+from src.matching.match_engine import (
+    build_role_skill_weights,
+    score_roles,
+    select_best_role_row,
+)
 from src.processing.job_processor import process_jobs
 
 
@@ -41,7 +45,7 @@ LOCAL_SAMPLE_DATASET_NAME = "local_sample"
 app = FastAPI(
     title="JobLens AI API",
     description="Backend API for JobLens AI role-fit and skill-gap analysis.",
-    version="0.2.0",
+    version="0.3.0",
 )
 
 
@@ -100,10 +104,7 @@ def get_top_insights(
     if role_scores_df.empty:
         return "No match", 0.0, "No skill gap", 0
 
-    best_role_row = role_scores_df.sort_values(
-        by="weighted_match_score",
-        ascending=False,
-    ).iloc[0]
+    best_role_row = select_best_role_row(role_scores_df)
 
     best_role = str(best_role_row["role_category"])
     best_score = float(best_role_row["weighted_match_score"])
@@ -116,10 +117,14 @@ def get_top_insights(
             else "Insufficient skill data"
         )
 
-    if recommended_skills_df.empty:
-        top_missing_skill = "No major gaps"
-    else:
+    missing_skills = best_role_row.get("missing_skills", [])
+
+    if isinstance(missing_skills, list) and missing_skills:
+        top_missing_skill = str(missing_skills[0])
+    elif not recommended_skills_df.empty:
         top_missing_skill = str(recommended_skills_df.iloc[0]["skill"])
+    else:
+        top_missing_skill = "No major gaps"
 
     jobs_analyzed = len(filtered_jobs_df)
 
@@ -177,10 +182,14 @@ def build_analyze_response(
             "sample_size": int(row["sample_size"]),
             "weighted_match_score": float(row["weighted_match_score"]),
             "unweighted_match_score": float(row["unweighted_match_score"]),
-            "matched_weight": int(row["matched_weight"]),
-            "total_possible_weight": int(row["total_possible_weight"]),
+            "matched_weight": float(row["matched_weight"]),
+            "total_possible_weight": float(row["total_possible_weight"]),
             "matched_skills": list(row["matched_skills"]),
+            "related_skills": list(row["related_skills"]),
             "missing_skills": list(row["missing_skills"]),
+            "representative_job_count": int(row["representative_job_count"]),
+            "sample_confidence": str(row["sample_confidence"]),
+            "headline_eligible": bool(row["headline_eligible"]),
         }
         for _, row in role_scores_df.iterrows()
     ]
@@ -194,8 +203,10 @@ def build_analyze_response(
             "role_category": str(row["role_category"]),
             "job_match_score": float(row["job_match_score"]),
             "matched_skills_count": int(row["matched_skills_count"]),
+            "related_skills_count": int(row["related_skills_count"]),
             "missing_skills_count": int(row["missing_skills_count"]),
             "matched_skills_preview": str(row["matched_skills_preview"]),
+            "related_skills_preview": str(row["related_skills_preview"]),
             "missing_skills_preview": str(row["missing_skills_preview"]),
         }
         for _, row in positive_job_matches_df.head(top_n).iterrows()

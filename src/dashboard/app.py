@@ -126,7 +126,7 @@ PRESET_PROFILES = {
 
 SEARCH_PRESETS = {
     "Custom": {
-        "target_roles": ["Machine Learning Engineer"],
+        "target_roles": [],
         "location": "Any",
         "experience_level": "Any",
     },
@@ -1204,7 +1204,7 @@ def main() -> None:
         default_skills = (
             PRESET_PROFILES[profile_preset]
             if profile_preset != "Custom"
-            else ["Python", "SQL", "Pandas"]
+            else []
         )
 
         skill_options = sorted(

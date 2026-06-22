@@ -1,9 +1,15 @@
 import pandas as pd
 
 from src.dashboard.app import (
+    PRESET_PROFILES,
     SEARCH_PRESETS,
     align_candidate_summary_with_match_status,
 )
+
+
+def test_custom_search_and_profile_start_empty() -> None:
+    assert SEARCH_PRESETS["Custom"]["target_roles"] == []
+    assert PRESET_PROFILES["Custom"] == []
 
 
 def test_search_presets_start_with_broad_experience_filter() -> None:

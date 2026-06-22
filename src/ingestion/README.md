@@ -30,13 +30,43 @@ jobs are removed before snapshot selection.
 The snapshot step selects a role-, employer-, and location-balanced subset and
 uses Groq on each complete first-party description. Successful rows are saved
 incrementally so interrupted runs can resume without repeating completed calls.
-Deterministic extraction is retained only as an emergency fallback.
+On later refreshes, unchanged descriptions reuse their prior Groq extraction
+while retaining current source metadata. Changed and new descriptions are sent
+to Groq again. Deterministic extraction is retained only as an emergency
+fallback.
+
+### Weekly Refresh
+
+The `Refresh Canada Jobs Snapshot` GitHub Actions workflow runs every Monday at
+14:17 UTC and can also be started manually. It:
+
+1. Fetches current postings from the configured employer boards.
+2. Builds a candidate snapshot with Groq-first skill extraction.
+3. Validates job count, baseline retention, employer and location diversity,
+   role coverage, source diversity, freshness, URL integrity, and Groq coverage.
+4. Runs the full test suite against the candidate snapshot.
+5. Opens a pull request when the committed snapshot changed.
+
+The workflow never writes directly to `main`. A maintainer reviews and merges
+each refresh pull request. Repository setup requires a GitHub Actions secret
+named `GROQ_API_KEY` and permission for GitHub Actions to create pull requests.
+
+To run the same flow locally:
+
+```bash
+python scripts/fetch_canada_jobs.py
+python scripts/build_canada_jobs_snapshot.py
+python scripts/validate_canada_jobs_snapshot.py \
+  --candidate-path data/processed/canada_jobs_snapshot.csv
+pytest
+```
 
 ### Supporting Workflows
 
 - `scripts/fetch_greenhouse_jobs.py` fetches and normalizes public job postings.
 - `scripts/fetch_canada_jobs.py` builds the Canada-only raw posting set.
 - `scripts/build_canada_jobs_snapshot.py` creates the packaged Groq-enriched snapshot.
+- `scripts/validate_canada_jobs_snapshot.py` blocks low-quality snapshot replacements.
 - `scripts/process_greenhouse_jobs.py` applies deterministic processing.
 - `scripts/process_greenhouse_jobs_ai_first.py` runs the AI-first extraction experiment.
 - `scripts/build_greenhouse_ai_demo_jobs.py` builds the curated dashboard demo.

@@ -89,14 +89,46 @@ def process_selected_jobs(
 
     for index, job in enumerate(jobs, start=1):
         job_id = str(job.get("job_id", ""))
-
-        if job_id in existing_rows:
-            processed_rows.append(existing_rows[job_id])
-            print(f"[{index}/{len(jobs)}] Reused {job.get('title')}")
-            continue
-
         title = str(job.get("title", ""))
         description = str(job.get("description", ""))
+        clean_title = normalize_text(title)
+        clean_description = normalize_text(description)
+
+        if job_id in existing_rows:
+            existing_row = existing_rows[job_id]
+            existing_clean_description = str(
+                existing_row.get("clean_description", "")
+            ).strip()
+
+            if existing_clean_description == clean_description:
+                processed_rows.append(
+                    {
+                        **job,
+                        "clean_title": clean_title,
+                        "clean_description": clean_description,
+                        "extracted_skills": existing_row.get(
+                            "extracted_skills",
+                            [],
+                        ),
+                        "skills_text": existing_row.get("skills_text", ""),
+                        "skill_extraction_provider": existing_row.get(
+                            "skill_extraction_provider",
+                            "groq",
+                        ),
+                        "skill_extraction_error": existing_row.get(
+                            "skill_extraction_error",
+                            "",
+                        ),
+                    }
+                )
+                print(f"[{index}/{len(jobs)}] Reused {job.get('title')}")
+                continue
+
+            print(
+                f"[{index}/{len(jobs)}] Description changed; "
+                f"re-extracting {job.get('title')}"
+            )
+
         print(f"[{index}/{len(jobs)}] Extracting {title} at {job.get('company')}")
 
         skills, provider, extraction_error = extract_skills_groq_first(
@@ -111,8 +143,8 @@ def process_selected_jobs(
         processed_rows.append(
             {
                 **job,
-                "clean_title": normalize_text(title),
-                "clean_description": normalize_text(description),
+                "clean_title": clean_title,
+                "clean_description": clean_description,
                 "extracted_skills": skills,
                 "skills_text": ", ".join(skills),
                 "role_category": categorize_role(title, description),

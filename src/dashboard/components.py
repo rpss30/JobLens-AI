@@ -9,6 +9,26 @@ import streamlit as st
 from src.dashboard.services import get_positive_job_matches
 
 
+def build_job_card_footer_html(
+    *,
+    matched_count: int,
+    missing_count: int,
+    search_relevance: float | None = None,
+) -> str:
+    """Build compact footer markup without breaking the surrounding HTML block."""
+    footer_items = [
+        f"<span>{matched_count} matched</span>",
+        f"<span>{missing_count} missing</span>",
+    ]
+
+    if search_relevance is not None:
+        footer_items.append(
+            f"<span>{search_relevance:.1f}% relevant</span>"
+        )
+
+    return "".join(footer_items)
+
+
 def show_role_summary_cards(role_scores_df: pd.DataFrame) -> None:
     """Show top role matches as metric cards."""
     st.subheader("Best Role Matches")
@@ -216,6 +236,15 @@ def show_top_job_match_cards(
         matched_count = row.get("matched_skills_count", 0)
         missing_count = row.get("missing_skills_count", 0)
         source_url = str(row.get("source_url", "")).strip()
+        footer_html = build_job_card_footer_html(
+            matched_count=matched_count,
+            missing_count=missing_count,
+            search_relevance=(
+                search_relevance
+                if has_search_relevance
+                else None
+            ),
+        )
 
         card_html = dedent(
             f"""
@@ -245,13 +274,7 @@ def show_top_job_match_cards(
                     </div>
                 </div>
                 <div class="job-card-footer">
-                    <span>{matched_count} matched</span>
-                    <span>{missing_count} missing</span>
-                    {
-                        f"<span>{search_relevance:.1f}% relevant</span>"
-                        if has_search_relevance
-                        else ""
-                    }
+                    {footer_html}
                 </div>
             </div>
             """

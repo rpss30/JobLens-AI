@@ -5,6 +5,7 @@ from src.dashboard.app import (
     SEARCH_PRESETS,
     align_candidate_summary_with_match_status,
 )
+from src.dashboard.components import build_job_card_footer_html
 
 
 def test_custom_search_and_profile_start_empty() -> None:
@@ -17,6 +18,18 @@ def test_search_presets_start_with_broad_experience_filter() -> None:
         preset["experience_level"] == "Any"
         for preset in SEARCH_PRESETS.values()
     )
+
+
+def test_job_card_footer_does_not_create_blank_html_block() -> None:
+    footer_html = build_job_card_footer_html(
+        matched_count=6,
+        missing_count=1,
+    )
+
+    assert footer_html == (
+        "<span>6 matched</span><span>1 missing</span>"
+    )
+    assert "\n" not in footer_html
 
 
 def test_align_candidate_summary_replaces_stale_zero_match_copy() -> None:

@@ -33,12 +33,16 @@ def show_role_summary_cards(role_scores_df: pd.DataFrame) -> None:
 
     for col, (_, row) in zip(cols, top_roles.iterrows()):
         with col:
+            representative_job_count = int(
+                row.get("representative_job_count", 0)
+            )
             st.metric(
                 label=row["role_category"],
                 value=f"{row['weighted_match_score']}%",
                 delta=(
                     f"{row.get('sample_confidence', 'N/A')} confidence, "
-                    f"{row.get('representative_job_count', 0)} representative jobs"
+                    f"{representative_job_count} representative "
+                    f"{'job' if representative_job_count == 1 else 'jobs'}"
                 ),
             )
 
@@ -158,11 +162,17 @@ def show_top_job_match_cards(
     """Show top matching job postings as product-style cards."""
 
     st.subheader("Top Matching Jobs")
-    st.caption(
-        "These are the strongest individual job matches based on your current skills."
-    )
-
     positive_job_matches_df = get_positive_job_matches(job_match_details_df)
+    positive_match_count = len(positive_job_matches_df)
+    filtered_job_count = len(job_match_details_df)
+
+    st.caption(
+        f"Showing {positive_match_count} positive skill "
+        f"{'match' if positive_match_count == 1 else 'matches'} from "
+        f"{filtered_job_count} filtered "
+        f"{'posting' if filtered_job_count == 1 else 'postings'}. "
+        "Zero-overlap postings are omitted."
+    )
 
     if positive_job_matches_df.empty:
         st.info(

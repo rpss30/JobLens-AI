@@ -967,6 +967,19 @@ def generate_candidate_report_markdown(
     ])
 
     positive_job_matches_df = get_positive_job_matches(job_match_details_df)
+    positive_match_count = len(positive_job_matches_df)
+    filtered_job_count = len(job_match_details_df)
+
+    report_lines.extend([
+        (
+            f"Showing {positive_match_count} positive skill "
+            f"{'match' if positive_match_count == 1 else 'matches'} from "
+            f"{filtered_job_count} filtered "
+            f"{'posting' if filtered_job_count == 1 else 'postings'}. "
+            "Zero-overlap postings are omitted."
+        ),
+        "",
+    ])
 
     if positive_job_matches_df.empty:
         report_lines.append(
@@ -1333,6 +1346,22 @@ def generate_candidate_report_pdf(
 
     section_title("Top Matching Jobs")
     positive_job_matches_df = get_positive_job_matches(job_match_details_df)
+    positive_match_count = len(positive_job_matches_df)
+    filtered_job_count = len(job_match_details_df)
+
+    story.append(
+        paragraph(
+            (
+                f"Showing {positive_match_count} positive skill "
+                f"{'match' if positive_match_count == 1 else 'matches'} from "
+                f"{filtered_job_count} filtered "
+                f"{'posting' if filtered_job_count == 1 else 'postings'}. "
+                "Zero-overlap postings are omitted."
+            ),
+            styles["Body"],
+        )
+    )
+    story.append(Spacer(1, 0.06 * inch))
 
     if positive_job_matches_df.empty:
         story.append(

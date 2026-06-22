@@ -128,7 +128,7 @@ SEARCH_PRESETS = {
     "Custom": {
         "target_roles": ["Machine Learning Engineer"],
         "location": "Any",
-        "experience_level": "Entry Level",
+        "experience_level": "Any",
     },
     "AI / ML Roles": {
         "target_roles": [
@@ -137,7 +137,7 @@ SEARCH_PRESETS = {
             "ML Platform Engineer",
         ],
         "location": "Any",
-        "experience_level": "Entry Level",
+        "experience_level": "Any",
     },
     "Data Science Roles": {
         "target_roles": [
@@ -145,7 +145,7 @@ SEARCH_PRESETS = {
             "Junior Data Scientist",
         ],
         "location": "Any",
-        "experience_level": "Entry Level",
+        "experience_level": "Any",
     },
     "Cloud / AWS Roles": {
         "target_roles": [
@@ -155,7 +155,7 @@ SEARCH_PRESETS = {
             "Platform Engineer",
         ],
         "location": "Any",
-        "experience_level": "Entry Level",
+        "experience_level": "Any",
     },
     "Software Engineering Roles": {
         "target_roles": [
@@ -165,7 +165,7 @@ SEARCH_PRESETS = {
             "Full Stack Developer",
         ],
         "location": "Any",
-        "experience_level": "Entry Level",
+        "experience_level": "Any",
     },
     "Analytics Roles": {
         "target_roles": [
@@ -175,7 +175,7 @@ SEARCH_PRESETS = {
             "Business Analyst",
         ],
         "location": "Any",
-        "experience_level": "Entry Level",
+        "experience_level": "Any",
     },
     "Data Engineering Roles": {
         "target_roles": [
@@ -185,7 +185,7 @@ SEARCH_PRESETS = {
             "Analytics Engineer",
         ],
         "location": "Any",
-        "experience_level": "Entry Level",
+        "experience_level": "Any",
     },
 }
 

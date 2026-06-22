@@ -591,6 +591,7 @@ def test_generate_candidate_report_markdown_excludes_zero_score_top_jobs() -> No
 
     top_jobs_section = report_markdown.split("## Top Matching Jobs", 1)[1]
 
+    assert "Showing 1 positive skill match from 4 filtered postings." in top_jobs_section
     assert "Machine Learning Engineer" in top_jobs_section
     assert "Data Scientist" not in top_jobs_section
 

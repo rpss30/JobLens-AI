@@ -77,6 +77,7 @@ def inject_global_styles() -> None:
         > div:has(span[data-testid="stTextInputIcon"]) {
             height: 2.25rem !important;
             align-self: flex-start !important;
+            transform: translateY(0.125rem);
         }
 
         section[data-testid="stSidebar"]

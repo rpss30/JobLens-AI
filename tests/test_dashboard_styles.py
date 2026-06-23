@@ -11,3 +11,4 @@ def test_search_input_reserves_space_for_submit_hint() -> None:
     assert "padding-bottom: 1.55rem" in style_source
     assert 'span[data-testid="stTextInputIcon"]' in style_source
     assert "height: 2.25rem" in style_source
+    assert "transform: translateY(0.125rem)" in style_source

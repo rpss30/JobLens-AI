@@ -147,6 +147,49 @@ def test_rank_jobs_by_search_query_preserves_skill_punctuation() -> None:
     assert ranked_df["title"].tolist() == ["Platform Engineer"]
 
 
+def test_rank_jobs_by_search_query_requires_dataset_location_intent() -> None:
+    jobs_df = pd.DataFrame(
+        [
+            {
+                "title": "Data Analyst",
+                "company": "TorontoCo",
+                "location": "Toronto, ON",
+                "city": "Toronto",
+                "province": "ON",
+                "skills_text": "SQL, Tableau",
+                "description": "Analyze customer data.",
+            },
+            {
+                "title": "Data Analyst",
+                "company": "CalgaryCo",
+                "location": "Calgary, AB",
+                "city": "Calgary",
+                "province": "AB",
+                "skills_text": "SQL, Tableau",
+                "description": "Analyze customer data.",
+            },
+        ]
+    )
+
+    ranked_df = rank_jobs_by_search_query(
+        jobs_df,
+        "data analyst Toronto",
+    )
+
+    assert ranked_df["company"].tolist() == ["TorontoCo"]
+
+
+def test_rank_jobs_by_search_query_supports_location_only_query() -> None:
+    ranked_df = rank_jobs_by_search_query(
+        make_sample_jobs_df(),
+        "Vancouver",
+    )
+
+    assert ranked_df["title"].tolist() == [
+        "Machine Learning Engineer"
+    ]
+
+
 def test_filter_jobs_combines_free_text_and_structured_filters() -> None:
     filtered_df = filter_jobs(
         df=make_sample_jobs_df(),

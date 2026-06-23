@@ -261,18 +261,45 @@ def rank_jobs_by_search_query(
         empty_df["search_relevance"] = pd.Series(dtype=float)
         return empty_df
 
+    location_documents = pd.Series("", index=df.index, dtype=str)
+
+    for location_column in (
+        "location",
+        "city",
+        "province",
+        "country",
+    ):
+        location_documents = (
+            location_documents + " " + column_text(location_column)
+        )
+
+    location_token_sets = location_documents.apply(
+        lambda document: set(token_analyzer(document))
+    )
+    location_vocabulary = set().union(*location_token_sets.tolist())
+    query_location_tokens = query_tokens.intersection(location_vocabulary)
+    content_query_tokens = query_tokens - query_location_tokens
+
+    location_intent_mask = location_token_sets.apply(
+        lambda location_tokens: query_location_tokens.issubset(
+            location_tokens
+        )
+    ).to_numpy()
+
     minimum_token_matches = (
-        len(query_tokens)
-        if len(query_tokens) <= 2
-        else ceil(len(query_tokens) * 0.6)
+        len(content_query_tokens)
+        if len(content_query_tokens) <= 2
+        else ceil(len(content_query_tokens) * 0.6)
     )
     token_coverage_mask = search_documents.apply(
         lambda document: len(
-            query_tokens.intersection(token_analyzer(document))
+            content_query_tokens.intersection(token_analyzer(document))
         )
         >= minimum_token_matches
     ).to_numpy()
-    relevant_mask = token_coverage_mask | (char_scores >= 0.35)
+    relevant_mask = location_intent_mask & (
+        token_coverage_mask | (char_scores >= 0.35)
+    )
 
     ranked_df = df.loc[relevant_mask].copy()
     ranked_df["search_relevance"] = (

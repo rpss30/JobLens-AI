@@ -45,7 +45,7 @@ LOCAL_SAMPLE_DATASET_NAME = "local_sample"
 app = FastAPI(
     title="JobLens AI API",
     description="Backend API for JobLens AI role-fit and skill-gap analysis.",
-    version="0.3.0",
+    version="0.4.0",
 )
 
 
@@ -201,6 +201,7 @@ def build_analyze_response(
             "location": str(row["location"]),
             "experience_level": str(row["experience_level"]),
             "role_category": str(row["role_category"]),
+            "search_relevance": float(row["search_relevance"]),
             "job_match_score": float(row["job_match_score"]),
             "matched_skills_count": int(row["matched_skills_count"]),
             "related_skills_count": int(row["related_skills_count"]),
@@ -352,14 +353,15 @@ def analyze_jobs(request: AnalyzeRequest) -> AnalyzeResponse:
         target_roles=request.target_roles,
         location=request.location,
         experience_level=request.experience_level,
+        search_query=request.search_query,
     )
 
     if filtered_jobs.empty:
         raise HTTPException(
             status_code=404,
             detail=(
-                "No matching jobs found for the selected roles, location, "
-                "and experience level."
+                "No matching jobs found for the search query and selected "
+                "role, location, or experience filters."
             ),
         )
 

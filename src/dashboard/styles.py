@@ -58,6 +58,36 @@ def inject_global_styles() -> None:
         }
 
         section[data-testid="stSidebar"]
+        div[data-testid="stTextInput"]:has(input[aria-label="Search jobs"])
+        div[data-testid="stTextInputRootElement"] {
+            min-height: 3.75rem !important;
+        }
+
+        section[data-testid="stSidebar"]
+        div[data-testid="stTextInput"]:has(input[aria-label="Search jobs"])
+        input[aria-label="Search jobs"] {
+            height: 3.625rem !important;
+            padding-top: 0.45rem !important;
+            padding-bottom: 1.55rem !important;
+        }
+
+        section[data-testid="stSidebar"]
+        div[data-testid="stTextInput"]:has(input[aria-label="Search jobs"])
+        div[data-testid="stTextInputRootElement"]
+        > div:has(span[data-testid="stTextInputIcon"]) {
+            height: 2.25rem !important;
+            align-self: flex-start !important;
+            transform: translateY(0.125rem);
+        }
+
+        section[data-testid="stSidebar"]
+        div[data-testid="stTextInput"]:has(input[aria-label="Search jobs"])
+        div[data-testid="InputInstructions"] {
+            bottom: 0.2rem !important;
+            right: 0.55rem !important;
+        }
+
+        section[data-testid="stSidebar"]
         div[data-testid="stElementContainer"]:has(.dataset-info-popover-anchor),
         section[data-testid="stSidebar"]
         div[data-testid="stElementContainer"]:has(.postgres-toggle-marker) {

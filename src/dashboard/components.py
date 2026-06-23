@@ -9,6 +9,26 @@ import streamlit as st
 from src.dashboard.services import get_positive_job_matches
 
 
+def build_job_card_footer_html(
+    *,
+    matched_count: int,
+    missing_count: int,
+    search_relevance: float | None = None,
+) -> str:
+    """Build compact footer markup without breaking the surrounding HTML block."""
+    footer_items = [
+        f"<span>{matched_count} matched</span>",
+        f"<span>{missing_count} missing</span>",
+    ]
+
+    if search_relevance is not None:
+        footer_items.append(
+            f"<span>{search_relevance:.1f}% relevant</span>"
+        )
+
+    return "".join(footer_items)
+
+
 def show_role_summary_cards(role_scores_df: pd.DataFrame) -> None:
     """Show top role matches as metric cards."""
     st.subheader("Best Role Matches")
@@ -161,18 +181,32 @@ def show_top_job_match_cards(
 ) -> None:
     """Show top matching job postings as product-style cards."""
 
-    st.subheader("Top Matching Jobs")
+    has_search_relevance = (
+        "search_relevance" in job_match_details_df.columns
+        and job_match_details_df["search_relevance"].gt(0).any()
+    )
+    st.subheader(
+        "Relevant Job Matches"
+        if has_search_relevance
+        else "Top Matching Jobs"
+    )
     positive_job_matches_df = get_positive_job_matches(job_match_details_df)
     positive_match_count = len(positive_job_matches_df)
     filtered_job_count = len(job_match_details_df)
 
-    st.caption(
+    caption = (
         f"Showing {positive_match_count} positive skill "
         f"{'match' if positive_match_count == 1 else 'matches'} from "
         f"{filtered_job_count} filtered "
         f"{'posting' if filtered_job_count == 1 else 'postings'}. "
         "Zero-overlap postings are omitted."
     )
+    if has_search_relevance:
+        caption += (
+            " Results are ordered by text relevance; card scores show "
+            "candidate skill fit."
+        )
+    st.caption(caption)
 
     if positive_job_matches_df.empty:
         st.info(
@@ -190,6 +224,7 @@ def show_top_job_match_cards(
         experience_level = escape(str(row.get("experience_level", "N/A")))
         role_category = escape(str(row.get("role_category", "Other")))
         job_match_score = row.get("job_match_score", 0)
+        search_relevance = float(row.get("search_relevance", 0))
 
         matched_skills = escape(
             str(row.get("matched_skills_preview", "None"))
@@ -201,6 +236,15 @@ def show_top_job_match_cards(
         matched_count = row.get("matched_skills_count", 0)
         missing_count = row.get("missing_skills_count", 0)
         source_url = str(row.get("source_url", "")).strip()
+        footer_html = build_job_card_footer_html(
+            matched_count=matched_count,
+            missing_count=missing_count,
+            search_relevance=(
+                search_relevance
+                if has_search_relevance
+                else None
+            ),
+        )
 
         card_html = dedent(
             f"""
@@ -230,8 +274,7 @@ def show_top_job_match_cards(
                     </div>
                 </div>
                 <div class="job-card-footer">
-                    <span>{matched_count} matched</span>
-                    <span>{missing_count} missing</span>
+                    {footer_html}
                 </div>
             </div>
             """

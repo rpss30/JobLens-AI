@@ -97,11 +97,12 @@ The dashboard also shows market-level insights such as top required skills, role
 - Jobs-by-location market insight
 - Role distribution and top hiring companies
 - Interactive Streamlit dashboard with controlled search presets and profile presets
+- Free-text TF-IDF job search across titles, skills, employers, locations, and descriptions
 - Optional PostgreSQL-backed data loading with CSV fallback
 - Local database seeding script for processed job postings
 - Custom CSV upload validation and error handling
 - Uploaded CSV datasets can be saved to PostgreSQL
-- Uploaded CSV datasets can be named, renamed, and deleted safely
+- Uploaded CSV datasets can be named, renamed, and deleted through focused management overlays
 - Saved PostgreSQL datasets can be selected and reloaded from the dashboard
 - FastAPI backend with health check and candidate analysis endpoint
 - Docker Compose support for running the dashboard, API, and PostgreSQL together
@@ -183,6 +184,10 @@ A GitHub Actions workflow refreshes the snapshot weekly, runs quality checks
 and the full test suite, and opens a pull request when the dataset changes.
 This keeps data updates reviewable rather than modifying `main` automatically.
 
+The Canada jobs snapshot is the dashboard's default dataset. The bundled sample
+dataset remains available in the dataset chooser and is used as a safety
+fallback if the committed Canada snapshot cannot be loaded.
+
 
 
 ## How Matching Works
@@ -211,6 +216,12 @@ such as formatting variants and compound skill names, while exact matches still
 receive full credit. Categories backed by only one or two postings remain
 visible but are marked as limited-confidence and cannot displace a category with
 a representative sample in the headline result.
+
+Free-text job search is calculated separately from candidate skill fit. Word
+and character TF-IDF rank postings across titles, extracted skills, role
+categories, employers, locations, and descriptions. Structured role, location,
+and experience filters can further narrow that relevant posting set before the
+matching engine calculates role fit and skill gaps.
 
 
 
@@ -257,7 +268,12 @@ A sample upload file is available at:
 data/examples/sample_upload_jobs.csv
 ```
 
-By default, uploaded CSVs are processed during the active Streamlit session. If PostgreSQL is enabled, users can optionally save uploaded CSV datasets to PostgreSQL and reload them later from the dashboard dataset selector.
+By default, uploaded CSVs are processed during the active Streamlit session. If
+PostgreSQL is enabled, users can save uploaded datasets with a required custom
+name and reload them later from the dashboard dataset selector. The management
+dialog keeps the dataset list visible while row-level rename and delete
+overlays handle focused edits and confirmations. Curated sample datasets remain
+protected.
 
 
 
@@ -392,9 +408,10 @@ curl -X POST http://127.0.0.1:8000/analyze \
   -H "Content-Type: application/json" \
   -d '{
     "current_skills": ["Python", "SQL", "Pandas"],
-    "target_roles": ["Data Scientist"],
+    "search_query": "data scientist experimentation",
+    "target_roles": [],
     "location": "Any",
-    "experience_level": "Entry Level",
+    "experience_level": "Any",
     "top_n": 5
   }'
 ```
@@ -430,7 +447,7 @@ curl -X POST http://127.0.0.1:8000/analyze \
 | `DELETE` | `/datasets/{dataset_name}` | Delete an uploaded dataset |
 | `GET` | `/analysis-runs` | List saved analysis runs |
 | `GET` | `/analysis-runs/{analysis_run_id}` | Load one saved analysis run |
-| `POST` | `/analyze` | Run role-fit and skill-gap analysis |
+| `POST` | `/analyze` | Search jobs and run role-fit and skill-gap analysis |
 
 ## Running with Docker
 
@@ -487,9 +504,12 @@ provisioning, database seeding, and repeatable Fargate deployments.
 
 ## Local PostgreSQL Setup
 
-JobLens AI can run with either the default processed CSV dataset or a local PostgreSQL database.
+JobLens AI can run with the default Canada jobs snapshot, the bundled sample
+dataset, an uploaded session CSV, or a local PostgreSQL dataset.
 
-The PostgreSQL integration is optional. If the database is unavailable, the Streamlit dashboard falls back to the local processed CSV file.
+The PostgreSQL integration is optional. If the database is unavailable, the
+Streamlit dashboard continues using the selected local dataset. Turning
+PostgreSQL mode off returns to the Canada jobs snapshot.
 
 ### 1. Install PostgreSQL
 
@@ -565,7 +585,8 @@ If PostgreSQL is connected and seeded correctly, the sidebar will show a Postgre
 
 Saved uploaded datasets will also appear in this selector after they are persisted to PostgreSQL.
 
-If PostgreSQL is unavailable, the app falls back to the local processed CSV.
+If PostgreSQL is unavailable, the app remains on the Canada jobs snapshot or
+the local dataset already selected by the user.
 
 ### Database tables
 
@@ -638,7 +659,7 @@ Completed:
 - Jobs-by-location chart
 - Role and skill visualizations
 - Custom CSV upload with validation
-- Dataset naming, rename, and delete controls for uploaded CSV datasets
+- Dataset naming plus layered rename and delete controls for uploaded CSV datasets
 - PostgreSQL database schema
 - PostgreSQL seeding script for processed jobs
 - Optional PostgreSQL dashboard loading with CSV fallback
@@ -683,7 +704,6 @@ Not built yet:
 
 Planned next steps:
 
-- Add free-text job search alongside structured filters
 - Improve skill alias matching for terms like `JS`, `JavaScript`, `Node`, and `Node.js`
 - Add trend analysis for skills by role and location
 - Add infrastructure-as-code templates for AWS deployment

@@ -192,6 +192,7 @@ SEARCH_PRESETS = {
 DATASET_SOURCE_DEFAULT = "Default sample dataset"
 DATASET_SOURCE_CANADA = "Canada jobs snapshot"
 DATASET_SOURCE_DATABASE = "PostgreSQL dataset"
+DEFAULT_ACTIVE_DATASET_SOURCE = DATASET_SOURCE_CANADA
 
 
 def get_top_insights(
@@ -570,6 +571,203 @@ def upload_dataset_dialog(database_available: bool) -> None:
                 st.code(str(error))
 
 
+def close_dataset_action_popover(popover_key: str) -> None:
+    st.session_state[popover_key] = False
+
+
+def handle_dataset_action_popover_change(active_popover_key: str) -> None:
+    if not st.session_state.get(active_popover_key, False):
+        return
+
+    action_prefixes = (
+        "rename_dataset_popover_",
+        "delete_dataset_popover_",
+    )
+
+    for session_key in list(st.session_state):
+        if (
+            session_key != active_popover_key
+            and session_key.startswith(action_prefixes)
+        ):
+            st.session_state[session_key] = False
+
+
+def show_rename_dataset_popover(
+    target_dataset_name: str,
+    *,
+    disabled: bool,
+) -> None:
+    popover_key = f"rename_dataset_popover_{target_dataset_name}"
+    rename_popover = st.popover(
+        "Rename",
+        key=popover_key,
+        icon=":material/edit:",
+        help=f"Rename {target_dataset_name}",
+        disabled=disabled,
+        width="stretch",
+        on_change=handle_dataset_action_popover_change,
+        args=(popover_key,),
+    )
+
+    if not rename_popover.open:
+        return
+
+    with rename_popover:
+        st.markdown("**Rename dataset**")
+        st.caption(f"Rename `{target_dataset_name}`.")
+
+        new_dataset_name = st.text_input(
+            "New dataset name",
+            value=target_dataset_name,
+            help="Names are saved as lowercase, underscore-separated slugs.",
+            key=f"rename_dataset_name_{target_dataset_name}",
+        )
+
+        if new_dataset_name.strip():
+            st.caption(
+                f"Saved name: `{build_custom_dataset_name(new_dataset_name)}`"
+            )
+
+        col_cancel, col_save = st.columns(2)
+
+        with col_cancel:
+            st.button(
+                "Cancel",
+                key=f"cancel_rename_{target_dataset_name}",
+                icon=":material/close:",
+                width="stretch",
+                on_click=close_dataset_action_popover,
+                args=(popover_key,),
+            )
+
+        with col_save:
+            if st.button(
+                "Save name",
+                key=f"save_rename_{target_dataset_name}",
+                type="primary",
+                icon=":material/check_circle:",
+                width="stretch",
+            ):
+                if not new_dataset_name.strip():
+                    st.warning(
+                        "Enter a new dataset name before saving.",
+                        icon=":material/warning:",
+                    )
+                    return
+
+                try:
+                    renamed = rename_dataset(
+                        target_dataset_name,
+                        new_dataset_name,
+                    )
+                    safe_new_dataset_name = build_custom_dataset_name(
+                        new_dataset_name
+                    )
+
+                    if renamed:
+                        if (
+                            st.session_state.selected_database_dataset
+                            == target_dataset_name
+                        ):
+                            st.session_state.selected_database_dataset = (
+                                safe_new_dataset_name
+                            )
+
+                        st.session_state.dataset_rename_success_message = (
+                            f"Renamed dataset `{target_dataset_name}` to "
+                            f"`{safe_new_dataset_name}`."
+                        )
+                        st.session_state[popover_key] = False
+                        st.rerun(scope="app")
+
+                    st.session_state.dataset_rename_warning_message = (
+                        f"Dataset `{target_dataset_name}` was not found."
+                    )
+                    st.session_state[popover_key] = False
+                    st.rerun(scope="app")
+                except Exception as error:
+                    st.session_state.dataset_rename_error_message = str(error)
+                    st.session_state[popover_key] = False
+                    st.rerun(scope="app")
+
+
+def show_delete_dataset_popover(
+    target_dataset_name: str,
+    *,
+    disabled: bool,
+) -> None:
+    popover_key = f"delete_dataset_popover_{target_dataset_name}"
+    delete_popover = st.popover(
+        "Delete",
+        key=popover_key,
+        icon=":material/delete:",
+        help=f"Delete {target_dataset_name}",
+        disabled=disabled,
+        width="stretch",
+        on_change=handle_dataset_action_popover_change,
+        args=(popover_key,),
+    )
+
+    if not delete_popover.open:
+        return
+
+    with delete_popover:
+        st.markdown("**Delete dataset**")
+        st.warning(
+            f"You are about to delete `{target_dataset_name}`. "
+            "This action cannot be undone.",
+            icon=":material/warning:",
+        )
+
+        col_cancel, col_delete = st.columns(2)
+
+        with col_cancel:
+            st.button(
+                "Cancel",
+                key=f"cancel_delete_{target_dataset_name}",
+                icon=":material/close:",
+                width="stretch",
+                on_click=close_dataset_action_popover,
+                args=(popover_key,),
+            )
+
+        with col_delete:
+            if st.button(
+                "Delete dataset",
+                key=f"confirm_delete_{target_dataset_name}",
+                type="primary",
+                icon=":material/delete:",
+                width="stretch",
+            ):
+                try:
+                    deleted = delete_dataset(target_dataset_name)
+
+                    if deleted:
+                        if (
+                            st.session_state.selected_database_dataset
+                            == target_dataset_name
+                        ):
+                            st.session_state.selected_database_dataset = (
+                                "sample_jobs"
+                            )
+
+                        st.session_state.dataset_delete_success_message = (
+                            f"Deleted dataset `{target_dataset_name}`."
+                        )
+                        st.session_state[popover_key] = False
+                        st.rerun(scope="app")
+
+                    st.session_state.dataset_delete_warning_message = (
+                        f"Dataset `{target_dataset_name}` was not found."
+                    )
+                    st.session_state[popover_key] = False
+                    st.rerun(scope="app")
+                except Exception as error:
+                    st.session_state.dataset_delete_error_message = str(error)
+                    st.session_state[popover_key] = False
+                    st.rerun(scope="app")
+
+
 @st.dialog("Manage saved datasets", width="large")
 def manage_saved_datasets_dialog(
     database_available: bool,
@@ -586,7 +784,10 @@ def manage_saved_datasets_dialog(
         st.info("No saved PostgreSQL datasets were found.")
         return
 
-    st.caption("Uploaded CSV datasets can be renamed or deleted. Protected datasets are locked.")
+    st.caption(
+        "Uploaded CSV datasets can be renamed or deleted. "
+        "Protected datasets are locked."
+    )
 
     for dataset_index, dataset in enumerate(database_datasets):
         dataset_name = str(dataset["name"])
@@ -600,157 +801,18 @@ def manage_saved_datasets_dialog(
             st.caption(format_dataset_source_type(source_type))
 
         with col_actions:
-            if st.button(
-                "Rename",
-                key=f"manage_edit_{dataset_name}",
-                icon=":material/edit:",
-                help=f"Rename {dataset_name}",
+            show_rename_dataset_popover(
+                dataset_name,
                 disabled=not is_user_dataset,
-                use_container_width=True,
-            ):
-                st.session_state.dataset_manager_action = {
-                    "type": "rename",
-                    "dataset_name": dataset_name,
-                }
-
-            if st.button(
-                "Delete",
-                key=f"manage_delete_{dataset_name}",
-                icon=":material/delete:",
-                help=f"Delete {dataset_name}",
+            )
+            show_delete_dataset_popover(
+                dataset_name,
                 disabled=not is_user_dataset,
-                use_container_width=True,
-            ):
-                st.session_state.dataset_manager_action = {
-                    "type": "delete",
-                    "dataset_name": dataset_name,
-                }
+            )
 
         if dataset_index < len(database_datasets) - 1:
             st.divider()
 
-    action = st.session_state.get("dataset_manager_action")
-
-    if not action:
-        return
-
-    target_dataset_name = str(action["dataset_name"])
-
-    st.divider()
-
-    if action["type"] == "rename":
-        st.markdown("**Rename dataset**")
-
-        new_dataset_name = st.text_input(
-            "New dataset name",
-            value=target_dataset_name,
-            help="Names are saved as lowercase, underscore-separated slugs.",
-            key=f"rename_dataset_name_{target_dataset_name}",
-        )
-
-        if new_dataset_name.strip():
-            st.caption(f"Saved name: `{build_custom_dataset_name(new_dataset_name)}`")
-
-        col_cancel, col_save = st.columns(2)
-
-        with col_cancel:
-            if st.button(
-                "Cancel",
-                key=f"cancel_rename_{target_dataset_name}",
-                icon=":material/close:",
-                use_container_width=True,
-            ):
-                del st.session_state.dataset_manager_action
-                st.rerun()
-
-        with col_save:
-            if st.button(
-                "Save name",
-                key=f"save_rename_{target_dataset_name}",
-                type="primary",
-                icon=":material/check_circle:",
-                use_container_width=True,
-            ):
-                if not new_dataset_name.strip():
-                    st.warning(
-                        "Enter a new dataset name before saving.",
-                        icon=":material/warning:",
-                    )
-                    return
-
-                try:
-                    renamed = rename_dataset(target_dataset_name, new_dataset_name)
-                    safe_new_dataset_name = build_custom_dataset_name(new_dataset_name)
-
-                    if renamed:
-                        if st.session_state.selected_database_dataset == target_dataset_name:
-                            st.session_state.selected_database_dataset = safe_new_dataset_name
-
-                        st.session_state.dataset_rename_success_message = (
-                            f"Renamed dataset `{target_dataset_name}` to `{safe_new_dataset_name}`."
-                        )
-                        del st.session_state.dataset_manager_action
-                        st.rerun()
-
-                    st.session_state.dataset_rename_warning_message = (
-                        f"Dataset `{target_dataset_name}` was not found."
-                    )
-                    del st.session_state.dataset_manager_action
-                    st.rerun()
-                except Exception as error:
-                    st.session_state.dataset_rename_error_message = str(error)
-                    del st.session_state.dataset_manager_action
-                    st.rerun()
-
-    if action["type"] == "delete":
-        st.markdown("**Delete dataset**")
-        st.warning(
-            f"You are about to delete `{target_dataset_name}`. This action cannot be undone.",
-            icon=":material/warning:",
-        )
-
-        col_cancel, col_delete = st.columns(2)
-
-        with col_cancel:
-            if st.button(
-                "Cancel",
-                key=f"cancel_delete_{target_dataset_name}",
-                icon=":material/close:",
-                use_container_width=True,
-            ):
-                del st.session_state.dataset_manager_action
-                st.rerun()
-
-        with col_delete:
-            if st.button(
-                "Delete dataset",
-                key=f"confirm_delete_{target_dataset_name}",
-                type="primary",
-                icon=":material/delete:",
-                use_container_width=True,
-            ):
-                try:
-                    deleted = delete_dataset(target_dataset_name)
-
-                    if deleted:
-                        if st.session_state.selected_database_dataset == target_dataset_name:
-                            st.session_state.selected_database_dataset = "sample_jobs"
-
-                        st.session_state.dataset_delete_success_message = (
-                            f"Deleted dataset `{target_dataset_name}`."
-                        )
-                        del st.session_state.dataset_manager_action
-                        st.rerun()
-
-                    st.session_state.dataset_delete_warning_message = (
-                        f"Dataset `{target_dataset_name}` was not found."
-                    )
-                    del st.session_state.dataset_manager_action
-                    st.rerun()
-                except Exception as error:
-                    st.session_state.dataset_delete_error_message = str(error)
-                    del st.session_state.dataset_manager_action
-                    st.rerun()
 
 def main() -> None:
     inject_global_styles()
@@ -759,7 +821,7 @@ def main() -> None:
         st.session_state.analysis_requested = False
 
     if "active_dataset_source" not in st.session_state:
-        st.session_state.active_dataset_source = DATASET_SOURCE_DEFAULT
+        st.session_state.active_dataset_source = DEFAULT_ACTIVE_DATASET_SOURCE
 
     if "selected_database_dataset" not in st.session_state:
         st.session_state.selected_database_dataset = "sample_jobs"
@@ -905,9 +967,11 @@ def main() -> None:
                 icon=":material/database_off:",
                 use_container_width=True,
             ):
-                st.session_state.active_dataset_source = DATASET_SOURCE_DEFAULT
+                st.session_state.active_dataset_source = (
+                    DEFAULT_ACTIVE_DATASET_SOURCE
+                )
                 st.session_state.dataset_select_success_message = (
-                    f"Selected `{DATASET_SOURCE_DEFAULT}`."
+                    f"Selected `{DEFAULT_ACTIVE_DATASET_SOURCE}`."
                 )
                 st.rerun()
         else:
@@ -1142,6 +1206,16 @@ def main() -> None:
     with st.sidebar:
         st.header("Your Job Search")
 
+        search_query = st.text_input(
+            "Search jobs",
+            placeholder="backend Python fintech",
+            help=(
+                "Search job titles, skills, role categories, companies, "
+                "locations, and descriptions."
+            ),
+            icon=":material/search:",
+        )
+
         search_preset = st.selectbox(
             "Try a sample search",
             list(SEARCH_PRESETS.keys()),
@@ -1157,6 +1231,7 @@ def main() -> None:
             "Target roles",
             options=target_role_options,
             default=selected_search["target_roles"],
+            help="Optional when a free-text job search is provided.",
         )
 
         location_options = sorted(
@@ -1223,12 +1298,15 @@ def main() -> None:
             st.session_state.analysis_requested = True
 
     if not st.session_state.analysis_requested:
-        st.info("Enter your target roles and skills, then click **Analyze Jobs**.")
+        st.info(
+            "Search for jobs or select target roles, add your skills, "
+            "then click **Analyze Jobs**."
+        )
         return
 
-    if not target_roles:
+    if not target_roles and not search_query.strip():
         st.warning(
-            "Please select at least one target role before analyzing jobs."
+            "Please enter a job search or select at least one target role."
         )
         return
 
@@ -1243,11 +1321,13 @@ def main() -> None:
         target_roles=target_roles,
         location=location,
         experience_level=experience_level,
+        search_query=search_query,
     )
 
     if filtered_jobs.empty:
         st.warning(
-            "No matching jobs found. Try selecting a broader sample search, removing some target roles, or clearing the location filter."
+            "No matching jobs found. Try a broader search, removing target "
+            "roles, or clearing the location filter."
         )
         return
     role_skill_weights = build_role_skill_weights(filtered_jobs)
@@ -1390,6 +1470,7 @@ def main() -> None:
         job_match_details_df=job_match_details_df,
         candidate_fit_summary=candidate_summary,
         dataset_name=report_dataset_name,
+        search_query=search_query,
     )
 
     candidate_report_pdf = generate_candidate_report_pdf(
@@ -1403,6 +1484,7 @@ def main() -> None:
         job_match_details_df=job_match_details_df,
         candidate_fit_summary=candidate_summary,
         dataset_name=report_dataset_name,
+        search_query=search_query,
     )
 
     markdown_download_col, pdf_download_col = st.columns(2)

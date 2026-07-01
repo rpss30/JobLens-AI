@@ -110,6 +110,7 @@ The dashboard also shows market-level insights such as top required skills, role
 - First-party Greenhouse, Lever, Ashby, and JSON-LD ingestion support
 - Canada-only location normalization, deduplication, and balanced snapshots
 - Groq skill extraction from complete first-party job descriptions
+- JSON/Markdown ingestion run summaries with refresh metrics and failure logs
 - Weekly Canada snapshot refreshes with automated quality gates and reviewable pull requests
 - AWS deployment automation for Amazon ECR, ECS Fargate, ALB, Secrets Manager, and RDS PostgreSQL
 
@@ -339,6 +340,7 @@ JobLens AI
 │   ├── ingestion
 │   │   ├── ats_normalizers.py
 │   │   ├── greenhouse_client.py
+│   │   ├── pipeline_runs.py
 │   │   └── lever_client.py
 │   ├── skill_extraction
 │   │   ├── extraction_service.py
@@ -688,6 +690,7 @@ Completed:
 - pytest test suite
 - GitHub Actions test workflow
 - Weekly GitHub Actions Canada snapshot refresh workflow
+- Canada refresh pipeline metrics and failure summaries
 - Streamlit Cloud deployment
 - Uploaded CSV persistence to PostgreSQL
 - PostgreSQL dataset selector in the dashboard

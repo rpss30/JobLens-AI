@@ -54,15 +54,30 @@ If `GROQ_API_KEY` is not configured, the scheduled workflow exits successfully
 with a skipped-refresh summary instead of failing the repository's Actions
 status. Add the secret to enable real Groq-enriched refresh pull requests.
 
+Each refresh produces machine-readable JSON run summaries and Markdown summaries
+for the pull request body. The summaries include source counts, failed source
+details, raw and processed job counts, enrichment provider counts, skipped
+posting counts, duration, and validation failures. Locally or in a deployed
+environment, the same summaries can be persisted to PostgreSQL `ingestion_runs`
+with `--save-run-to-db`.
+
 To run the same flow locally:
 
 ```bash
-python scripts/fetch_canada_jobs.py
-python scripts/build_canada_jobs_snapshot.py
+python scripts/fetch_canada_jobs.py \
+  --summary-path tmp/canada-fetch-summary.json \
+  --summary-markdown-path tmp/canada-fetch-summary.md
+python scripts/build_canada_jobs_snapshot.py \
+  --summary-path tmp/canada-build-summary.json \
+  --summary-markdown-path tmp/canada-build-summary.md
 python scripts/validate_canada_jobs_snapshot.py \
   --candidate-path data/processed/canada_jobs_snapshot.csv
 pytest
 ```
+
+To also write refresh status to PostgreSQL, configure `DATABASE_URL`, run
+`alembic upgrade head`, and add `--save-run-to-db` to the fetch or build
+commands.
 
 ### Supporting Workflows
 
@@ -70,6 +85,7 @@ pytest
 - `scripts/fetch_canada_jobs.py` builds the Canada-only raw posting set.
 - `scripts/build_canada_jobs_snapshot.py` creates the packaged Groq-enriched snapshot.
 - `scripts/validate_canada_jobs_snapshot.py` blocks low-quality snapshot replacements.
+- `src/ingestion/pipeline_runs.py` validates normalized records and builds run summaries.
 - `scripts/process_greenhouse_jobs.py` applies deterministic processing.
 - `scripts/process_greenhouse_jobs_ai_first.py` runs the AI-first extraction experiment.
 - `scripts/build_greenhouse_ai_demo_jobs.py` builds the curated dashboard demo.

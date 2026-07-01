@@ -22,6 +22,21 @@ RAW_COLUMNS = [
     "experience_level",
 ]
 
+OPTIONAL_RAW_COLUMNS = [
+    "source",
+    "source_url",
+    "fetched_at",
+    "date_posted",
+    "valid_through",
+    "employment_type",
+    "workplace_type",
+    "is_remote",
+    "address_locality",
+    "address_region",
+    "address_country",
+    "source_updated_at",
+]
+
 PROCESSED_COLUMNS = [
     "clean_title",
     "clean_description",
@@ -30,9 +45,59 @@ PROCESSED_COLUMNS = [
     "skills_text",
 ]
 
+OPTIONAL_PROCESSED_COLUMNS = [
+    "skill_extraction_provider",
+    "skill_extraction_error",
+]
+
 
 def normalize_skill_name(skill: str) -> str:
     return skill.strip().lower()
+
+
+def clean_optional_string(value: Any) -> str | None:
+    """
+    Convert optional dataframe values to strings while preserving database NULLs.
+    """
+    if value is None or pd.isna(value):
+        return None
+
+    cleaned_value = str(value).strip()
+    return cleaned_value or None
+
+
+def clean_optional_bool(value: Any) -> bool:
+    if value is None or pd.isna(value):
+        return False
+
+    if isinstance(value, bool):
+        return value
+
+    normalized_value = str(value).strip().lower()
+
+    if normalized_value in {"true", "1", "yes", "y"}:
+        return True
+
+    if normalized_value in {"false", "0", "no", "n", ""}:
+        return False
+
+    return bool(value)
+
+
+def parse_optional_datetime(value: Any) -> datetime | None:
+    if value is None or pd.isna(value):
+        return None
+
+    parsed_value = pd.to_datetime(value, errors="coerce", utc=True)
+
+    if pd.isna(parsed_value):
+        return None
+
+    return parsed_value.to_pydatetime()
+
+
+def get_optional_row_value(row: pd.Series, column: str) -> Any:
+    return row[column] if column in row.index else None
 
 
 def parse_skills(value: Any) -> list[str]:
@@ -205,12 +270,44 @@ def seed_processed_jobs_from_dataframe(
         for _, row in df.iterrows():
             job_posting = JobPosting(
                 dataset_id=dataset.id,
-                job_id=str(row.get("job_id", "")) if "job_id" in df.columns else None,
+                job_id=clean_optional_string(get_optional_row_value(row, "job_id")),
                 title=str(row["title"]),
                 company=str(row["company"]),
                 location=str(row["location"]),
                 description=str(row["description"]),
                 experience_level=str(row["experience_level"]),
+                source=clean_optional_string(get_optional_row_value(row, "source")),
+                source_url=clean_optional_string(
+                    get_optional_row_value(row, "source_url")
+                ),
+                fetched_at=parse_optional_datetime(
+                    get_optional_row_value(row, "fetched_at")
+                ),
+                date_posted=clean_optional_string(
+                    get_optional_row_value(row, "date_posted")
+                ),
+                valid_through=clean_optional_string(
+                    get_optional_row_value(row, "valid_through")
+                ),
+                employment_type=clean_optional_string(
+                    get_optional_row_value(row, "employment_type")
+                ),
+                workplace_type=clean_optional_string(
+                    get_optional_row_value(row, "workplace_type")
+                ),
+                is_remote=clean_optional_bool(get_optional_row_value(row, "is_remote")),
+                address_locality=clean_optional_string(
+                    get_optional_row_value(row, "address_locality")
+                ),
+                address_region=clean_optional_string(
+                    get_optional_row_value(row, "address_region")
+                ),
+                address_country=clean_optional_string(
+                    get_optional_row_value(row, "address_country")
+                ),
+                source_updated_at=clean_optional_string(
+                    get_optional_row_value(row, "source_updated_at")
+                ),
             )
 
             session.add(job_posting)
@@ -225,6 +322,12 @@ def seed_processed_jobs_from_dataframe(
                 role_category=str(row["role_category"]),
                 extracted_skills=skills,
                 skills_text=str(row["skills_text"]),
+                skill_extraction_provider=clean_optional_string(
+                    get_optional_row_value(row, "skill_extraction_provider")
+                ),
+                skill_extraction_error=clean_optional_string(
+                    get_optional_row_value(row, "skill_extraction_error")
+                ),
             )
 
             session.add(processed_job)
@@ -384,11 +487,25 @@ def load_processed_jobs_dataframe(dataset_name: str = "sample_jobs") -> pd.DataF
                 JobPosting.location,
                 JobPosting.description,
                 JobPosting.experience_level,
+                JobPosting.source,
+                JobPosting.source_url,
+                JobPosting.fetched_at,
+                JobPosting.date_posted,
+                JobPosting.valid_through,
+                JobPosting.employment_type,
+                JobPosting.workplace_type,
+                JobPosting.is_remote,
+                JobPosting.address_locality,
+                JobPosting.address_region,
+                JobPosting.address_country,
+                JobPosting.source_updated_at,
                 ProcessedJob.clean_title,
                 ProcessedJob.clean_description,
                 ProcessedJob.extracted_skills,
                 ProcessedJob.role_category,
                 ProcessedJob.skills_text,
+                ProcessedJob.skill_extraction_provider,
+                ProcessedJob.skill_extraction_error,
             )
             .join(ProcessedJob, ProcessedJob.job_posting_id == JobPosting.id)
             .join(Dataset, Dataset.id == JobPosting.dataset_id)
@@ -407,11 +524,25 @@ def load_processed_jobs_dataframe(dataset_name: str = "sample_jobs") -> pd.DataF
             "location",
             "description",
             "experience_level",
+            "source",
+            "source_url",
+            "fetched_at",
+            "date_posted",
+            "valid_through",
+            "employment_type",
+            "workplace_type",
+            "is_remote",
+            "address_locality",
+            "address_region",
+            "address_country",
+            "source_updated_at",
             "clean_title",
             "clean_description",
             "extracted_skills",
             "role_category",
             "skills_text",
+            "skill_extraction_provider",
+            "skill_extraction_error",
         ],
     )
 

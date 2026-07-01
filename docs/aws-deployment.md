@@ -159,10 +159,10 @@ AWS_REGION=ca-central-1 \
 
 ## 3. Initialize and seed the database
 
-The database tables are created by:
+The database tables are created by Alembic migrations:
 
 ```bash
-python -m src.database.init_db
+alembic upgrade head
 ```
 
 The sample dataset is seeded by:
@@ -170,6 +170,10 @@ The sample dataset is seeded by:
 ```bash
 python -m scripts.seed_database
 ```
+
+The seed command also runs `alembic upgrade head`, which is useful for one-off
+Fargate seed tasks. Running migrations explicitly first is still recommended
+when you are operating the database manually.
 
 For a private RDS instance, run those commands from a trusted network path that
 can reach the database:
@@ -183,14 +187,13 @@ Example:
 
 ```bash
 export DATABASE_URL='postgresql+psycopg://<db_user>:<db_password>@<rds-endpoint>:5432/joblens_ai'
-python -m src.database.init_db
+alembic upgrade head
 python -m scripts.seed_database
 ```
 
 Expected result:
 
 ```text
-Database tables created successfully.
 Seeded <number> processed jobs into PostgreSQL.
 ```
 

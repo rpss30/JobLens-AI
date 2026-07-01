@@ -3,7 +3,7 @@ from src.api.main import app
 from datetime import UTC, datetime
 import pandas as pd
 
-from src.api import main as api_main
+from src.api.services import analysis_run_service, analysis_service, dataset_service
 
 client = TestClient(app)
 
@@ -188,9 +188,13 @@ def make_saved_analysis_run() -> dict:
     }
 
 def test_list_datasets_returns_database_datasets(monkeypatch) -> None:
-    monkeypatch.setattr(api_main, "check_database_connection", lambda: True)
     monkeypatch.setattr(
-        api_main,
+        dataset_service.database_repository,
+        "check_database_connection",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        dataset_service.database_repository,
         "list_datasets",
         lambda: [
             {
@@ -213,8 +217,71 @@ def test_list_datasets_returns_database_datasets(monkeypatch) -> None:
     assert "created_at" in data[0]
 
 
+def test_list_datasets_supports_filter_sort_and_pagination(monkeypatch) -> None:
+    monkeypatch.setattr(
+        dataset_service.database_repository,
+        "check_database_connection",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        dataset_service.database_repository,
+        "list_datasets",
+        lambda: [
+            {
+                "name": "sample_jobs",
+                "source_type": "sample_csv",
+                "created_at": datetime(2026, 1, 1, tzinfo=UTC),
+            },
+            {
+                "name": "zeta_upload",
+                "source_type": "uploaded_csv",
+                "created_at": datetime(2026, 1, 3, tzinfo=UTC),
+            },
+            {
+                "name": "alpha_upload",
+                "source_type": "uploaded_csv",
+                "created_at": datetime(2026, 1, 2, tzinfo=UTC),
+            },
+        ],
+    )
+
+    response = client.get(
+        "/datasets",
+        params={
+            "source_type": "uploaded_csv",
+            "sort_by": "name",
+            "sort_order": "asc",
+            "limit": 1,
+            "offset": 1,
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert len(data) == 1
+    assert data[0]["name"] == "zeta_upload"
+
+
+def test_list_datasets_validates_query_parameters() -> None:
+    response = client.get(
+        "/datasets",
+        params={
+            "sort_by": "unsupported_field",
+            "limit": 0,
+        },
+    )
+
+    assert response.status_code == 422
+
+
 def test_list_datasets_returns_503_when_database_unavailable(monkeypatch) -> None:
-    monkeypatch.setattr(api_main, "check_database_connection", lambda: False)
+    monkeypatch.setattr(
+        dataset_service.database_repository,
+        "check_database_connection",
+        lambda: False,
+    )
 
     response = client.get("/datasets")
 
@@ -223,9 +290,13 @@ def test_list_datasets_returns_503_when_database_unavailable(monkeypatch) -> Non
 
 
 def test_analyze_can_use_database_dataset(monkeypatch) -> None:
-    monkeypatch.setattr(api_main, "check_database_connection", lambda: True)
     monkeypatch.setattr(
-        api_main,
+        analysis_service.database_repository,
+        "check_database_connection",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        analysis_service.database_repository,
         "load_processed_jobs_dataframe",
         lambda dataset_name: make_api_processed_jobs_df(),
     )
@@ -253,9 +324,13 @@ def test_analyze_can_use_database_dataset(monkeypatch) -> None:
 
 
 def test_analyze_omits_zero_score_top_matching_jobs(monkeypatch) -> None:
-    monkeypatch.setattr(api_main, "check_database_connection", lambda: True)
     monkeypatch.setattr(
-        api_main,
+        analysis_service.database_repository,
+        "check_database_connection",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        analysis_service.database_repository,
         "load_processed_jobs_dataframe",
         lambda dataset_name: make_zero_overlap_api_processed_jobs_df(),
     )
@@ -282,9 +357,13 @@ def test_analyze_omits_zero_score_top_matching_jobs(monkeypatch) -> None:
 
 
 def test_analyze_database_dataset_returns_404_when_dataset_missing(monkeypatch) -> None:
-    monkeypatch.setattr(api_main, "check_database_connection", lambda: True)
     monkeypatch.setattr(
-        api_main,
+        analysis_service.database_repository,
+        "check_database_connection",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        analysis_service.database_repository,
         "load_processed_jobs_dataframe",
         lambda dataset_name: pd.DataFrame(),
     )
@@ -304,9 +383,13 @@ def test_analyze_database_dataset_returns_404_when_dataset_missing(monkeypatch) 
     assert "missing_dataset" in response.json()["detail"]
 
 def test_list_analysis_runs_returns_saved_runs(monkeypatch) -> None:
-    monkeypatch.setattr(api_main, "check_database_connection", lambda: True)
     monkeypatch.setattr(
-        api_main,
+        analysis_run_service.database_repository,
+        "check_database_connection",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        analysis_run_service.database_repository,
         "list_analysis_runs",
         lambda: [make_saved_analysis_run()],
     )
@@ -332,8 +415,75 @@ def test_list_analysis_runs_returns_saved_runs(monkeypatch) -> None:
     assert "created_at" in data[0]
 
 
+def test_list_analysis_runs_supports_filter_sort_and_pagination(monkeypatch) -> None:
+    first_run = make_saved_analysis_run()
+    second_run = {
+        **make_saved_analysis_run(),
+        "id": 2,
+        "name": "analysis_20260102_backend_sample_jobs",
+        "jobs_analyzed": 5,
+        "weighted_match_score": 40.0,
+        "created_at": datetime(2026, 1, 2, tzinfo=UTC),
+    }
+    third_run = {
+        **make_saved_analysis_run(),
+        "id": 3,
+        "name": "analysis_20260103_backend_other_dataset",
+        "dataset_name": "other_dataset",
+        "jobs_analyzed": 1,
+        "weighted_match_score": 10.0,
+        "created_at": datetime(2026, 1, 3, tzinfo=UTC),
+    }
+
+    monkeypatch.setattr(
+        analysis_run_service.database_repository,
+        "check_database_connection",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        analysis_run_service.database_repository,
+        "list_analysis_runs",
+        lambda: [first_run, second_run, third_run],
+    )
+
+    response = client.get(
+        "/analysis-runs",
+        params={
+            "dataset_name": "sample_jobs",
+            "sort_by": "jobs_analyzed",
+            "sort_order": "asc",
+            "limit": 1,
+            "offset": 1,
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert len(data) == 1
+    assert data[0]["id"] == 1
+    assert data[0]["jobs_analyzed"] == 20
+
+
+def test_list_analysis_runs_validates_query_parameters() -> None:
+    response = client.get(
+        "/analysis-runs",
+        params={
+            "sort_by": "unsupported_field",
+            "offset": -1,
+        },
+    )
+
+    assert response.status_code == 422
+
+
 def test_list_analysis_runs_returns_503_when_database_unavailable(monkeypatch) -> None:
-    monkeypatch.setattr(api_main, "check_database_connection", lambda: False)
+    monkeypatch.setattr(
+        analysis_run_service.database_repository,
+        "check_database_connection",
+        lambda: False,
+    )
 
     response = client.get("/analysis-runs")
 
@@ -342,13 +492,21 @@ def test_list_analysis_runs_returns_503_when_database_unavailable(monkeypatch) -
 
 
 def test_get_analysis_run_returns_saved_run(monkeypatch) -> None:
-    monkeypatch.setattr(api_main, "check_database_connection", lambda: True)
+    monkeypatch.setattr(
+        analysis_run_service.database_repository,
+        "check_database_connection",
+        lambda: True,
+    )
 
     def fake_load_analysis_run(analysis_run_id: int) -> dict:
         assert analysis_run_id == 1
         return make_saved_analysis_run()
 
-    monkeypatch.setattr(api_main, "load_analysis_run", fake_load_analysis_run)
+    monkeypatch.setattr(
+        analysis_run_service.database_repository,
+        "load_analysis_run",
+        fake_load_analysis_run,
+    )
 
     response = client.get("/analysis-runs/1")
 
@@ -365,8 +523,16 @@ def test_get_analysis_run_returns_saved_run(monkeypatch) -> None:
 
 
 def test_get_analysis_run_returns_404_when_missing(monkeypatch) -> None:
-    monkeypatch.setattr(api_main, "check_database_connection", lambda: True)
-    monkeypatch.setattr(api_main, "load_analysis_run", lambda analysis_run_id: None)
+    monkeypatch.setattr(
+        analysis_run_service.database_repository,
+        "check_database_connection",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        analysis_run_service.database_repository,
+        "load_analysis_run",
+        lambda analysis_run_id: None,
+    )
 
     response = client.get("/analysis-runs/999")
 
@@ -375,7 +541,11 @@ def test_get_analysis_run_returns_404_when_missing(monkeypatch) -> None:
 
 
 def test_get_analysis_run_returns_503_when_database_unavailable(monkeypatch) -> None:
-    monkeypatch.setattr(api_main, "check_database_connection", lambda: False)
+    monkeypatch.setattr(
+        analysis_run_service.database_repository,
+        "check_database_connection",
+        lambda: False,
+    )
 
     response = client.get("/analysis-runs/1")
 
@@ -383,13 +553,21 @@ def test_get_analysis_run_returns_503_when_database_unavailable(monkeypatch) -> 
     assert "PostgreSQL is unavailable" in response.json()["detail"]
 
 def test_delete_dataset_deletes_uploaded_dataset(monkeypatch) -> None:
-    monkeypatch.setattr(api_main, "check_database_connection", lambda: True)
+    monkeypatch.setattr(
+        dataset_service.database_repository,
+        "check_database_connection",
+        lambda: True,
+    )
 
     def fake_delete_dataset(dataset_name: str) -> bool:
         assert dataset_name == "uploaded_20260101_sample_jobs"
         return True
 
-    monkeypatch.setattr(api_main, "delete_dataset", fake_delete_dataset)
+    monkeypatch.setattr(
+        dataset_service.database_repository,
+        "delete_dataset",
+        fake_delete_dataset,
+    )
 
     response = client.delete("/datasets/uploaded_20260101_sample_jobs")
 
@@ -402,8 +580,16 @@ def test_delete_dataset_deletes_uploaded_dataset(monkeypatch) -> None:
 
 
 def test_delete_dataset_returns_404_when_dataset_missing(monkeypatch) -> None:
-    monkeypatch.setattr(api_main, "check_database_connection", lambda: True)
-    monkeypatch.setattr(api_main, "delete_dataset", lambda dataset_name: False)
+    monkeypatch.setattr(
+        dataset_service.database_repository,
+        "check_database_connection",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        dataset_service.database_repository,
+        "delete_dataset",
+        lambda dataset_name: False,
+    )
 
     response = client.delete("/datasets/missing_dataset")
 
@@ -412,12 +598,20 @@ def test_delete_dataset_returns_404_when_dataset_missing(monkeypatch) -> None:
 
 
 def test_delete_dataset_returns_400_for_protected_dataset(monkeypatch) -> None:
-    monkeypatch.setattr(api_main, "check_database_connection", lambda: True)
+    monkeypatch.setattr(
+        dataset_service.database_repository,
+        "check_database_connection",
+        lambda: True,
+    )
 
     def fake_delete_dataset(dataset_name: str) -> bool:
         raise ValueError("Only uploaded CSV datasets can be deleted.")
 
-    monkeypatch.setattr(api_main, "delete_dataset", fake_delete_dataset)
+    monkeypatch.setattr(
+        dataset_service.database_repository,
+        "delete_dataset",
+        fake_delete_dataset,
+    )
 
     response = client.delete("/datasets/sample_jobs")
 
@@ -426,7 +620,11 @@ def test_delete_dataset_returns_400_for_protected_dataset(monkeypatch) -> None:
 
 
 def test_delete_dataset_returns_503_when_database_unavailable(monkeypatch) -> None:
-    monkeypatch.setattr(api_main, "check_database_connection", lambda: False)
+    monkeypatch.setattr(
+        dataset_service.database_repository,
+        "check_database_connection",
+        lambda: False,
+    )
 
     response = client.delete("/datasets/uploaded_20260101_sample_jobs")
 
@@ -435,14 +633,22 @@ def test_delete_dataset_returns_503_when_database_unavailable(monkeypatch) -> No
 
 
 def test_rename_dataset_renames_uploaded_dataset(monkeypatch) -> None:
-    monkeypatch.setattr(api_main, "check_database_connection", lambda: True)
+    monkeypatch.setattr(
+        dataset_service.database_repository,
+        "check_database_connection",
+        lambda: True,
+    )
 
     def fake_rename_dataset(dataset_name: str, new_name: str) -> bool:
         assert dataset_name == "uploaded_20260101_sample_jobs"
         assert new_name == "My Custom Dataset"
         return True
 
-    monkeypatch.setattr(api_main, "rename_dataset", fake_rename_dataset)
+    monkeypatch.setattr(
+        dataset_service.database_repository,
+        "rename_dataset",
+        fake_rename_dataset,
+    )
 
     response = client.patch(
         "/datasets/uploaded_20260101_sample_jobs",
@@ -459,8 +665,16 @@ def test_rename_dataset_renames_uploaded_dataset(monkeypatch) -> None:
 
 
 def test_rename_dataset_returns_404_when_dataset_missing(monkeypatch) -> None:
-    monkeypatch.setattr(api_main, "check_database_connection", lambda: True)
-    monkeypatch.setattr(api_main, "rename_dataset", lambda dataset_name, new_name: False)
+    monkeypatch.setattr(
+        dataset_service.database_repository,
+        "check_database_connection",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        dataset_service.database_repository,
+        "rename_dataset",
+        lambda dataset_name, new_name: False,
+    )
 
     response = client.patch(
         "/datasets/missing_dataset",
@@ -472,12 +686,20 @@ def test_rename_dataset_returns_404_when_dataset_missing(monkeypatch) -> None:
 
 
 def test_rename_dataset_returns_400_for_protected_dataset(monkeypatch) -> None:
-    monkeypatch.setattr(api_main, "check_database_connection", lambda: True)
+    monkeypatch.setattr(
+        dataset_service.database_repository,
+        "check_database_connection",
+        lambda: True,
+    )
 
     def fake_rename_dataset(dataset_name: str, new_name: str) -> bool:
         raise ValueError("Only uploaded CSV datasets can be renamed.")
 
-    monkeypatch.setattr(api_main, "rename_dataset", fake_rename_dataset)
+    monkeypatch.setattr(
+        dataset_service.database_repository,
+        "rename_dataset",
+        fake_rename_dataset,
+    )
 
     response = client.patch(
         "/datasets/sample_jobs",
@@ -489,12 +711,20 @@ def test_rename_dataset_returns_400_for_protected_dataset(monkeypatch) -> None:
 
 
 def test_rename_dataset_returns_400_for_duplicate_target_name(monkeypatch) -> None:
-    monkeypatch.setattr(api_main, "check_database_connection", lambda: True)
+    monkeypatch.setattr(
+        dataset_service.database_repository,
+        "check_database_connection",
+        lambda: True,
+    )
 
     def fake_rename_dataset(dataset_name: str, new_name: str) -> bool:
         raise ValueError("Dataset name 'existing_dataset' already exists.")
 
-    monkeypatch.setattr(api_main, "rename_dataset", fake_rename_dataset)
+    monkeypatch.setattr(
+        dataset_service.database_repository,
+        "rename_dataset",
+        fake_rename_dataset,
+    )
 
     response = client.patch(
         "/datasets/uploaded_20260101_sample_jobs",
@@ -506,7 +736,11 @@ def test_rename_dataset_returns_400_for_duplicate_target_name(monkeypatch) -> No
 
 
 def test_rename_dataset_returns_503_when_database_unavailable(monkeypatch) -> None:
-    monkeypatch.setattr(api_main, "check_database_connection", lambda: False)
+    monkeypatch.setattr(
+        dataset_service.database_repository,
+        "check_database_connection",
+        lambda: False,
+    )
 
     response = client.patch(
         "/datasets/uploaded_20260101_sample_jobs",

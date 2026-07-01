@@ -449,6 +449,10 @@ curl -X POST http://127.0.0.1:8000/analyze \
 | `GET` | `/analysis-runs/{analysis_run_id}` | Load one saved analysis run |
 | `POST` | `/analyze` | Search jobs and run role-fit and skill-gap analysis |
 
+List endpoints support bounded pagination with `limit` and `offset`, plus
+`sort_by` and `sort_order`. `/datasets` can also filter by `source_type`, and
+`/analysis-runs` can filter by `dataset_name`.
+
 ## Running with Docker
 
 JobLens AI can also be run with Docker Compose.

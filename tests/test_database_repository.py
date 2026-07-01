@@ -8,7 +8,14 @@ import pandas as pd
 import pytest
 
 from src.database import repository
-from src.database.models import Dataset, JobPosting, JobSkill, ProcessedJob, Skill
+from src.database.models import (
+    Dataset,
+    IngestionRun,
+    JobPosting,
+    JobSkill,
+    ProcessedJob,
+    Skill,
+)
 from src.database.repository import (
     build_analysis_run_name,
     clean_optional_bool,
@@ -21,6 +28,7 @@ from src.database.repository import (
     parse_skills,
     slugify_dataset_name,
 )
+from src.ingestion.pipeline_runs import build_single_stage_run_summary
 
 
 class FakeScalarResult:
@@ -362,3 +370,36 @@ def test_seed_processed_jobs_converts_blank_optional_ids_to_null(monkeypatch):
 
     assert job_posting.job_id is None
     assert job_posting.source_url is None
+
+
+def test_save_ingestion_run_summary_persists_operational_metrics(monkeypatch):
+    fake_session = FakeSeedSession()
+    patch_db_session(monkeypatch, fake_session)
+    summary = build_single_stage_run_summary(
+        source_type="canada_snapshot_enrichment",
+        started_at=datetime(2026, 7, 1, 12, tzinfo=UTC),
+        completed_at=datetime(2026, 7, 1, 12, 5, tzinfo=UTC),
+        raw_job_count=72,
+        processed_job_count=70,
+        errors=["Two postings had no extracted skills."],
+    )
+
+    ingestion_run_id = repository.save_ingestion_run_summary(
+        summary,
+        dataset_name="canada_jobs",
+        dataset_source_type="canada_snapshot",
+    )
+
+    dataset = next(item for item in fake_session.added if isinstance(item, Dataset))
+    ingestion_run = next(
+        item for item in fake_session.added if isinstance(item, IngestionRun)
+    )
+
+    assert ingestion_run_id == ingestion_run.id
+    assert dataset.name == "canada_jobs"
+    assert dataset.source_type == "canada_snapshot"
+    assert ingestion_run.dataset_id == dataset.id
+    assert ingestion_run.source_type == "canada_snapshot_enrichment"
+    assert ingestion_run.raw_job_count == 72
+    assert ingestion_run.processed_job_count == 70
+    assert ingestion_run.error_log == ["Two postings had no extracted skills."]

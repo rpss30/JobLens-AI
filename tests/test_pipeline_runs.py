@@ -51,6 +51,29 @@ def test_build_ingestion_run_summary_marks_partial_success() -> None:
     assert summary.metadata["source_results"][0]["job_count"] == 4
 
 
+def test_build_ingestion_run_summary_fails_on_validation_errors() -> None:
+    summary = build_ingestion_run_summary(
+        source_type="canada_jobs_fetch",
+        started_at=STARTED_AT,
+        completed_at=COMPLETED_AT,
+        source_results=[
+            SourceFetchResult(
+                company="GoodCo",
+                source_type="greenhouse",
+                source_identifier="goodco",
+                status=SUCCESS_STATUS,
+                job_count=4,
+            )
+        ],
+        raw_job_count=4,
+        processed_job_count=4,
+        validation_errors=["Duplicate job_id values found: job-1."],
+    )
+
+    assert summary.status == FAILED_STATUS
+    assert summary.error_log == ["Duplicate job_id values found: job-1."]
+
+
 def test_build_single_stage_run_summary_fails_when_no_jobs_processed() -> None:
     summary = build_single_stage_run_summary(
         source_type="canada_snapshot_enrichment",

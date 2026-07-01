@@ -116,6 +116,7 @@ def build_ingestion_run_summary(
     source_results: Iterable[SourceFetchResult],
     raw_job_count: int,
     processed_job_count: int,
+    validation_errors: Iterable[str] | None = None,
     metadata: dict[str, Any] | None = None,
 ) -> IngestionRunSummary:
     completed_time = completed_at or current_utc_time()
@@ -126,19 +127,25 @@ def build_ingestion_run_summary(
     failed_sources = sum(
         1 for result in source_results_list if result.status == FAILED_STATUS
     )
+    validation_error_log = [error for error in validation_errors or [] if error]
     error_log = [
         f"{result.company}: {result.error}"
         for result in source_results_list
         if result.error
-    ]
-
-    return IngestionRunSummary(
-        source_type=source_type,
-        status=determine_run_status(
+    ] + validation_error_log
+    status = (
+        FAILED_STATUS
+        if validation_error_log
+        else determine_run_status(
             successful_sources=successful_sources,
             failed_sources=failed_sources,
             processed_job_count=processed_job_count,
-        ),
+        )
+    )
+
+    return IngestionRunSummary(
+        source_type=source_type,
+        status=status,
         started_at=started_at,
         completed_at=completed_time,
         total_sources=len(source_results_list),

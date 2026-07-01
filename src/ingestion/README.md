@@ -50,6 +50,9 @@ The `Refresh Canada Jobs Snapshot` GitHub Actions workflow runs every Monday at
 The workflow never writes directly to `main`. A maintainer reviews and merges
 each refresh pull request. Repository setup requires a GitHub Actions secret
 named `GROQ_API_KEY` and permission for GitHub Actions to create pull requests.
+If `GROQ_API_KEY` is not configured, the scheduled workflow exits successfully
+with a skipped-refresh summary instead of failing the repository's Actions
+status. Add the secret to enable real Groq-enriched refresh pull requests.
 
 To run the same flow locally:
 

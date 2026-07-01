@@ -38,13 +38,22 @@ jobs:
           pip install -r requirements.txt
 
       - name: Check Groq configuration
+        id: groq_config
         run: |
           if [ -z "$GROQ_API_KEY" ]; then
-            echo "GROQ_API_KEY repository secret is required."
-            exit 1
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "## Canada Jobs Refresh Skipped"
+              echo
+              echo "The refresh workflow requires the \`GROQ_API_KEY\` repository secret."
+              echo "Add the secret to enable weekly Groq-enriched snapshot refresh pull requests."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
           fi
+          echo "configured=true" >> "$GITHUB_OUTPUT"
 
       - name: Fetch and enrich current Canadian jobs
+        if: steps.groq_config.outputs.configured == 'true'
         run: |
           cp data/processed/canada_jobs_snapshot.csv /tmp/canada_jobs_snapshot.csv
           python scripts/fetch_canada_jobs.py \
@@ -55,6 +64,7 @@ jobs:
             --delay-seconds 1
 
       - name: Validate refreshed snapshot
+        if: steps.groq_config.outputs.configured == 'true'
         run: |
           python scripts/validate_canada_jobs_snapshot.py \
             --candidate-path /tmp/canada_jobs_snapshot.csv \
@@ -64,10 +74,12 @@ jobs:
             data/processed/canada_jobs_snapshot.csv
 
       - name: Run test suite
+        if: steps.groq_config.outputs.configured == 'true'
         run: python -m pytest -q
 
       - name: Detect snapshot changes
         id: changes
+        if: steps.groq_config.outputs.configured == 'true'
         run: |
           if git diff --quiet -- data/processed/canada_jobs_snapshot.csv; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
@@ -76,7 +88,7 @@ jobs:
           fi
 
       - name: Create refresh branch and commit
-        if: steps.changes.outputs.changed == 'true'
+        if: steps.groq_config.outputs.configured == 'true' && steps.changes.outputs.changed == 'true'
         env:
           BRANCH_NAME: automation/canada-jobs-refresh-${{ github.run_id }}-${{ github.run_attempt }}
         run: |
@@ -88,7 +100,7 @@ jobs:
           git push origin "$BRANCH_NAME"
 
       - name: Build pull request summary
-        if: steps.changes.outputs.changed == 'true'
+        if: steps.groq_config.outputs.configured == 'true' && steps.changes.outputs.changed == 'true'
         run: |
           {
             echo "## Summary"
@@ -106,7 +118,7 @@ jobs:
           } > /tmp/pull-request.md
 
       - name: Open snapshot refresh pull request
-        if: steps.changes.outputs.changed == 'true'
+        if: steps.groq_config.outputs.configured == 'true' && steps.changes.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           BRANCH_NAME: automation/canada-jobs-refresh-${{ github.run_id }}-${{ github.run_attempt }}

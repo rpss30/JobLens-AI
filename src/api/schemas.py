@@ -4,6 +4,10 @@ from typing import Any
 from pydantic import BaseModel, Field, model_validator
 
 
+class ErrorResponse(BaseModel):
+    detail: str
+
+
 class AnalyzeRequest(BaseModel):
     current_skills: list[str] = Field(
         ...,

@@ -284,7 +284,7 @@ protected.
 | Data and matching | Python, Pandas, scikit-learn |
 | Dashboard | Streamlit, Altair, Plotly |
 | API | FastAPI, Pydantic, Uvicorn |
-| Persistence | PostgreSQL, SQLAlchemy, psycopg |
+| Persistence | PostgreSQL, SQLAlchemy, Alembic, psycopg |
 | AI enrichment | Groq, Google Gemini, deterministic fallback |
 | Reports | ReportLab, pypdf |
 | Infrastructure | Docker, Docker Compose, Amazon ECR, ECS Fargate, ALB, RDS, Secrets Manager, CloudWatch |
@@ -296,6 +296,8 @@ protected.
 
 ```text
 JobLens AI
+├── alembic
+│   └── versions
 ├── assets/screenshots
 ├── data
 │   ├── raw
@@ -308,6 +310,7 @@ JobLens AI
 │   └── examples
 │       └── sample_upload_jobs.csv
 ├── docs
+│   ├── database.md
 │   └── aws-deployment.md
 ├── scripts
 │   ├── fetch_greenhouse_jobs.py
@@ -321,6 +324,9 @@ JobLens AI
 │   └── deploy_aws_service.sh
 ├── src
 │   ├── api
+│   │   ├── routers
+│   │   ├── services
+│   │   ├── application.py
 │   │   ├── main.py
 │   │   └── schemas.py
 │   ├── config
@@ -472,7 +478,7 @@ Once the services are running:
 Initialize the PostgreSQL tables:
 
 ```bash
-docker compose exec dashboard python -m src.database.init_db
+docker compose exec dashboard alembic upgrade head
 ```
 
 Seed the sample processed jobs dataset:
@@ -555,7 +561,15 @@ A safe template is included in:
 ### 4. Create database tables
 
 ```bash
-python -m src.database.init_db
+alembic upgrade head
+```
+
+If you have an existing local database that was created before Alembic was
+added, either recreate the local database or stamp the old baseline first:
+
+```bash
+alembic stamp 202607010001
+alembic upgrade head
 ```
 
 ### 5. Seed the database
@@ -569,7 +583,6 @@ python -m scripts.seed_database
 Expected output:
 
 ```text
-Database tables created successfully.
 Seeded <number> processed jobs into PostgreSQL.
 ```
 
@@ -602,9 +615,13 @@ The current PostgreSQL schema includes:
 - `skills`
 - `job_skills`
 - `analysis_runs`
+- `ingestion_runs`
+- `extraction_results`
 
-This supports persistent datasets and analysis history while keeping the core
-matching workflow deterministic.
+This supports persistent datasets, analysis history, pipeline run tracking, and
+AI extraction provenance while keeping the core matching workflow deterministic.
+See [docs/database.md](docs/database.md) for migration commands, indexes,
+constraints, and `EXPLAIN ANALYZE` examples.
 
 ### Saved Analysis Runs
 
@@ -665,6 +682,7 @@ Completed:
 - Custom CSV upload with validation
 - Dataset naming plus layered rename and delete controls for uploaded CSV datasets
 - PostgreSQL database schema
+- Alembic-managed database migrations
 - PostgreSQL seeding script for processed jobs
 - Optional PostgreSQL dashboard loading with CSV fallback
 - pytest test suite

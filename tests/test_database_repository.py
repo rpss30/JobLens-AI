@@ -1,18 +1,23 @@
 # tests/test_database_repository.py
 
 from contextlib import contextmanager
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 import pandas as pd
 import pytest
 
 from src.database import repository
+from src.database.models import Dataset, JobPosting, JobSkill, ProcessedJob, Skill
 from src.database.repository import (
     build_analysis_run_name,
+    clean_optional_bool,
+    clean_optional_string,
     dataset_name_exists,
     build_uploaded_dataset_name,
     is_user_managed_dataset,
     normalize_skill_name,
+    parse_optional_datetime,
     parse_skills,
     slugify_dataset_name,
 )
@@ -40,6 +45,28 @@ class FakeSession:
         self.flushed = True
 
 
+class FakeSeedSession:
+    def __init__(self):
+        self.added = []
+        self.statements = []
+        self.flushed = False
+        self._next_id = 1
+
+    def execute(self, statement):
+        self.statements.append(statement)
+        return FakeScalarResult(None)
+
+    def add(self, value):
+        if getattr(value, "id", None) is None:
+            value.id = self._next_id
+            self._next_id += 1
+
+        self.added.append(value)
+
+    def flush(self):
+        self.flushed = True
+
+
 def patch_db_session(monkeypatch, fake_session):
     @contextmanager
     def fake_db_session():
@@ -50,6 +77,29 @@ def patch_db_session(monkeypatch, fake_session):
 
 def test_normalize_skill_name_lowercases_and_strips_whitespace():
     assert normalize_skill_name("  Python  ") == "python"
+
+
+def test_clean_optional_string_preserves_database_nulls():
+    assert clean_optional_string("  https://example.com/job  ") == "https://example.com/job"
+    assert clean_optional_string("   ") is None
+    assert clean_optional_string(None) is None
+    assert clean_optional_string(float("nan")) is None
+
+
+def test_clean_optional_bool_parses_common_csv_values():
+    assert clean_optional_bool(True) is True
+    assert clean_optional_bool("true") is True
+    assert clean_optional_bool("1") is True
+    assert clean_optional_bool("false") is False
+    assert clean_optional_bool("") is False
+    assert clean_optional_bool(None) is False
+
+
+def test_parse_optional_datetime_returns_utc_datetime():
+    parsed_value = parse_optional_datetime("2026-06-21T12:00:00Z")
+
+    assert parsed_value == datetime(2026, 6, 21, 12, tzinfo=UTC)
+    assert parse_optional_datetime("") is None
 
 
 def test_parse_skills_from_list():
@@ -212,3 +262,103 @@ def test_rename_dataset_rejects_duplicate_target_name(monkeypatch):
 
     with pytest.raises(ValueError, match="already exists"):
         repository.rename_dataset("uploaded_jobs", "Existing Dataset")
+
+
+def test_seed_processed_jobs_preserves_source_and_extraction_metadata(monkeypatch):
+    fake_session = FakeSeedSession()
+    patch_db_session(monkeypatch, fake_session)
+
+    df = pd.DataFrame(
+        [
+            {
+                "job_id": " greenhouse:test:123 ",
+                "title": "Backend Engineer",
+                "company": "Example",
+                "location": "Toronto, ON",
+                "description": "Build APIs with Python and PostgreSQL.",
+                "experience_level": "Entry Level",
+                "source": "greenhouse",
+                "source_url": " https://example.com/jobs/123 ",
+                "fetched_at": "2026-06-21T12:00:00Z",
+                "is_remote": "false",
+                "clean_title": "backend engineer",
+                "clean_description": "build apis with python and postgresql",
+                "extracted_skills": ["Python", "PostgreSQL"],
+                "role_category": "Software Engineering",
+                "skills_text": "Python, PostgreSQL",
+                "skill_extraction_provider": "groq",
+                "skill_extraction_error": "",
+            }
+        ]
+    )
+
+    inserted_count = repository.seed_processed_jobs_from_dataframe(
+        df=df,
+        dataset_name="canada_jobs",
+        source_type="canada_snapshot",
+        replace_existing=False,
+    )
+
+    assert inserted_count == 1
+
+    dataset = next(item for item in fake_session.added if isinstance(item, Dataset))
+    job_posting = next(
+        item for item in fake_session.added if isinstance(item, JobPosting)
+    )
+    processed_job = next(
+        item for item in fake_session.added if isinstance(item, ProcessedJob)
+    )
+    skills = [item for item in fake_session.added if isinstance(item, Skill)]
+    job_skills = [
+        item for item in fake_session.added if isinstance(item, JobSkill)
+    ]
+
+    assert dataset.name == "canada_jobs"
+    assert dataset.source_type == "canada_snapshot"
+    assert job_posting.job_id == "greenhouse:test:123"
+    assert job_posting.source == "greenhouse"
+    assert job_posting.source_url == "https://example.com/jobs/123"
+    assert job_posting.fetched_at == datetime(2026, 6, 21, 12, tzinfo=UTC)
+    assert job_posting.is_remote is False
+    assert processed_job.skill_extraction_provider == "groq"
+    assert processed_job.skill_extraction_error is None
+    assert [skill.normalized_name for skill in skills] == ["python", "postgresql"]
+    assert len(job_skills) == 2
+
+
+def test_seed_processed_jobs_converts_blank_optional_ids_to_null(monkeypatch):
+    fake_session = FakeSeedSession()
+    patch_db_session(monkeypatch, fake_session)
+
+    df = pd.DataFrame(
+        [
+            {
+                "job_id": " ",
+                "title": "Data Analyst",
+                "company": "Example",
+                "location": "Remote, Canada",
+                "description": "Analyze data with SQL.",
+                "experience_level": "Entry Level",
+                "source_url": "",
+                "clean_title": "data analyst",
+                "clean_description": "analyze data with sql",
+                "extracted_skills": ["SQL"],
+                "role_category": "Analytics",
+                "skills_text": "SQL",
+            }
+        ]
+    )
+
+    repository.seed_processed_jobs_from_dataframe(
+        df=df,
+        dataset_name="uploaded_jobs",
+        source_type="uploaded_csv",
+        replace_existing=False,
+    )
+
+    job_posting = next(
+        item for item in fake_session.added if isinstance(item, JobPosting)
+    )
+
+    assert job_posting.job_id is None
+    assert job_posting.source_url is None

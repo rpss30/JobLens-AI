@@ -6,7 +6,10 @@ from src.database.models import Base
 
 def init_db() -> None:
     """
-    Create all database tables defined in src/database/models.py.
+    Create database tables directly from SQLAlchemy models.
+
+    Prefer Alembic migrations for local, Docker, and cloud setup. This helper is
+    kept for lightweight development resets and backwards compatibility.
     """
     engine = get_engine()
     Base.metadata.create_all(bind=engine)

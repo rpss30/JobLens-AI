@@ -4,11 +4,27 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.database.init_db import init_db
 from src.database.repository import seed_processed_jobs_from_dataframe
 
 
+ALEMBIC_INI_PATH = Path("alembic.ini")
 PROCESSED_JOBS_PATH = Path("data/processed/processed_jobs.csv")
+
+
+def run_database_migrations() -> None:
+    if not ALEMBIC_INI_PATH.exists():
+        raise FileNotFoundError("alembic.ini does not exist.")
+
+    try:
+        from alembic import command
+        from alembic.config import Config
+    except ImportError as exc:
+        raise RuntimeError(
+            "Alembic is required to migrate the database. "
+            "Run `pip install -r requirements.txt` and try again."
+        ) from exc
+
+    command.upgrade(Config(str(ALEMBIC_INI_PATH)), "head")
 
 
 def main() -> None:
@@ -18,7 +34,7 @@ def main() -> None:
             "Run your processing pipeline first."
         )
 
-    init_db()
+    run_database_migrations()
 
     df = pd.read_csv(PROCESSED_JOBS_PATH)
 

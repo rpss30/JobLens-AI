@@ -11,7 +11,16 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from src.database.db import get_db_session
-from src.database.models import AnalysisRun, Dataset, JobPosting, JobSkill, ProcessedJob, Skill
+from src.database.models import (
+    AnalysisRun,
+    Dataset,
+    IngestionRun,
+    JobPosting,
+    JobSkill,
+    ProcessedJob,
+    Skill,
+)
+from src.ingestion.pipeline_runs import IngestionRunSummary
 
 
 RAW_COLUMNS = [
@@ -231,6 +240,46 @@ def clear_dataset(session: Session, dataset_name: str) -> None:
     if dataset:
         session.delete(dataset)
         session.flush()
+
+
+def save_ingestion_run_summary(
+    summary: IngestionRunSummary,
+    *,
+    dataset_name: str | None = None,
+    dataset_source_type: str | None = None,
+) -> int:
+    """
+    Persist a pipeline run summary for operational status and audit history.
+    """
+    with get_db_session() as session:
+        dataset: Dataset | None = None
+
+        if dataset_name:
+            dataset = get_or_create_dataset(
+                session=session,
+                name=dataset_name,
+                source_type=dataset_source_type or summary.source_type,
+            )
+
+        ingestion_run = IngestionRun(
+            dataset_id=dataset.id if dataset else None,
+            source_type=summary.source_type,
+            status=summary.status,
+            started_at=summary.started_at,
+            completed_at=summary.completed_at,
+            total_sources=summary.total_sources,
+            successful_sources=summary.successful_sources,
+            failed_sources=summary.failed_sources,
+            raw_job_count=summary.raw_job_count,
+            processed_job_count=summary.processed_job_count,
+            error_log=summary.error_log,
+        )
+
+        session.add(ingestion_run)
+        session.flush()
+
+        return ingestion_run.id
+
 
 def is_user_managed_dataset(source_type: str) -> bool:
     """

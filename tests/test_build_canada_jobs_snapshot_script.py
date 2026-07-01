@@ -160,3 +160,84 @@ def test_process_selected_jobs_reextracts_changed_descriptions(monkeypatch):
     )
 
     assert rows[0]["extracted_skills"] == ["python", "sql"]
+
+
+def test_build_snapshot_run_summary_counts_providers_and_skips(tmp_path):
+    summary = build_canada_jobs_snapshot.build_snapshot_run_summary(
+        selected_jobs=[
+            {"job_id": "job-1"},
+            {"job_id": "job-2"},
+        ],
+        processed_rows=[
+            {
+                "job_id": "job-1",
+                "skill_extraction_provider": "groq",
+                "skill_extraction_error": "",
+            }
+        ],
+        started_at=build_canada_jobs_snapshot.current_utc_time(),
+        output_path=tmp_path / "snapshot.csv",
+    )
+
+    assert summary.source_type == "canada_snapshot_enrichment"
+    assert summary.raw_job_count == 2
+    assert summary.processed_job_count == 1
+    assert summary.metadata["provider_counts"] == {"groq": 1}
+    assert summary.metadata["skipped_count"] == 1
+    assert summary.error_log == [
+        "1 selected postings were skipped during enrichment."
+    ]
+
+
+def test_main_writes_snapshot_run_summaries(monkeypatch, tmp_path):
+    input_path = tmp_path / "canada_jobs.csv"
+    output_path = tmp_path / "snapshot.csv"
+    summary_path = tmp_path / "build-summary.json"
+    markdown_path = tmp_path / "build-summary.md"
+    input_path.write_text("job_id,title\njob-1,Data Engineer\n", encoding="utf-8")
+
+    monkeypatch.setattr(
+        build_canada_jobs_snapshot,
+        "select_balanced_jobs",
+        lambda jobs, **kwargs: [
+            {
+                "job_id": "job-1",
+                "title": "Data Engineer",
+                "company": "Example",
+                "description": "Build pipelines with Python.",
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        build_canada_jobs_snapshot,
+        "process_selected_jobs",
+        lambda jobs, **kwargs: [
+            {
+                **jobs[0],
+                "clean_title": "data engineer",
+                "clean_description": "build pipelines with python.",
+                "extracted_skills": ["Python"],
+                "skills_text": "Python",
+                "role_category": "Data Engineering",
+                "skill_extraction_provider": "groq",
+                "skill_extraction_error": "",
+            }
+        ],
+    )
+
+    build_canada_jobs_snapshot.main(
+        input_path=input_path,
+        output_path=output_path,
+        delay_seconds=0,
+        summary_path=summary_path,
+        summary_markdown_path=markdown_path,
+        dataset_name=None,
+    )
+
+    assert output_path.exists()
+    assert '"source_type": "canada_snapshot_enrichment"' in summary_path.read_text(
+        encoding="utf-8"
+    )
+    assert "## Canada Snapshot Enrichment Run" in markdown_path.read_text(
+        encoding="utf-8"
+    )

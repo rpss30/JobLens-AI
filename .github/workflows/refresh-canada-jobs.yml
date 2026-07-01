@@ -57,11 +57,15 @@ jobs:
         run: |
           cp data/processed/canada_jobs_snapshot.csv /tmp/canada_jobs_snapshot.csv
           python scripts/fetch_canada_jobs.py \
-            --output-path /tmp/canada_jobs.csv
+            --output-path /tmp/canada_jobs.csv \
+            --summary-path /tmp/canada-fetch-summary.json \
+            --summary-markdown-path /tmp/canada-fetch-summary.md
           python scripts/build_canada_jobs_snapshot.py \
             --input-path /tmp/canada_jobs.csv \
             --output-path /tmp/canada_jobs_snapshot.csv \
-            --delay-seconds 1
+            --delay-seconds 1 \
+            --summary-path /tmp/canada-build-summary.json \
+            --summary-markdown-path /tmp/canada-build-summary.md
 
       - name: Validate refreshed snapshot
         if: steps.groq_config.outputs.configured == 'true'
@@ -110,6 +114,10 @@ jobs:
             echo "- Fetched current Canadian technical postings from the configured Greenhouse, Lever, and Ashby boards."
             echo "- Reused Groq skill extractions for unchanged descriptions and re-extracted changed or new postings."
             echo "- Applied role, employer, location, source, freshness, and extraction quality gates."
+            echo
+            cat /tmp/canada-fetch-summary.md
+            echo
+            cat /tmp/canada-build-summary.md
             echo
             cat /tmp/snapshot-quality.md
             echo "## Testing"

@@ -35,7 +35,7 @@ databases, recreating the database and running `alembic upgrade head` is simpler
 | `skills` | Canonical skill names used for normalized matching. |
 | `job_skills` | Many-to-many bridge between processed jobs and skills. |
 | `analysis_runs` | Saved role-fit inputs and summary outputs from the dashboard/API. |
-| `ingestion_runs` | Pipeline run status, counts, timestamps, and failure logs. |
+| `ingestion_runs` | Pipeline run status, counts, timestamps, and failure logs written by refresh scripts. |
 | `extraction_results` | Per-job AI extraction provenance, prompt version, model metadata, and errors. |
 
 ## Duplicate prevention
@@ -114,9 +114,11 @@ LIMIT 5;
 - The schema keeps resume text out of persistent storage for now. Phase 6 can
   add privacy-conscious resume analysis without mixing sensitive data into the
   job-market tables.
-- `ingestion_runs` and `extraction_results` are intentionally small foundation
-  tables. Phase 3 and Phase 4 can wire them into the ingestion and LLM pipeline
-  without another schema redesign.
+- `ingestion_runs` is intentionally compact: it stores operational status,
+  counts, timestamps, and failure messages, while detailed JSON/Markdown run
+  artifacts can stay in CI logs or local files.
+- `extraction_results` remains a foundation table for Phase 4. It can store
+  per-job LLM prompt/model provenance without another schema redesign.
 - `pgvector` is deferred. The current schema can support explainable TF-IDF and
   skill-based scoring today; semantic embeddings are best added after the core
   data model is stable and there is a clear search-quality need.

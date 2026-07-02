@@ -1,0 +1,68 @@
+[
+  {
+    "id": "backend_api_platform",
+    "title": "Backend Software Engineer",
+    "description": "Build REST APIs and backend services with Python, PostgreSQL, Docker, AWS, CI/CD pipelines, and production monitoring.",
+    "expected_skills": [
+      "Python",
+      "REST APIs",
+      "PostgreSQL",
+      "Docker",
+      "AWS",
+      "CI/CD",
+      "monitoring"
+    ]
+  },
+  {
+    "id": "ml_platform",
+    "title": "Machine Learning Engineer",
+    "description": "Develop machine learning systems using PyTorch, TensorFlow, scikit-learn, Pandas, NumPy, MLflow, model deployment, and model monitoring workflows.",
+    "expected_skills": [
+      "machine learning",
+      "PyTorch",
+      "TensorFlow",
+      "scikit-learn",
+      "Pandas",
+      "NumPy",
+      "MLflow",
+      "model deployment",
+      "model monitoring"
+    ]
+  },
+  {
+    "id": "cloud_data_platform",
+    "title": "Cloud Data Engineer",
+    "description": "Own data pipelines and ETL jobs with Spark, PySpark, Airflow, AWS S3, Lambda, Terraform, Kubernetes, and data warehousing.",
+    "expected_skills": [
+      "data pipelines",
+      "ETL",
+      "Spark",
+      "PySpark",
+      "Airflow",
+      "AWS",
+      "S3",
+      "Lambda",
+      "Terraform",
+      "Kubernetes",
+      "data warehousing"
+    ]
+  },
+  {
+    "id": "analytics_bi",
+    "title": "Analytics Engineer",
+    "description": "Create dashboards and product metrics using SQL, dbt, data modeling, Tableau, Power BI, Excel, A/B testing, statistics, and data visualization.",
+    "expected_skills": [
+      "SQL",
+      "dbt",
+      "data modeling",
+      "Tableau",
+      "Power BI",
+      "Excel",
+      "A/B testing",
+      "statistics",
+      "data visualization",
+      "dashboards",
+      "product metrics"
+    ]
+  }
+]

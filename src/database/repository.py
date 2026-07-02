@@ -7,13 +7,14 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from src.database.db import get_db_session
 from src.database.models import (
     AnalysisRun,
     Dataset,
+    ExtractionResult,
     IngestionRun,
     JobPosting,
     JobSkill,
@@ -57,6 +58,9 @@ PROCESSED_COLUMNS = [
 OPTIONAL_PROCESSED_COLUMNS = [
     "skill_extraction_provider",
     "skill_extraction_error",
+    "skill_extraction_model",
+    "skill_extraction_prompt_version",
+    "skill_extraction_raw_response",
 ]
 
 
@@ -107,6 +111,42 @@ def parse_optional_datetime(value: Any) -> datetime | None:
 
 def get_optional_row_value(row: pd.Series, column: str) -> Any:
     return row[column] if column in row.index else None
+
+
+def build_extraction_result_from_row(
+    row: pd.Series,
+    *,
+    processed_job_id: int,
+    extracted_skills: list[str],
+) -> ExtractionResult | None:
+    provider = clean_optional_string(
+        get_optional_row_value(row, "skill_extraction_provider")
+    )
+    model = clean_optional_string(
+        get_optional_row_value(row, "skill_extraction_model")
+    )
+    prompt_version = clean_optional_string(
+        get_optional_row_value(row, "skill_extraction_prompt_version")
+    )
+    raw_response = clean_optional_string(
+        get_optional_row_value(row, "skill_extraction_raw_response")
+    )
+    error = clean_optional_string(
+        get_optional_row_value(row, "skill_extraction_error")
+    )
+
+    if not any([provider, model, prompt_version, raw_response, error]):
+        return None
+
+    return ExtractionResult(
+        processed_job_id=processed_job_id,
+        provider=provider or "unknown",
+        model=model,
+        prompt_version=prompt_version,
+        extracted_skills=extracted_skills,
+        raw_response=raw_response,
+        error=error,
+    )
 
 
 def parse_skills(value: Any) -> list[str]:
@@ -382,6 +422,15 @@ def seed_processed_jobs_from_dataframe(
             session.add(processed_job)
             session.flush()
 
+            extraction_result = build_extraction_result_from_row(
+                row,
+                processed_job_id=processed_job.id,
+                extracted_skills=skills,
+            )
+
+            if extraction_result is not None:
+                session.add(extraction_result)
+
             for skill_name in skills:
                 skill = get_or_create_skill(session, skill_name)
 
@@ -528,6 +577,12 @@ def load_processed_jobs_dataframe(dataset_name: str = "sample_jobs") -> pd.DataF
     expected by the Streamlit dashboard.
     """
     with get_db_session() as session:
+        latest_extraction_result_id = (
+            select(func.max(ExtractionResult.id))
+            .where(ExtractionResult.processed_job_id == ProcessedJob.id)
+            .correlate(ProcessedJob)
+            .scalar_subquery()
+        )
         stmt = (
             select(
                 JobPosting.job_id,
@@ -555,8 +610,14 @@ def load_processed_jobs_dataframe(dataset_name: str = "sample_jobs") -> pd.DataF
                 ProcessedJob.skills_text,
                 ProcessedJob.skill_extraction_provider,
                 ProcessedJob.skill_extraction_error,
+                ExtractionResult.model,
+                ExtractionResult.prompt_version,
             )
             .join(ProcessedJob, ProcessedJob.job_posting_id == JobPosting.id)
+            .outerjoin(
+                ExtractionResult,
+                ExtractionResult.id == latest_extraction_result_id,
+            )
             .join(Dataset, Dataset.id == JobPosting.dataset_id)
             .where(Dataset.name == dataset_name)
             .order_by(JobPosting.id)
@@ -592,6 +653,8 @@ def load_processed_jobs_dataframe(dataset_name: str = "sample_jobs") -> pd.DataF
             "skills_text",
             "skill_extraction_provider",
             "skill_extraction_error",
+            "skill_extraction_model",
+            "skill_extraction_prompt_version",
         ],
     )
 

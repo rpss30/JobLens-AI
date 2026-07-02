@@ -1,8 +1,16 @@
 from scripts import build_canada_jobs_snapshot
+from src.skill_extraction.schema import ExtractedSkill
 
 
 class FakeGroqResult:
     skills = ["python", "sql", "AWS"]
+    skill_items = [
+        ExtractedSkill(name="python", confidence=0.9, evidence="Python"),
+        ExtractedSkill(name="sql", confidence=0.8, evidence="SQL"),
+        ExtractedSkill(name="AWS", confidence=0.7, evidence="AWS"),
+    ]
+    model = "llama-test"
+    prompt_version = "skill-extraction-v2"
 
 
 def test_extract_skills_groq_first_uses_groq(monkeypatch):
@@ -12,16 +20,17 @@ def test_extract_skills_groq_first_uses_groq(monkeypatch):
         lambda title, description: FakeGroqResult(),
     )
 
-    skills, provider, error = (
-        build_canada_jobs_snapshot.extract_skills_groq_first(
-            title="Data Engineer",
-            description="Build pipelines with Python, SQL, and AWS.",
-        )
+    result = build_canada_jobs_snapshot.extract_skills_groq_first(
+        title="Data Engineer",
+        description="Build pipelines with Python, SQL, and AWS.",
     )
 
-    assert skills == ["python", "sql", "AWS"]
-    assert provider == "groq"
-    assert error == ""
+    assert result.skills == ["python", "sql", "AWS"]
+    assert result.provider == "groq"
+    assert result.error == ""
+    assert result.model == "llama-test"
+    assert result.prompt_version == "skill-extraction-v2"
+    assert result.confidence == 0.8
 
 
 def test_extract_skills_groq_first_falls_back_after_failures(monkeypatch):
@@ -43,16 +52,19 @@ def test_extract_skills_groq_first_falls_back_after_failures(monkeypatch):
         lambda seconds: None,
     )
 
-    skills, provider, error = (
-        build_canada_jobs_snapshot.extract_skills_groq_first(
-            title="Backend Engineer",
-            description="Build APIs with Python.",
-        )
+    result = build_canada_jobs_snapshot.extract_skills_groq_first(
+        title="Backend Engineer",
+        description="Build APIs with Python.",
     )
 
-    assert skills == ["python"]
-    assert provider == "deterministic_fallback"
-    assert "Groq attempt 2" in error
+    assert result.skills == ["python"]
+    assert result.provider == "deterministic_fallback"
+    assert result.model == build_canada_jobs_snapshot.DETERMINISTIC_FALLBACK_MODEL
+    assert result.prompt_version == (
+        build_canada_jobs_snapshot.DETERMINISTIC_FALLBACK_PROMPT_VERSION
+    )
+    assert result.confidence == 0.5
+    assert "Groq attempt 2" in result.error
 
 
 def test_process_selected_jobs_writes_incremental_checkpoint(
@@ -62,7 +74,13 @@ def test_process_selected_jobs_writes_incremental_checkpoint(
     monkeypatch.setattr(
         build_canada_jobs_snapshot,
         "extract_skills_groq_first",
-        lambda **kwargs: (["python"], "groq", ""),
+        lambda **kwargs: build_canada_jobs_snapshot.SnapshotSkillExtractionResult(
+            skills=["python"],
+            provider="groq",
+            model="llama-test",
+            prompt_version="skill-extraction-v2",
+            confidence=0.9,
+        ),
     )
     monkeypatch.setattr(
         build_canada_jobs_snapshot.time,
@@ -86,6 +104,9 @@ def test_process_selected_jobs_writes_incremental_checkpoint(
 
     assert checkpoint_path.exists()
     assert rows[0]["skill_extraction_provider"] == "groq"
+    assert rows[0]["skill_extraction_model"] == "llama-test"
+    assert rows[0]["skill_extraction_prompt_version"] == "skill-extraction-v2"
+    assert rows[0]["skill_extraction_confidence"] == 0.9
 
 
 def test_process_selected_jobs_reuses_skills_with_current_source_metadata(
@@ -117,6 +138,9 @@ def test_process_selected_jobs_reuses_skills_with_current_source_metadata(
                 "skills_text": "python",
                 "skill_extraction_provider": "groq",
                 "skill_extraction_error": "",
+                "skill_extraction_model": "llama-reused",
+                "skill_extraction_prompt_version": "skill-extraction-v2",
+                "skill_extraction_confidence": 0.88,
                 "fetched_at": "2026-06-14T00:00:00+00:00",
             }
         },
@@ -125,13 +149,21 @@ def test_process_selected_jobs_reuses_skills_with_current_source_metadata(
 
     assert rows[0]["extracted_skills"] == ["python"]
     assert rows[0]["fetched_at"] == "2026-06-21T00:00:00+00:00"
+    assert rows[0]["skill_extraction_model"] == "llama-reused"
+    assert rows[0]["skill_extraction_confidence"] == 0.88
 
 
 def test_process_selected_jobs_reextracts_changed_descriptions(monkeypatch):
     monkeypatch.setattr(
         build_canada_jobs_snapshot,
         "extract_skills_groq_first",
-        lambda **kwargs: (["python", "sql"], "groq", ""),
+        lambda **kwargs: build_canada_jobs_snapshot.SnapshotSkillExtractionResult(
+            skills=["python", "sql"],
+            provider="groq",
+            model="llama-test",
+            prompt_version="skill-extraction-v2",
+            confidence=0.91,
+        ),
     )
     monkeypatch.setattr(
         build_canada_jobs_snapshot.time,
@@ -173,6 +205,8 @@ def test_build_snapshot_run_summary_counts_providers_and_skips(tmp_path):
                 "job_id": "job-1",
                 "skill_extraction_provider": "groq",
                 "skill_extraction_error": "",
+                "skill_extraction_prompt_version": "skill-extraction-v2",
+                "skill_extraction_confidence": 0.8,
             }
         ],
         started_at=build_canada_jobs_snapshot.current_utc_time(),
@@ -183,6 +217,8 @@ def test_build_snapshot_run_summary_counts_providers_and_skips(tmp_path):
     assert summary.raw_job_count == 2
     assert summary.processed_job_count == 1
     assert summary.metadata["provider_counts"] == {"groq": 1}
+    assert summary.metadata["prompt_version_counts"] == {"skill-extraction-v2": 1}
+    assert summary.metadata["average_extraction_confidence"] == 0.8
     assert summary.metadata["skipped_count"] == 1
     assert summary.error_log == [
         "1 selected postings were skipped during enrichment."

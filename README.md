@@ -110,6 +110,7 @@ The dashboard also shows market-level insights such as top required skills, role
 - First-party Greenhouse, Lever, Ashby, and JSON-LD ingestion support
 - Canada-only location normalization, deduplication, and balanced snapshots
 - Groq skill extraction from complete first-party job descriptions
+- Structured skill extraction with prompt versioning, confidence metadata, and offline evaluation cases
 - JSON/Markdown ingestion run summaries with refresh metrics and failure logs
 - Weekly Canada snapshot refreshes with automated quality gates and reviewable pull requests
 - AWS deployment automation for Amazon ECR, ECS Fargate, ALB, Secrets Manager, and RDS PostgreSQL
@@ -311,6 +312,7 @@ JobLens AI
 │   └── examples
 │       └── sample_upload_jobs.csv
 ├── docs
+│   ├── ai-extraction.md
 │   ├── database.md
 │   └── aws-deployment.md
 ├── scripts
@@ -343,9 +345,11 @@ JobLens AI
 │   │   ├── pipeline_runs.py
 │   │   └── lever_client.py
 │   ├── skill_extraction
+│   │   ├── evaluation.py
 │   │   ├── extraction_service.py
 │   │   ├── gemini_extractor.py
-│   │   └── groq_extractor.py
+│   │   ├── groq_extractor.py
+│   │   └── schema.py
 │   ├── processing
 │   │   └── job_processor.py
 │   ├── matching
@@ -659,6 +663,15 @@ The project includes tests for dashboard service logic, matching behavior, role-
 
 Tests are also run automatically through GitHub Actions on pushes and pull requests.
 
+Run the offline skill extraction evaluation:
+
+```bash
+python scripts/evaluate_skill_extraction.py --minimum-average-recall 0.85
+```
+
+See [docs/ai-extraction.md](docs/ai-extraction.md) for the structured output
+contract, fallback behavior, extraction metadata, and evaluation strategy.
+
 
 ## Current Status
 
@@ -701,6 +714,7 @@ Completed:
 - FastAPI can list PostgreSQL datasets and analyze a selected saved dataset
 - AWS deployment helpers for ECR, RDS PostgreSQL, ALB, and ECS Fargate
 - Multi-employer Canadian ingestion and a curated Groq-enriched snapshot
+- Structured AI skill extraction contract and offline quality evaluation
 - Verified AWS deployment with private RDS, Secrets Manager, ALB, and ECS Fargate
 
 Not built yet:

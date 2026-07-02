@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter
+from dataclasses import dataclass
 from datetime import datetime
+from math import isfinite
 import sys
 import time
 from pathlib import Path
@@ -34,6 +36,18 @@ from src.skill_extraction.groq_extractor import extract_skills_with_groq
 
 DEFAULT_INPUT_PATH = ROOT_DIR / "data" / "raw" / "canada_jobs.csv"
 DEFAULT_OUTPUT_PATH = ROOT_DIR / "data" / "processed" / "canada_jobs_snapshot.csv"
+DETERMINISTIC_FALLBACK_MODEL = "deterministic-skill-dictionary"
+DETERMINISTIC_FALLBACK_PROMPT_VERSION = "deterministic-skill-dictionary-v1"
+
+
+@dataclass(frozen=True)
+class SnapshotSkillExtractionResult:
+    skills: list[str]
+    provider: str
+    error: str = ""
+    model: str = ""
+    prompt_version: str = ""
+    confidence: float | None = None
 
 
 def load_existing_extractions(path: Path) -> dict[str, dict[str, object]]:
@@ -53,13 +67,38 @@ def load_existing_extractions(path: Path) -> dict[str, dict[str, object]]:
     }
 
 
+def mean_skill_confidence(skill_items: object) -> float | None:
+    confidences = [
+        float(item.confidence)
+        for item in skill_items or []
+        if getattr(item, "confidence", None) is not None
+    ]
+
+    if not confidences:
+        return None
+
+    return round(sum(confidences) / len(confidences), 3)
+
+
+def parse_confidence_value(value: object) -> float | None:
+    try:
+        confidence = float(value)
+    except (TypeError, ValueError):
+        return None
+
+    if not isfinite(confidence):
+        return None
+
+    return confidence
+
+
 def extract_skills_groq_first(
     *,
     title: str,
     description: str,
     max_attempts: int = 2,
     retry_delay_seconds: int = 3,
-) -> tuple[list[str], str, str]:
+) -> SnapshotSkillExtractionResult:
     """Use Groq for complete descriptions, with deterministic emergency fallback."""
     errors: list[str] = []
 
@@ -71,7 +110,15 @@ def extract_skills_groq_first(
             )
 
             if result.skills:
-                return result.skills, "groq", ""
+                return SnapshotSkillExtractionResult(
+                    skills=result.skills,
+                    provider="groq",
+                    model=getattr(result, "model", ""),
+                    prompt_version=getattr(result, "prompt_version", ""),
+                    confidence=mean_skill_confidence(
+                        getattr(result, "skill_items", []),
+                    ),
+                )
 
             errors.append(f"Groq attempt {attempt}: returned no skills")
         except Exception as error:
@@ -83,7 +130,14 @@ def extract_skills_groq_first(
             time.sleep(retry_delay_seconds)
 
     fallback_skills = extract_skills_deterministic(description)
-    return fallback_skills, "deterministic_fallback", " | ".join(errors)
+    return SnapshotSkillExtractionResult(
+        skills=fallback_skills,
+        provider="deterministic_fallback",
+        error=" | ".join(errors),
+        model=DETERMINISTIC_FALLBACK_MODEL,
+        prompt_version=DETERMINISTIC_FALLBACK_PROMPT_VERSION,
+        confidence=0.5 if fallback_skills else 0.0,
+    )
 
 
 def process_selected_jobs(
@@ -129,6 +183,18 @@ def process_selected_jobs(
                             "skill_extraction_error",
                             "",
                         ),
+                        "skill_extraction_model": existing_row.get(
+                            "skill_extraction_model",
+                            "",
+                        ),
+                        "skill_extraction_prompt_version": existing_row.get(
+                            "skill_extraction_prompt_version",
+                            "",
+                        ),
+                        "skill_extraction_confidence": existing_row.get(
+                            "skill_extraction_confidence",
+                            "",
+                        ),
                     }
                 )
                 print(f"[{index}/{len(jobs)}] Reused {job.get('title')}")
@@ -141,12 +207,12 @@ def process_selected_jobs(
 
         print(f"[{index}/{len(jobs)}] Extracting {title} at {job.get('company')}")
 
-        skills, provider, extraction_error = extract_skills_groq_first(
+        extraction_result = extract_skills_groq_first(
             title=title,
             description=description,
         )
 
-        if not skills:
+        if not extraction_result.skills:
             print("  Skipped because no technical skills were extracted.")
             continue
 
@@ -155,11 +221,16 @@ def process_selected_jobs(
                 **job,
                 "clean_title": clean_title,
                 "clean_description": clean_description,
-                "extracted_skills": skills,
-                "skills_text": ", ".join(skills),
+                "extracted_skills": extraction_result.skills,
+                "skills_text": ", ".join(extraction_result.skills),
                 "role_category": categorize_role(title, description),
-                "skill_extraction_provider": provider,
-                "skill_extraction_error": extraction_error,
+                "skill_extraction_provider": extraction_result.provider,
+                "skill_extraction_error": extraction_result.error,
+                "skill_extraction_model": extraction_result.model,
+                "skill_extraction_prompt_version": (
+                    extraction_result.prompt_version
+                ),
+                "skill_extraction_confidence": extraction_result.confidence,
             }
         )
 
@@ -183,6 +254,24 @@ def build_snapshot_run_summary(
         str(row.get("skill_extraction_provider", "")).strip() or "unknown"
         for row in processed_rows
     )
+    prompt_version_counts = Counter(
+        str(row.get("skill_extraction_prompt_version", "")).strip() or "unknown"
+        for row in processed_rows
+    )
+    confidence_values = [
+        confidence
+        for row in processed_rows
+        if (
+            confidence := parse_confidence_value(
+                row.get("skill_extraction_confidence")
+            )
+        ) is not None
+    ]
+    average_confidence = (
+        round(sum(confidence_values) / len(confidence_values), 3)
+        if confidence_values
+        else None
+    )
     extraction_errors = [
         f"{row.get('job_id', 'unknown')}: {row.get('skill_extraction_error')}"
         for row in processed_rows
@@ -205,6 +294,8 @@ def build_snapshot_run_summary(
         metadata={
             "output_path": str(output_path),
             "provider_counts": dict(provider_counts),
+            "prompt_version_counts": dict(prompt_version_counts),
+            "average_extraction_confidence": average_confidence,
             "skipped_count": skipped_count,
         },
     )

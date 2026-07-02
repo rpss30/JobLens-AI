@@ -10,6 +10,7 @@ import pytest
 from src.database import repository
 from src.database.models import (
     Dataset,
+    ExtractionResult,
     IngestionRun,
     JobPosting,
     JobSkill,
@@ -296,6 +297,8 @@ def test_seed_processed_jobs_preserves_source_and_extraction_metadata(monkeypatc
                 "skills_text": "Python, PostgreSQL",
                 "skill_extraction_provider": "groq",
                 "skill_extraction_error": "",
+                "skill_extraction_model": "llama-3.3-70b-versatile",
+                "skill_extraction_prompt_version": "skill-extraction-v2",
             }
         ]
     )
@@ -316,6 +319,9 @@ def test_seed_processed_jobs_preserves_source_and_extraction_metadata(monkeypatc
     processed_job = next(
         item for item in fake_session.added if isinstance(item, ProcessedJob)
     )
+    extraction_result = next(
+        item for item in fake_session.added if isinstance(item, ExtractionResult)
+    )
     skills = [item for item in fake_session.added if isinstance(item, Skill)]
     job_skills = [
         item for item in fake_session.added if isinstance(item, JobSkill)
@@ -330,6 +336,11 @@ def test_seed_processed_jobs_preserves_source_and_extraction_metadata(monkeypatc
     assert job_posting.is_remote is False
     assert processed_job.skill_extraction_provider == "groq"
     assert processed_job.skill_extraction_error is None
+    assert extraction_result.processed_job_id == processed_job.id
+    assert extraction_result.provider == "groq"
+    assert extraction_result.model == "llama-3.3-70b-versatile"
+    assert extraction_result.prompt_version == "skill-extraction-v2"
+    assert extraction_result.extracted_skills == ["Python", "PostgreSQL"]
     assert [skill.normalized_name for skill in skills] == ["python", "postgresql"]
     assert len(job_skills) == 2
 

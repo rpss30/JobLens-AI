@@ -10,9 +10,16 @@ class ErrorResponse(BaseModel):
 
 class AnalyzeRequest(BaseModel):
     current_skills: list[str] = Field(
-        ...,
-        min_length=1,
+        default_factory=list,
         description="Candidate's current skills.",
+    )
+    resume_text: str = Field(
+        default="",
+        max_length=12_000,
+        description=(
+            "Optional pasted resume text for in-memory analysis. Raw text is "
+            "not persisted or returned."
+        ),
     )
     target_roles: list[str] = Field(
         default_factory=list,
@@ -54,11 +61,22 @@ class AnalyzeRequest(BaseModel):
 
     @model_validator(mode="after")
     def require_search_scope(self) -> "AnalyzeRequest":
-        if not self.search_query.strip() and not any(
-            role.strip() for role in self.target_roles
+        has_candidate_profile = bool(self.resume_text.strip()) or any(
+            skill.strip() for skill in self.current_skills
+        )
+
+        if not has_candidate_profile:
+            raise ValueError(
+                "Provide at least one current skill or pasted resume text."
+            )
+
+        if (
+            not self.resume_text.strip()
+            and not self.search_query.strip()
+            and not any(role.strip() for role in self.target_roles)
         ):
             raise ValueError(
-                "Provide a search query or at least one target role."
+                "Provide a search query, at least one target role, or pasted resume text."
             )
 
         return self
@@ -140,6 +158,42 @@ class JobMatch(BaseModel):
     missing_skills_preview: str
 
 
+class LearningPriority(BaseModel):
+    skill: str
+    priority_score: float
+    job_count: int
+    reason: str
+
+
+class ResumeJobMatch(BaseModel):
+    title: str
+    company: str
+    location: str
+    role_category: str
+    fit_score: float
+    skill_fit_score: float
+    resume_similarity: float
+    matched_skills: list[str]
+    missing_skills: list[str]
+    explanation: str
+
+
+class ResumeAnalysis(BaseModel):
+    provided: bool
+    privacy_note: str
+    resume_skills: list[str]
+    combined_skills: list[str]
+    experience_areas: list[str]
+    project_keywords: list[str]
+    fit_score: float
+    matched_skills: list[str]
+    missing_skills: list[str]
+    learning_priorities: list[LearningPriority]
+    suggested_resume_keywords: list[str]
+    top_matching_jobs: list[ResumeJobMatch]
+    explanation: str
+
+
 class AnalyzeResponse(BaseModel):
     dataset_name: str
     best_role: str
@@ -149,3 +203,4 @@ class AnalyzeResponse(BaseModel):
     recommended_skills: list[RecommendedSkill]
     role_scores: list[RoleScore]
     top_matching_jobs: list[JobMatch]
+    resume_analysis: ResumeAnalysis | None = None

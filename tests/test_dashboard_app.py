@@ -8,11 +8,12 @@ from src.dashboard.app import (
     SEARCH_PRESETS,
     align_candidate_summary_with_match_status,
     handle_dataset_action_popover_change,
+    main,
     manage_saved_datasets_dialog,
     show_delete_dataset_popover,
     show_rename_dataset_popover,
 )
-from src.dashboard.components import build_job_card_footer_html
+from src.dashboard.components import build_job_card_footer_html, format_resume_items
 
 
 def test_custom_search_and_profile_start_empty() -> None:
@@ -57,6 +58,20 @@ def test_job_card_footer_does_not_create_blank_html_block() -> None:
         "<span>6 matched</span><span>1 missing</span>"
     )
     assert "\n" not in footer_html
+
+
+def test_resume_item_formatter_uses_readable_fallbacks() -> None:
+    assert format_resume_items(["python", "", "sql"], "None") == "python, sql"
+    assert format_resume_items([], "None") == "None"
+
+
+def test_dashboard_resume_text_is_not_saved_in_analysis_runs() -> None:
+    main_source = inspect.getsource(main)
+
+    assert "resume_text = st.text_area" in main_source
+    assert "pasted resume text is not saved" in main_source
+    assert "current_skills=analysis_skills" in main_source
+    assert "resume_text=resume_text" not in main_source.split("save_analysis_run(")[1]
 
 
 def test_align_candidate_summary_replaces_stale_zero_match_copy() -> None:

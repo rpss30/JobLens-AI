@@ -111,9 +111,9 @@ LIMIT 5;
 
 ## Design tradeoffs
 
-- The schema keeps resume text out of persistent storage for now. Phase 6 can
-  add privacy-conscious resume analysis without mixing sensitive data into the
-  job-market tables.
+- The schema keeps raw resume text out of persistent storage. Resume analysis
+  runs in memory and saved analyses store extracted profile skills and summary
+  outputs rather than private resume content.
 - `ingestion_runs` is intentionally compact: it stores operational status,
   counts, timestamps, and failure messages, while detailed JSON/Markdown run
   artifacts can stay in CI logs or local files.

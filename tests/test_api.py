@@ -39,6 +39,7 @@ def test_analyze_returns_candidate_fit_summary() -> None:
     assert "recommended_skills" in data
     assert "role_scores" in data
     assert "top_matching_jobs" in data
+    assert data["resume_analysis"] is None
 
     assert len(data["recommended_skills"]) <= 5
     assert len(data["top_matching_jobs"]) <= 5
@@ -107,6 +108,43 @@ def test_analyze_supports_semantic_search_mode() -> None:
     assert first_job_match["search_relevance"] == first_job_match[
         "semantic_relevance"
     ]
+
+
+def test_analyze_supports_resume_text_without_manual_skills_or_search_scope() -> None:
+    resume_text = """
+    Built FastAPI REST APIs with Python, PostgreSQL, Docker, AWS, CI/CD,
+    monitoring dashboards, and SQL-backed analytics projects.
+    """
+
+    response = client.post(
+        "/analyze",
+        json={
+            "current_skills": [],
+            "resume_text": resume_text,
+            "target_roles": [],
+            "search_query": "",
+            "location": "Any",
+            "experience_level": "Any",
+            "top_n": 5,
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+    resume_analysis = data["resume_analysis"]
+    serialized_response = str(data)
+
+    assert resume_analysis["provided"] is True
+    assert "not persisted" in resume_analysis["privacy_note"]
+    assert resume_text.strip() not in serialized_response
+    assert "python" in resume_analysis["combined_skills"]
+    assert "postgresql" in resume_analysis["combined_skills"]
+    assert resume_analysis["fit_score"] >= 0
+    assert resume_analysis["learning_priorities"]
+    assert resume_analysis["suggested_resume_keywords"]
+    assert resume_analysis["top_matching_jobs"]
+    assert resume_analysis["top_matching_jobs"][0]["explanation"]
 
 
 def test_analyze_returns_404_when_no_jobs_match() -> None:

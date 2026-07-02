@@ -120,6 +120,7 @@ LIMIT 5;
 - `extraction_results` stores compact LLM provenance when processed datasets
   include model or prompt-version metadata. Raw model responses remain optional
   to avoid bloating committed CSV snapshots.
-- `pgvector` is deferred. The current schema can support explainable TF-IDF and
-  skill-based scoring today; semantic embeddings are best added after the core
-  data model is stable and there is a clear search-quality need.
+- `pgvector` is deferred. Semantic search currently uses local deterministic SVD
+  embeddings over in-memory job snapshots; pgvector becomes worthwhile when
+  embeddings need to be persisted, indexed, and refreshed in the background for
+  larger datasets.

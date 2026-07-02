@@ -98,6 +98,7 @@ The dashboard also shows market-level insights such as top required skills, role
 - Role distribution and top hiring companies
 - Interactive Streamlit dashboard with controlled search presets and profile presets
 - Free-text TF-IDF job search across titles, skills, employers, locations, and descriptions
+- Optional semantic and hybrid search modes using local deterministic SVD embeddings
 - Optional PostgreSQL-backed data loading with CSV fallback
 - Local database seeding script for processed job postings
 - Custom CSV upload validation and error handling
@@ -219,9 +220,11 @@ receive full credit. Categories backed by only one or two postings remain
 visible but are marked as limited-confidence and cannot displace a category with
 a representative sample in the headline result.
 
-Free-text job search is calculated separately from candidate skill fit. Word
-and character TF-IDF rank postings across titles, extracted skills, role
-categories, employers, locations, and descriptions. Structured role, location,
+Free-text job search is calculated separately from candidate skill fit. The
+default TF-IDF mode ranks postings across titles, extracted skills, role
+categories, employers, locations, and descriptions. Semantic mode uses local
+SVD embeddings over the same job documents to support conceptual queries, and
+hybrid mode blends lexical and semantic relevance. Structured role, location,
 and experience filters can further narrow that relevant posting set before the
 matching engine calculates role fit and skill gaps.
 
@@ -314,6 +317,7 @@ JobLens AI
 ├── docs
 │   ├── ai-extraction.md
 │   ├── database.md
+│   ├── semantic-search.md
 │   └── aws-deployment.md
 ├── scripts
 │   ├── fetch_greenhouse_jobs.py
@@ -354,6 +358,8 @@ JobLens AI
 │   │   └── job_processor.py
 │   ├── matching
 │   │   └── match_engine.py
+│   ├── search
+│   │   └── semantic_search.py
 │   └── dashboard
 │       ├── app.py
 │       ├── charts.py
@@ -672,6 +678,9 @@ python scripts/evaluate_skill_extraction.py --minimum-average-recall 0.85
 See [docs/ai-extraction.md](docs/ai-extraction.md) for the structured output
 contract, fallback behavior, extraction metadata, and evaluation strategy.
 
+See [docs/semantic-search.md](docs/semantic-search.md) for the local semantic
+search design, hybrid scoring behavior, and `pgvector` tradeoff.
+
 
 ## Current Status
 
@@ -715,6 +724,7 @@ Completed:
 - AWS deployment helpers for ECR, RDS PostgreSQL, ALB, and ECS Fargate
 - Multi-employer Canadian ingestion and a curated Groq-enriched snapshot
 - Structured AI skill extraction contract and offline quality evaluation
+- Semantic and hybrid job search modes with local deterministic embeddings
 - Verified AWS deployment with private RDS, Secrets Manager, ALB, and ECS Fargate
 
 Not built yet:

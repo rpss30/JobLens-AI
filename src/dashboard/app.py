@@ -24,6 +24,7 @@ from src.dashboard.charts import (
 )
 from src.dashboard.components import (
     show_candidate_fit_summary,
+    show_resume_match_analysis,
     show_role_explanations,
     show_role_summary_cards,
     show_top_job_match_cards,
@@ -57,6 +58,7 @@ from src.matching.match_engine import (
     select_best_role_row,
 )
 from src.processing.job_processor import process_jobs
+from src.resume.resume_analyzer import analyze_resume_against_jobs
 from src.search.semantic_search import (
     HYBRID_SEARCH_MODE,
     SEMANTIC_SEARCH_MODE,
@@ -1308,6 +1310,16 @@ def main() -> None:
             default=default_skills,
         )
 
+        resume_text = st.text_area(
+            "Resume text",
+            placeholder="Paste resume text for private in-memory matching",
+            height=160,
+            help=(
+                "Optional. Resume text is used for this analysis run only and "
+                "is not stored in PostgreSQL."
+            ),
+        )
+
         analyze_button = st.button("Analyze Jobs", type="primary")
         
         if analyze_button:
@@ -1315,20 +1327,22 @@ def main() -> None:
 
     if not st.session_state.analysis_requested:
         st.info(
-            "Search for jobs or select target roles, add your skills, "
-            "then click **Analyze Jobs**."
+            "Search for jobs, select target roles, add your skills, or paste "
+            "resume text, then click **Analyze Jobs**."
         )
         return
 
-    if not target_roles and not search_query.strip():
+    has_resume_text = bool(resume_text.strip())
+
+    if not target_roles and not search_query.strip() and not has_resume_text:
         st.warning(
-            "Please enter a job search or select at least one target role."
+            "Please enter a job search, select at least one target role, or paste resume text."
         )
         return
 
-    if not current_skills:
+    if not current_skills and not has_resume_text:
         st.warning(
-            "Please select at least one current skill before analyzing jobs."
+            "Please select at least one current skill or paste resume text before analyzing jobs."
         )
         return
 
@@ -1347,16 +1361,29 @@ def main() -> None:
             "roles, or clearing the location filter."
         )
         return
+
+    resume_analysis = None
+    analysis_skills = current_skills
+
+    if has_resume_text:
+        resume_analysis = analyze_resume_against_jobs(
+            jobs_df=filtered_jobs,
+            resume_text=resume_text,
+            current_skills=current_skills,
+            target_roles=target_roles,
+        )
+        analysis_skills = resume_analysis["combined_skills"]
+
     role_skill_weights = build_role_skill_weights(filtered_jobs)
 
     role_scores_df = score_roles(
         filtered_jobs,
-        current_skills,
+        analysis_skills,
     )
 
     recommended_skills_df = get_recommended_skills(
         jobs_df=filtered_jobs,
-        user_skills=current_skills,
+        user_skills=analysis_skills,
         role_skill_weights=role_skill_weights,
         top_n=10,
     )
@@ -1400,7 +1427,7 @@ def main() -> None:
         st.metric("Jobs analyzed", jobs_analyzed)
 
     with col5:
-        st.metric("Current skills", len(current_skills))
+        st.metric("Profile skills", len(analysis_skills))
     
     st.caption(
         "Role skill fit scores individual postings, weights market-relevant skills, "
@@ -1419,6 +1446,12 @@ def main() -> None:
                 value=default_analysis_name,
                 help="Give this analysis a readable name so you can find it later.",
             )
+
+            if resume_analysis:
+                st.caption(
+                    "Saving stores extracted profile skills and summary outputs only; "
+                    "pasted resume text is not saved."
+                )
 
             save_run_button = st.button("Save analysis run")
 
@@ -1439,7 +1472,7 @@ def main() -> None:
                         target_roles=target_roles,
                         location=location,
                         experience_level=experience_level,
-                        current_skills=current_skills,
+                        current_skills=analysis_skills,
                         best_role=best_role,
                         weighted_match_score=float(best_score),
                         top_missing_skill=top_missing_skill,
@@ -1461,6 +1494,10 @@ def main() -> None:
 
     show_candidate_fit_summary(candidate_summary)
 
+    if resume_analysis:
+        st.divider()
+        show_resume_match_analysis(resume_analysis)
+
     top_skills_df = get_top_skills(filtered_jobs, top_n=10)
     weighted_top_skills_df = get_role_weighted_top_skills(
         filtered_jobs,
@@ -1469,7 +1506,7 @@ def main() -> None:
     )
     top_companies_df = get_top_companies(filtered_jobs, top_n=10)
     jobs_by_location_df = get_jobs_by_location(filtered_jobs)
-    job_match_details_df = get_job_match_details(filtered_jobs, current_skills)
+    job_match_details_df = get_job_match_details(filtered_jobs, analysis_skills)
 
     if use_database:
         report_dataset_name = selected_database_dataset
@@ -1477,7 +1514,7 @@ def main() -> None:
         report_dataset_name = dataset_source
 
     candidate_report_markdown = generate_candidate_report_markdown(
-        current_skills=current_skills,
+        current_skills=analysis_skills,
         target_roles=target_roles,
         location=location,
         experience_level=experience_level,
@@ -1492,7 +1529,7 @@ def main() -> None:
     )
 
     candidate_report_pdf = generate_candidate_report_pdf(
-        current_skills=current_skills,
+        current_skills=analysis_skills,
         target_roles=target_roles,
         location=location,
         experience_level=experience_level,

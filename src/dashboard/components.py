@@ -175,6 +175,135 @@ def show_candidate_fit_summary(candidate_summary: dict) -> None:
         else:
             st.write("No major gaps found.")
 
+
+def format_resume_items(items: list[str], fallback: str) -> str:
+    clean_items = [str(item).strip() for item in items if str(item).strip()]
+    return ", ".join(clean_items) if clean_items else fallback
+
+
+def show_resume_match_analysis(resume_analysis: dict | None) -> None:
+    """Show resume-derived match evidence without exposing raw resume text."""
+    if not resume_analysis:
+        return
+
+    st.subheader("Resume Match")
+    st.caption(resume_analysis.get("privacy_note", "Resume text is not stored."))
+
+    metric_cols = st.columns(4)
+
+    with metric_cols[0]:
+        st.metric("Resume fit", f"{resume_analysis.get('fit_score', 0):.1f}%")
+
+    with metric_cols[1]:
+        st.metric("Extracted skills", len(resume_analysis.get("resume_skills", [])))
+
+    with metric_cols[2]:
+        st.metric("Experience areas", len(resume_analysis.get("experience_areas", [])))
+
+    top_jobs = resume_analysis.get("top_matching_jobs", [])
+    top_job_score = top_jobs[0]["fit_score"] if top_jobs else 0
+
+    with metric_cols[3]:
+        st.metric("Top job fit", f"{top_job_score:.1f}%")
+
+    st.write(resume_analysis.get("explanation", ""))
+
+    strengths_col, gaps_col = st.columns(2)
+
+    with strengths_col:
+        st.markdown("**Resume skills found**")
+        st.write(
+            format_resume_items(
+                resume_analysis.get("resume_skills", [])[:12],
+                "No known JobLens skills were found in the pasted resume text.",
+            )
+        )
+        st.markdown("**Experience signals**")
+        st.write(
+            format_resume_items(
+                resume_analysis.get("experience_areas", []),
+                "No specific experience areas were detected.",
+            )
+        )
+
+    with gaps_col:
+        st.markdown("**Matched skills**")
+        st.write(
+            format_resume_items(
+                resume_analysis.get("matched_skills", []),
+                "No strong role-skill matches yet.",
+            )
+        )
+        st.markdown("**Missing skills**")
+        st.write(
+            format_resume_items(
+                resume_analysis.get("missing_skills", []),
+                "No major missing skills for the current filter.",
+            )
+        )
+
+    learning_priorities = resume_analysis.get("learning_priorities", [])
+
+    if learning_priorities:
+        st.markdown("**Learning priorities**")
+        st.dataframe(
+            pd.DataFrame(learning_priorities)[
+                ["skill", "priority_score", "job_count", "reason"]
+            ],
+            use_container_width=True,
+            hide_index=True,
+        )
+
+    suggested_keywords = resume_analysis.get("suggested_resume_keywords", [])
+
+    if suggested_keywords:
+        st.markdown("**Suggested resume keywords**")
+        st.write(
+            format_resume_items(
+                suggested_keywords,
+                "No additional keywords to suggest.",
+            )
+        )
+        st.caption("Only add keywords that accurately reflect your experience.")
+
+    if top_jobs:
+        st.markdown("**Top resume-matched jobs**")
+
+    for index, job in enumerate(top_jobs[:5]):
+        title = str(job.get("title", "Untitled Role"))
+        company = str(job.get("company", "Unknown Company"))
+        fit_score = float(job.get("fit_score", 0.0))
+
+        with st.expander(
+            f"{title} at {company} — {fit_score:.1f}% fit",
+            expanded=index == 0,
+        ):
+            col_a, col_b, col_c = st.columns(3)
+
+            with col_a:
+                st.metric("Skill fit", f"{float(job.get('skill_fit_score', 0)):.1f}%")
+
+            with col_b:
+                st.metric(
+                    "Resume similarity",
+                    f"{float(job.get('resume_similarity', 0)):.1f}%",
+                )
+
+            with col_c:
+                st.write("**Role**")
+                st.write(str(job.get("role_category", "Other")))
+
+            st.write(str(job.get("explanation", "")))
+            st.write(
+                "**Matched:** "
+                + format_resume_items(job.get("matched_skills", []), "None")
+            )
+            st.write(
+                "**Missing:** "
+                + format_resume_items(job.get("missing_skills", []), "None")
+            )
+
+
 def show_top_job_match_cards(
     job_match_details_df: pd.DataFrame,
     top_n: int = 5,

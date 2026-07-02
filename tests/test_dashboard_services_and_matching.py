@@ -12,7 +12,9 @@ from src.dashboard.services import (
     get_job_match_details,
     get_positive_job_matches,
     get_recommended_skills,
+    rank_jobs_by_hybrid_search_query,
     rank_jobs_by_search_query,
+    rank_jobs_by_semantic_search_query,
     read_uploaded_jobs_csv,
     validate_uploaded_jobs_csv,
 )
@@ -190,6 +192,31 @@ def test_rank_jobs_by_search_query_supports_location_only_query() -> None:
     ]
 
 
+def test_rank_jobs_by_semantic_search_query_matches_conceptual_terms() -> None:
+    ranked_df = rank_jobs_by_semantic_search_query(
+        make_sample_jobs_df(),
+        "server-side database APIs",
+    )
+
+    assert ranked_df.iloc[0]["title"] == "Backend Developer"
+    assert ranked_df.iloc[0]["semantic_relevance"] > 0
+    assert ranked_df.iloc[0]["search_relevance"] == ranked_df.iloc[0][
+        "semantic_relevance"
+    ]
+
+
+def test_rank_jobs_by_hybrid_search_query_combines_relevance_scores() -> None:
+    ranked_df = rank_jobs_by_hybrid_search_query(
+        make_sample_jobs_df(),
+        "backend PostgreSQL",
+    )
+
+    assert ranked_df.iloc[0]["title"] == "Backend Developer"
+    assert ranked_df.iloc[0]["tfidf_relevance"] > 0
+    assert ranked_df.iloc[0]["semantic_relevance"] > 0
+    assert ranked_df.iloc[0]["search_relevance"] > 0
+
+
 def test_filter_jobs_combines_free_text_and_structured_filters() -> None:
     filtered_df = filter_jobs(
         df=make_sample_jobs_df(),
@@ -201,6 +228,20 @@ def test_filter_jobs_combines_free_text_and_structured_filters() -> None:
 
     assert filtered_df["title"].tolist() == ["AWS Cloud Engineer"]
     assert filtered_df.iloc[0]["search_relevance"] > 0
+
+
+def test_filter_jobs_supports_semantic_search_mode() -> None:
+    filtered_df = filter_jobs(
+        df=make_sample_jobs_df(),
+        target_roles=[],
+        location="Any",
+        experience_level="Any",
+        search_query="server-side database APIs",
+        search_mode="semantic",
+    )
+
+    assert filtered_df.iloc[0]["title"] == "Backend Developer"
+    assert filtered_df.iloc[0]["semantic_relevance"] > 0
 
 def test_filter_jobs_does_not_match_only_generic_engineer_word() -> None:
     jobs_df = make_sample_jobs_df()
@@ -647,6 +688,7 @@ def test_generate_candidate_report_markdown_includes_key_sections() -> None:
         "- Free-text search: data scientist experimentation"
         in report_markdown
     )
+    assert "- Search mode: tfidf" in report_markdown
     assert "## Analysis Inputs" in report_markdown
     assert "## Fit Overview" in report_markdown
     assert "## Candidate Fit Summary" in report_markdown

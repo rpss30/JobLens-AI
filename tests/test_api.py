@@ -83,6 +83,32 @@ def test_analyze_supports_free_text_search_without_target_roles() -> None:
     assert data["top_matching_jobs"][0]["search_relevance"] > 0
 
 
+def test_analyze_supports_semantic_search_mode() -> None:
+    response = client.post(
+        "/analyze",
+        json={
+            "current_skills": ["Python", "PostgreSQL", "Docker"],
+            "target_roles": [],
+            "search_query": "server-side database APIs",
+            "search_mode": "semantic",
+            "location": "Any",
+            "experience_level": "Any",
+            "top_n": 5,
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+    first_job_match = data["top_matching_jobs"][0]
+
+    assert first_job_match["search_mode"] == "semantic"
+    assert first_job_match["semantic_relevance"] > 0
+    assert first_job_match["search_relevance"] == first_job_match[
+        "semantic_relevance"
+    ]
+
+
 def test_analyze_returns_404_when_no_jobs_match() -> None:
     response = client.post(
         "/analyze",

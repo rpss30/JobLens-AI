@@ -57,6 +57,11 @@ from src.matching.match_engine import (
     select_best_role_row,
 )
 from src.processing.job_processor import process_jobs
+from src.search.semantic_search import (
+    HYBRID_SEARCH_MODE,
+    SEMANTIC_SEARCH_MODE,
+    TFIDF_SEARCH_MODE,
+)
 from src.database.repository import (
     build_analysis_run_name,
     build_custom_dataset_name,
@@ -1216,6 +1221,17 @@ def main() -> None:
             icon=":material/search:",
         )
 
+        search_mode_label = st.segmented_control(
+            "Search mode",
+            options=["TF-IDF", "Semantic", "Hybrid"],
+            default="TF-IDF",
+        )
+        search_mode = {
+            "TF-IDF": TFIDF_SEARCH_MODE,
+            "Semantic": SEMANTIC_SEARCH_MODE,
+            "Hybrid": HYBRID_SEARCH_MODE,
+        }[search_mode_label or "TF-IDF"]
+
         search_preset = st.selectbox(
             "Try a sample search",
             list(SEARCH_PRESETS.keys()),
@@ -1322,6 +1338,7 @@ def main() -> None:
         location=location,
         experience_level=experience_level,
         search_query=search_query,
+        search_mode=search_mode,
     )
 
     if filtered_jobs.empty:
@@ -1471,6 +1488,7 @@ def main() -> None:
         candidate_fit_summary=candidate_summary,
         dataset_name=report_dataset_name,
         search_query=search_query,
+        search_mode=search_mode,
     )
 
     candidate_report_pdf = generate_candidate_report_pdf(
@@ -1485,6 +1503,7 @@ def main() -> None:
         candidate_fit_summary=candidate_summary,
         dataset_name=report_dataset_name,
         search_query=search_query,
+        search_mode=search_mode,
     )
 
     markdown_download_col, pdf_download_col = st.columns(2)

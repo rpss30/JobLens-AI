@@ -33,6 +33,13 @@ from src.matching.match_engine import (
     select_best_role_row,
 )
 from src.processing.job_processor import process_jobs
+from src.search.semantic_search import (
+    HYBRID_SEARCH_MODE,
+    SEMANTIC_SEARCH_MODE,
+    TFIDF_SEARCH_MODE,
+    normalize_search_mode,
+    rank_jobs_by_semantic_query,
+)
 
 
 RAW_DATA_PATH = "data/raw/sample_jobs.csv"
@@ -313,12 +320,82 @@ def rank_jobs_by_search_query(
     )
 
 
+def rank_jobs_by_semantic_search_query(
+    df: pd.DataFrame,
+    search_query: str,
+) -> pd.DataFrame:
+    """Filter and rank jobs with local semantic relevance scores."""
+    ranked_df = rank_jobs_by_semantic_query(df, search_query)
+
+    if "semantic_relevance" not in ranked_df.columns:
+        ranked_df["semantic_relevance"] = 0.0
+
+    if str(search_query or "").strip():
+        ranked_df["search_relevance"] = ranked_df["semantic_relevance"]
+        ranked_df["search_mode"] = SEMANTIC_SEARCH_MODE
+
+    return ranked_df
+
+
+def rank_jobs_by_hybrid_search_query(
+    df: pd.DataFrame,
+    search_query: str,
+) -> pd.DataFrame:
+    """Blend lexical TF-IDF relevance with local semantic relevance."""
+    query = str(search_query or "").strip()
+
+    if not query:
+        return df.copy()
+
+    tfidf_ranked_df = rank_jobs_by_search_query(df, query)
+    semantic_ranked_df = rank_jobs_by_semantic_search_query(df, query)
+    ranked_indexes = list(
+        dict.fromkeys([
+            *tfidf_ranked_df.index.tolist(),
+            *semantic_ranked_df.index.tolist(),
+        ])
+    )
+
+    if not ranked_indexes:
+        empty_df = df.iloc[0:0].copy()
+        empty_df["search_relevance"] = pd.Series(dtype=float)
+        empty_df["tfidf_relevance"] = pd.Series(dtype=float)
+        empty_df["semantic_relevance"] = pd.Series(dtype=float)
+        empty_df["search_mode"] = HYBRID_SEARCH_MODE
+        return empty_df
+
+    ranked_df = df.loc[ranked_indexes].copy()
+    tfidf_scores = tfidf_ranked_df["search_relevance"].to_dict()
+    semantic_scores = semantic_ranked_df["semantic_relevance"].to_dict()
+
+    ranked_df["tfidf_relevance"] = [
+        float(tfidf_scores.get(index, 0.0))
+        for index in ranked_df.index
+    ]
+    ranked_df["semantic_relevance"] = [
+        float(semantic_scores.get(index, 0.0))
+        for index in ranked_df.index
+    ]
+    ranked_df["search_relevance"] = (
+        (ranked_df["tfidf_relevance"] * 0.45)
+        + (ranked_df["semantic_relevance"] * 0.55)
+    ).round(1)
+    ranked_df["search_mode"] = HYBRID_SEARCH_MODE
+
+    return ranked_df.sort_values(
+        by="search_relevance",
+        ascending=False,
+        kind="stable",
+    )
+
+
 def filter_jobs(
     df: pd.DataFrame,
     target_roles: list[str],
     location: str,
     experience_level: str,
     search_query: str = "",
+    search_mode: str = TFIDF_SEARCH_MODE,
 ) -> pd.DataFrame:
     """
     Filter jobs based on user input.
@@ -491,6 +568,14 @@ def filter_jobs(
             .str.strip()
             .str.contains(selected_experience, na=False)
         ]
+
+    normalized_search_mode = normalize_search_mode(search_mode)
+
+    if normalized_search_mode == SEMANTIC_SEARCH_MODE:
+        return rank_jobs_by_semantic_search_query(filtered_df, search_query)
+
+    if normalized_search_mode == HYBRID_SEARCH_MODE:
+        return rank_jobs_by_hybrid_search_query(filtered_df, search_query)
 
     return rank_jobs_by_search_query(filtered_df, search_query)
 
@@ -676,6 +761,9 @@ def get_job_match_details(
             "source": row.get("source", ""),
             "source_url": row.get("source_url", ""),
             "search_relevance": float(row.get("search_relevance", 0.0)),
+            "semantic_relevance": float(row.get("semantic_relevance", 0.0)),
+            "tfidf_relevance": float(row.get("tfidf_relevance", 0.0)),
+            "search_mode": row.get("search_mode", TFIDF_SEARCH_MODE),
             "job_match_score": job_score["weighted_match_score"],
             "unweighted_job_match_score": job_score["unweighted_match_score"],
             "matched_skills_count": len(matched_skills),
@@ -955,6 +1043,7 @@ def generate_candidate_report_markdown(
     candidate_fit_summary: dict | None = None,
     dataset_name: str = "Current dataset",
     search_query: str = "",
+    search_mode: str = TFIDF_SEARCH_MODE,
 ) -> str:
     """
     Generate a downloadable Markdown candidate skill-gap report.
@@ -1028,6 +1117,7 @@ def generate_candidate_report_markdown(
         "",
         f"- Dataset: {dataset_name}",
         f"- Free-text search: {search_query.strip() or 'None'}",
+        f"- Search mode: {normalize_search_mode(search_mode)}",
         f"- Target roles: {format_list(target_roles)}",
         f"- Location filter: {location or 'Any'}",
         f"- Experience level filter: {experience_level or 'Any'}",
@@ -1173,6 +1263,7 @@ def generate_candidate_report_pdf(
     candidate_fit_summary: dict | None = None,
     dataset_name: str = "Current dataset",
     search_query: str = "",
+    search_mode: str = TFIDF_SEARCH_MODE,
 ) -> bytes:
     """
     Generate a downloadable PDF candidate skill-gap report.
@@ -1379,6 +1470,7 @@ def generate_candidate_report_pdf(
             rows=[
                 ["Dataset", dataset_name],
                 ["Free-text search", search_query.strip() or "None"],
+                ["Search mode", normalize_search_mode(search_mode)],
                 ["Target roles", format_list(target_roles)],
                 ["Location filter", location or "Any"],
                 ["Experience level filter", experience_level or "Any"],

@@ -11,12 +11,18 @@ class FakeGeminiResult:
     def __init__(self, skills):
         self.skills = skills
         self.raw_response = '{"skills": []}'
+        self.model = "gemini-test"
+        self.prompt_version = "skill-extraction-v2"
+        self.skill_items = []
 
 
 class FakeGroqResult:
     def __init__(self, skills):
         self.skills = skills
         self.raw_response = '{"skills": []}'
+        self.model = "groq-test"
+        self.prompt_version = "skill-extraction-v2"
+        self.skill_items = []
 
 
 def test_extract_skills_ai_first_uses_groq_when_available(monkeypatch):
@@ -37,6 +43,9 @@ def test_extract_skills_ai_first_uses_groq_when_available(monkeypatch):
     assert result.skills == ["python", "sql"]
     assert result.provider == GROQ_PROVIDER
     assert result.error == ""
+    assert result.raw_response == '{"skills": []}'
+    assert result.model == "groq-test"
+    assert result.prompt_version == "skill-extraction-v2"
 
 
 def test_extract_skills_ai_first_uses_gemini_when_groq_fails(monkeypatch):
@@ -66,6 +75,8 @@ def test_extract_skills_ai_first_uses_gemini_when_groq_fails(monkeypatch):
     assert result.skills == ["python", "aws"]
     assert result.provider == GEMINI_PROVIDER
     assert result.error == ""
+    assert result.model == "gemini-test"
+    assert result.prompt_version == "skill-extraction-v2"
 
 
 def test_extract_skills_ai_first_uses_deterministic_when_groq_and_gemini_fail(

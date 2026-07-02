@@ -118,6 +118,16 @@ def process_jobs_with_ai(
         processed_row["role_category"] = categorize_role(title, description)
         processed_row["skill_extraction_provider"] = extraction_result.provider
         processed_row["skill_extraction_error"] = extraction_result.error
+        processed_row["skill_extraction_model"] = getattr(
+            extraction_result,
+            "model",
+            "",
+        )
+        processed_row["skill_extraction_prompt_version"] = getattr(
+            extraction_result,
+            "prompt_version",
+            "",
+        )
 
         processed_rows.append(processed_row)
 

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -22,6 +22,13 @@ class AnalyzeRequest(BaseModel):
         default="",
         max_length=200,
         description="Optional free-text query used to rank relevant jobs.",
+    )
+    search_mode: Literal["tfidf", "semantic", "hybrid"] = Field(
+        default="tfidf",
+        description=(
+            "Search ranking mode. Use 'tfidf' for lexical relevance, "
+            "'semantic' for dense local similarity, or 'hybrid' to blend both."
+        ),
     )
     location: str = Field(
         default="Any",
@@ -121,6 +128,9 @@ class JobMatch(BaseModel):
     experience_level: str
     role_category: str
     search_relevance: float
+    semantic_relevance: float = 0.0
+    tfidf_relevance: float = 0.0
+    search_mode: str = "tfidf"
     job_match_score: float
     matched_skills_count: int
     related_skills_count: int

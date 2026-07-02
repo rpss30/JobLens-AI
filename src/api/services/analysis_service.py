@@ -169,6 +169,9 @@ def build_analyze_response(
             "experience_level": str(row["experience_level"]),
             "role_category": str(row["role_category"]),
             "search_relevance": float(row["search_relevance"]),
+            "semantic_relevance": float(row.get("semantic_relevance", 0.0)),
+            "tfidf_relevance": float(row.get("tfidf_relevance", 0.0)),
+            "search_mode": str(row.get("search_mode", "tfidf")),
             "job_match_score": float(row["job_match_score"]),
             "matched_skills_count": int(row["matched_skills_count"]),
             "related_skills_count": int(row["related_skills_count"]),
@@ -201,6 +204,7 @@ def analyze_jobs(request: AnalyzeRequest) -> AnalyzeResponse:
         location=request.location,
         experience_level=request.experience_level,
         search_query=request.search_query,
+        search_mode=request.search_mode,
     )
 
     if filtered_jobs.empty:

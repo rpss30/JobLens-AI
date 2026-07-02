@@ -92,6 +92,7 @@ The dashboard also shows market-level insights such as top required skills, role
 - Skill-gap analysis based on selected candidate skills
 - Recommended skills ranked by market demand and role importance
 - Candidate fit summary with highlighted strengths and gaps
+- Privacy-conscious resume text analysis with extracted skills, fit score, gaps, and job-level explanations
 - Downloadable Markdown and PDF candidate skill-gap reports
 - Top matching job cards with job-level evidence
 - Jobs-by-location market insight
@@ -228,6 +229,11 @@ hybrid mode blends lexical and semantic relevance. Structured role, location,
 and experience filters can further narrow that relevant posting set before the
 matching engine calculates role fit and skill gaps.
 
+Resume analysis is optional. Pasted resume text is analyzed in memory, converted
+into extracted skills and experience signals, and combined with manually selected
+skills for role-fit scoring. Raw resume text is not saved to PostgreSQL, returned
+by the API, or stored in saved analysis runs.
+
 
 
 ## Role-Specific Skill Weighting
@@ -317,6 +323,7 @@ JobLens AI
 ├── docs
 │   ├── ai-extraction.md
 │   ├── database.md
+│   ├── resume-analysis.md
 │   ├── semantic-search.md
 │   └── aws-deployment.md
 ├── scripts
@@ -356,6 +363,8 @@ JobLens AI
 │   │   └── schema.py
 │   ├── processing
 │   │   └── job_processor.py
+│   ├── resume
+│   │   └── resume_analyzer.py
 │   ├── matching
 │   │   └── match_engine.py
 │   ├── search
@@ -426,6 +435,7 @@ curl -X POST http://127.0.0.1:8000/analyze \
   -H "Content-Type: application/json" \
   -d '{
     "current_skills": ["Python", "SQL", "Pandas"],
+    "resume_text": "",
     "search_query": "data scientist experimentation",
     "target_roles": [],
     "location": "Any",
@@ -681,6 +691,9 @@ contract, fallback behavior, extraction metadata, and evaluation strategy.
 See [docs/semantic-search.md](docs/semantic-search.md) for the local semantic
 search design, hybrid scoring behavior, and `pgvector` tradeoff.
 
+See [docs/resume-analysis.md](docs/resume-analysis.md) for resume matching
+behavior, API usage, privacy boundaries, and tradeoffs.
+
 
 ## Current Status
 
@@ -725,6 +738,7 @@ Completed:
 - Multi-employer Canadian ingestion and a curated Groq-enriched snapshot
 - Structured AI skill extraction contract and offline quality evaluation
 - Semantic and hybrid job search modes with local deterministic embeddings
+- Privacy-conscious paste-in resume analysis with API and dashboard support
 - Verified AWS deployment with private RDS, Secrets Manager, ALB, and ECS Fargate
 
 Not built yet:
@@ -744,6 +758,7 @@ Not built yet:
 - Match scores are designed for explainability, not as a production hiring recommendation system.
 - Dataset management currently supports naming, renaming, and deleting uploaded CSV datasets, but not editing individual job posting rows.
 - Saved analysis run loading currently shows a preview only; it does not yet repopulate sidebar filters or automatically rerun the dashboard.
+- Resume analysis currently supports paste-in text, not PDF or DOCX uploads.
 - AWS provisioning is automated with shell helpers, but not yet managed as declarative infrastructure with Terraform, CloudFormation, or CDK.
 - The current AWS demo uses an HTTP ALB endpoint without a custom domain or TLS certificate.
 

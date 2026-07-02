@@ -18,6 +18,7 @@ from src.matching.match_engine import (
     select_best_role_row,
 )
 from src.processing.job_processor import process_jobs
+from src.resume.resume_analyzer import analyze_resume_against_jobs
 
 
 RAW_DATA_PATH = "data/raw/sample_jobs.csv"
@@ -105,25 +106,39 @@ def build_analyze_response(
     dataset_name: str,
     filtered_jobs: pd.DataFrame,
     current_skills: list[str],
+    resume_text: str = "",
+    target_roles: list[str] | None = None,
     top_n: int,
 ) -> AnalyzeResponse:
+    resume_analysis = None
+    analysis_skills = current_skills
+
+    if resume_text.strip():
+        resume_analysis = analyze_resume_against_jobs(
+            jobs_df=filtered_jobs,
+            resume_text=resume_text,
+            current_skills=current_skills,
+            target_roles=target_roles or [],
+        )
+        analysis_skills = list(resume_analysis["combined_skills"])
+
     role_skill_weights = build_role_skill_weights(filtered_jobs)
 
     role_scores_df = score_roles(
         filtered_jobs,
-        current_skills,
+        analysis_skills,
     )
 
     recommended_skills_df = get_recommended_skills(
         jobs_df=filtered_jobs,
-        user_skills=current_skills,
+        user_skills=analysis_skills,
         role_skill_weights=role_skill_weights,
         top_n=top_n,
     )
 
     job_match_details_df = get_job_match_details(
         filtered_jobs=filtered_jobs,
-        user_skills=current_skills,
+        user_skills=analysis_skills,
     )
     positive_job_matches_df = get_positive_job_matches(job_match_details_df)
 
@@ -192,6 +207,7 @@ def build_analyze_response(
         recommended_skills=recommended_skills,
         role_scores=role_scores,
         top_matching_jobs=top_matching_jobs,
+        resume_analysis=resume_analysis,
     )
 
 
@@ -220,5 +236,7 @@ def analyze_jobs(request: AnalyzeRequest) -> AnalyzeResponse:
         dataset_name=dataset_name,
         filtered_jobs=filtered_jobs,
         current_skills=request.current_skills,
+        resume_text=request.resume_text,
+        target_roles=request.target_roles,
         top_n=request.top_n,
     )

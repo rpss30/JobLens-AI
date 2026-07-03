@@ -8,6 +8,12 @@ node_modules/
 dist/
 build/
 
+# Test and coverage artifacts
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
 # Generated real-job ingestion outputs
 data/raw/greenhouse_jobs.csv
 data/raw/lever_jobs.csv

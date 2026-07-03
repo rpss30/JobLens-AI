@@ -243,6 +243,21 @@ def test_filter_jobs_supports_semantic_search_mode() -> None:
     assert filtered_df.iloc[0]["title"] == "Backend Developer"
     assert filtered_df.iloc[0]["semantic_relevance"] > 0
 
+
+def test_filter_jobs_semantic_mode_rejects_generic_role_word_noise() -> None:
+    filtered_df = filter_jobs(
+        df=make_sample_jobs_df(),
+        target_roles=[],
+        location="Any",
+        experience_level="Any",
+        search_query="quantum banana engineer",
+        search_mode="semantic",
+    )
+
+    assert filtered_df.empty
+    assert "semantic_relevance" in filtered_df.columns
+
+
 def test_filter_jobs_does_not_match_only_generic_engineer_word() -> None:
     jobs_df = make_sample_jobs_df()
 

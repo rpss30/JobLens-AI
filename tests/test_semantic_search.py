@@ -71,6 +71,44 @@ def test_rank_jobs_by_semantic_query_returns_empty_for_unrelated_query() -> None
     assert "semantic_relevance" in ranked_df.columns
 
 
+def test_rank_jobs_by_semantic_query_ignores_generic_role_word_noise() -> None:
+    ranked_df = rank_jobs_by_semantic_query(
+        make_semantic_jobs_df(),
+        "quantum banana engineer",
+    )
+
+    assert ranked_df.empty
+    assert "semantic_relevance" in ranked_df.columns
+
+
+def test_rank_jobs_by_semantic_query_prefers_original_query_anchors() -> None:
+    jobs_df = pd.DataFrame(
+        [
+            {
+                "title": "AI Engineer",
+                "company": "VoiceAI",
+                "location": "Toronto ON",
+                "role_category": "AI/ML",
+                "skills_text": "Python, REST APIs, speech synthesis",
+                "description": "Build API integrations for speech models.",
+            },
+            {
+                "title": "Staff Backend Developer",
+                "company": "Unity",
+                "location": "Vancouver BC",
+                "role_category": "Software Engineering",
+                "skills_text": "MySQL, API design, distributed systems",
+                "description": "Build backend services and database-backed systems.",
+            },
+        ]
+    )
+
+    ranked_df = rank_jobs_by_semantic_query(jobs_df, "backend postgresql")
+
+    assert ranked_df.iloc[0]["title"] == "Staff Backend Developer"
+    assert "AI Engineer" not in ranked_df["title"].head(1).tolist()
+
+
 def test_rank_jobs_by_candidate_profile_prioritizes_related_jobs() -> None:
     ranked_df = rank_jobs_by_candidate_profile(
         make_semantic_jobs_df(),

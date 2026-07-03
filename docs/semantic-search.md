@@ -12,6 +12,12 @@ The default remains `tfidf` so existing behavior stays stable and easy to
 explain. Semantic and hybrid modes are available in the dashboard and FastAPI
 `/analyze` request body through `search_mode`.
 
+Semantic mode is intentionally broader than TF-IDF. It can return jobs that
+match conceptual evidence from full descriptions, such as backend/API/database
+language, even when every exact query token is not present. To avoid noisy
+matches, generic role words such as `engineer` do not count as sufficient
+semantic evidence by themselves.
+
 ## Implementation
 
 The semantic layer lives in:

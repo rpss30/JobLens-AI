@@ -36,6 +36,26 @@ class SemanticSearchConfig:
 DEFAULT_SEMANTIC_CONFIG = SemanticSearchConfig()
 
 
+SEMANTIC_GENERIC_ROLE_TOKENS = {
+    "analyst",
+    "architect",
+    "associate",
+    "developer",
+    "engineer",
+    "intern",
+    "junior",
+    "lead",
+    "manager",
+    "principal",
+    "senior",
+    "specialist",
+    "staff",
+}
+SEMANTIC_QUERY_ANCHOR_BOOST = 0.08
+SEMANTIC_EXPANSION_ANCHOR_BOOST = 0.025
+SEMANTIC_MAX_ANCHOR_BOOST = 0.18
+
+
 SEMANTIC_EXPANSIONS = {
     "server side": "backend backend services REST APIs databases PostgreSQL",
     "server-side": "backend backend services REST APIs databases PostgreSQL",
@@ -55,6 +75,52 @@ SEMANTIC_EXPANSIONS = {
     "data pipeline": "data pipelines ETL Airflow Spark PySpark data warehousing",
     "data pipelines": "data pipelines ETL Airflow Spark PySpark data warehousing",
 }
+
+
+def tokenize_semantic_text(text: str) -> set[str]:
+    return set(
+        re.findall(
+            r"(?u)(?<!\w)\w[\w+#./-]*(?!\w)",
+            str(text or "").lower(),
+        )
+    )
+
+
+def contains_semantic_phrase(normalized_text: str, phrase: str) -> bool:
+    phrase_pattern = r"\s+".join(
+        re.escape(part)
+        for part in str(phrase).strip().lower().split()
+    )
+
+    return bool(
+        re.search(
+            rf"(?<![a-z0-9+#]){phrase_pattern}(?![a-z0-9+#])",
+            normalized_text,
+        )
+    )
+
+
+def get_semantic_query_expansions(query: str) -> list[str]:
+    normalized_query = re.sub(r"\s+", " ", str(query or "").strip().lower())
+
+    if not normalized_query:
+        return []
+
+    return [
+        expansion
+        for trigger, expansion in SEMANTIC_EXPANSIONS.items()
+        if contains_semantic_phrase(normalized_query, trigger)
+    ]
+
+
+def get_semantic_anchor_terms(query: str) -> tuple[set[str], set[str]]:
+    query_terms = tokenize_semantic_text(query) - SEMANTIC_GENERIC_ROLE_TOKENS
+    expansion_terms = (
+        tokenize_semantic_text(" ".join(get_semantic_query_expansions(query)))
+        - SEMANTIC_GENERIC_ROLE_TOKENS
+    )
+
+    return query_terms, expansion_terms
 
 
 def normalize_search_mode(search_mode: str | None) -> str:
@@ -91,11 +157,7 @@ def expand_semantic_query(query: str) -> str:
     if not normalized_query:
         return ""
 
-    expansions = [
-        expansion
-        for trigger, expansion in SEMANTIC_EXPANSIONS.items()
-        if trigger in normalized_query
-    ]
+    expansions = get_semantic_query_expansions(query)
 
     return " ".join([query, *expansions]).strip()
 
@@ -191,21 +253,41 @@ def rank_jobs_by_semantic_query(
         empty_df["semantic_relevance"] = pd.Series(dtype=float)
         return empty_df
 
+    documents = build_job_search_documents(df)
+    query_anchor_terms, expansion_anchor_terms = get_semantic_anchor_terms(query)
+    document_token_sets = documents.apply(tokenize_semantic_text)
+    query_anchor_counts = document_token_sets.apply(
+        lambda tokens: len(tokens.intersection(query_anchor_terms))
+    ).to_numpy()
+    expansion_anchor_counts = document_token_sets.apply(
+        lambda tokens: len(tokens.intersection(expansion_anchor_terms))
+    ).to_numpy()
+    anchor_mask = (query_anchor_counts > 0) | (expansion_anchor_counts > 0)
+
     scores = compute_semantic_scores(
-        build_job_search_documents(df),
+        documents,
         query,
         config=config,
     )
-    relevant_mask = scores >= config.minimum_score
+    anchor_boosts = np.minimum(
+        (query_anchor_counts * SEMANTIC_QUERY_ANCHOR_BOOST)
+        + (expansion_anchor_counts * SEMANTIC_EXPANSION_ANCHOR_BOOST),
+        SEMANTIC_MAX_ANCHOR_BOOST,
+    )
+    scores = np.clip(scores + anchor_boosts, 0.0, 1.0)
+    relevant_mask = (scores >= config.minimum_score) & anchor_mask
     ranked_df = df.loc[relevant_mask].copy()
     ranked_df["semantic_relevance"] = (scores[relevant_mask] * 100).round(1)
     ranked_df["search_mode"] = SEMANTIC_SEARCH_MODE
+    ranked_df["_semantic_query_anchor_count"] = query_anchor_counts[relevant_mask]
 
-    return ranked_df.sort_values(
-        by="semantic_relevance",
-        ascending=False,
+    ranked_df = ranked_df.sort_values(
+        by=["_semantic_query_anchor_count", "semantic_relevance"],
+        ascending=[False, False],
         kind="stable",
     )
+
+    return ranked_df.drop(columns=["_semantic_query_anchor_count"])
 
 
 def rank_jobs_by_candidate_profile(

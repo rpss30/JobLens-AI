@@ -5,6 +5,8 @@ import pytest
 from pypdf import PdfReader
 
 from src.dashboard.services import (
+    MAX_UPLOADED_CSV_BYTES,
+    MAX_UPLOADED_CSV_ROWS,
     filter_jobs,
     generate_candidate_report_markdown,
     generate_candidate_report_pdf,
@@ -16,6 +18,7 @@ from src.dashboard.services import (
     rank_jobs_by_search_query,
     rank_jobs_by_semantic_search_query,
     read_uploaded_jobs_csv,
+    validate_uploaded_jobs_file,
     validate_uploaded_jobs_csv,
 )
 from src.matching.match_engine import (
@@ -628,6 +631,56 @@ def test_validate_uploaded_jobs_csv_rejects_blank_required_values() -> None:
     assert is_valid is False
     assert "blank values" in message
     assert "company" in message
+
+
+def test_validate_uploaded_jobs_file_rejects_non_csv_extension(tmp_path) -> None:
+    upload_path = tmp_path / "jobs.txt"
+    upload_path.write_text(
+        "title,company,location,description,experience_level\n"
+    )
+
+    is_valid, message = validate_uploaded_jobs_file(upload_path)
+
+    assert is_valid is False
+    assert message == "Uploaded file must be a CSV file."
+
+
+def test_validate_uploaded_jobs_file_rejects_large_upload(tmp_path) -> None:
+    upload_path = tmp_path / "jobs.csv"
+    upload_path.write_bytes(b"x" * (MAX_UPLOADED_CSV_BYTES + 1))
+
+    is_valid, message = validate_uploaded_jobs_file(upload_path)
+
+    assert is_valid is False
+    assert "2 MB" in message
+
+
+def test_validate_uploaded_jobs_csv_rejects_too_many_rows() -> None:
+    uploaded_df = pd.DataFrame(
+        {
+            "title": ["Backend Developer"] * (MAX_UPLOADED_CSV_ROWS + 1),
+            "company": ["APIWorks"] * (MAX_UPLOADED_CSV_ROWS + 1),
+            "location": ["Toronto ON"] * (MAX_UPLOADED_CSV_ROWS + 1),
+            "description": ["Build REST APIs."] * (MAX_UPLOADED_CSV_ROWS + 1),
+            "experience_level": ["Entry Level"] * (MAX_UPLOADED_CSV_ROWS + 1),
+        }
+    )
+
+    is_valid, message = validate_uploaded_jobs_csv(uploaded_df)
+
+    assert is_valid is False
+    assert str(MAX_UPLOADED_CSV_ROWS) in message
+
+
+def test_read_uploaded_jobs_csv_rejects_non_csv_path(tmp_path) -> None:
+    upload_path = tmp_path / "jobs.txt"
+    upload_path.write_text(
+        "title,company,location,description,experience_level\n"
+    )
+
+    with pytest.raises(ValueError, match="CSV"):
+        read_uploaded_jobs_csv(upload_path)
+
 
 def test_read_uploaded_jobs_csv_rejects_bad_csv_format(tmp_path) -> None:
     bad_csv_path = tmp_path / "bad_csv_format.csv"

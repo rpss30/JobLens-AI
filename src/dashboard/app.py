@@ -1,5 +1,6 @@
 # src/dashboard/app.py
 
+import logging
 import sys
 import tempfile
 from pathlib import Path
@@ -77,6 +78,9 @@ from src.database.repository import (
     save_analysis_run,
     save_uploaded_dataset_from_dataframe,
 )
+
+
+logger = logging.getLogger("joblens.dashboard")
 
 
 st.set_page_config(
@@ -568,14 +572,12 @@ def upload_dataset_dialog(database_available: bool) -> None:
             )
         except ValueError as error:
             st.error(str(error), icon=":material/error:")
-        except Exception as error:
+        except Exception:
+            logger.exception("Could not save uploaded dataset")
             st.error(
                 "Custom dataset could not be saved to PostgreSQL.",
                 icon=":material/error:",
             )
-
-            with st.expander("Upload save error details"):
-                st.code(str(error))
 
 
 def close_dataset_action_popover(popover_key: str) -> None:
@@ -692,8 +694,9 @@ def show_rename_dataset_popover(
                     )
                     st.session_state[popover_key] = False
                     st.rerun(scope="app")
-                except Exception as error:
-                    st.session_state.dataset_rename_error_message = str(error)
+                except Exception:
+                    logger.exception("Could not rename dataset")
+                    st.session_state.dataset_rename_error_message = True
                     st.session_state[popover_key] = False
                     st.rerun(scope="app")
 
@@ -769,8 +772,9 @@ def show_delete_dataset_popover(
                     )
                     st.session_state[popover_key] = False
                     st.rerun(scope="app")
-                except Exception as error:
-                    st.session_state.dataset_delete_error_message = str(error)
+                except Exception:
+                    logger.exception("Could not delete dataset")
+                    st.session_state.dataset_delete_error_message = True
                     st.session_state[popover_key] = False
                     st.rerun(scope="app")
 
@@ -853,9 +857,6 @@ def main() -> None:
             icon=":material/error:",
         )
 
-        with st.expander("Dataset delete error details"):
-            st.code(st.session_state.dataset_delete_error_message)
-
         del st.session_state.dataset_delete_error_message
 
     if "dataset_rename_success_message" in st.session_state:
@@ -877,9 +878,6 @@ def main() -> None:
             "Could not rename selected dataset.",
             icon=":material/error:",
         )
-
-        with st.expander("Dataset rename error details"):
-            st.code(st.session_state.dataset_rename_error_message)
 
         del st.session_state.dataset_rename_error_message
 
@@ -904,13 +902,14 @@ def main() -> None:
 
     database_available = check_database_connection()
     available_database_datasets: list[dict[str, Any]] = []
-    database_list_error: Exception | None = None
+    database_list_error = False
 
     if database_available:
         try:
             available_database_datasets = list_datasets()
-        except Exception as error:
-            database_list_error = error
+        except Exception:
+            logger.exception("Could not load PostgreSQL dataset list")
+            database_list_error = True
 
     database_dataset_names = get_database_dataset_names(available_database_datasets)
 
@@ -1014,11 +1013,8 @@ def main() -> None:
                     )
                     st.rerun()
 
-        if database_list_error is not None:
+        if database_list_error:
             st.warning("Could not load PostgreSQL dataset list.")
-
-            with st.expander("Dataset list error details"):
-                st.code(str(database_list_error))
 
         if st.button(
             "Choose dataset",
@@ -1072,11 +1068,9 @@ def main() -> None:
                         )
                 else:
                     st.caption("No saved analysis runs yet.")
-            except Exception as error:
+            except Exception:
+                logger.exception("Could not load saved analysis runs")
                 st.warning("Could not load saved analysis runs.")
-
-                with st.expander("Saved runs error details"):
-                    st.code(str(error))
 
     if use_database:
         try:
@@ -1102,14 +1096,12 @@ def main() -> None:
                 )
                 jobs_df = load_processed_jobs()
 
-        except Exception as error:
+        except Exception:
+            logger.exception("Could not load jobs from PostgreSQL")
             st.sidebar.warning(
                 "PostgreSQL is unavailable. "
                 "Using the local sample CSV instead."
             )
-
-            with st.sidebar.expander("Database error details"):
-                st.code(str(error))
 
             jobs_df = load_processed_jobs()
     else:
@@ -1482,11 +1474,9 @@ def main() -> None:
                     )
 
                     st.success(f"Analysis run saved successfully. Saved run ID: {saved_run_id}")
-                except Exception as error:
+                except Exception:
+                    logger.exception("Could not save analysis run")
                     st.error("Could not save this analysis run.")
-
-                    with st.expander("Analysis save error details"):
-                        st.code(str(error))
     else:
         st.info(
             "Turn on PostgreSQL database mode to save analysis runs."

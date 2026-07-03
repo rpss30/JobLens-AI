@@ -1,7 +1,12 @@
-from fastapi import FastAPI
+import logging
+
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from src.api.errors import ApiError, api_error_handler
 from src.api.routers import analysis_runs, analyze, datasets, health
+from src.api.security import get_cors_origins
 
 
 def create_app() -> FastAPI:
@@ -28,7 +33,30 @@ def create_app() -> FastAPI:
             },
         ],
     )
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=get_cors_origins(),
+        allow_credentials=False,
+        allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=["Content-Type", "Authorization"],
+    )
     app.add_exception_handler(ApiError, api_error_handler)
+
+    @app.exception_handler(Exception)
+    async def unhandled_exception_handler(
+        request: Request,
+        error: Exception,
+    ) -> JSONResponse:
+        logging.getLogger("joblens.api").exception(
+            "Unhandled API error on %s %s",
+            request.method,
+            request.url.path,
+        )
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "Internal server error."},
+        )
+
     app.include_router(health.router)
     app.include_router(datasets.router)
     app.include_router(analysis_runs.router)

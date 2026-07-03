@@ -1,7 +1,12 @@
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+
+MAX_SKILL_COUNT = 50
+MAX_TARGET_ROLE_COUNT = 20
+MAX_LIST_ITEM_LENGTH = 80
 
 
 class ErrorResponse(BaseModel):
@@ -11,6 +16,7 @@ class ErrorResponse(BaseModel):
 class AnalyzeRequest(BaseModel):
     current_skills: list[str] = Field(
         default_factory=list,
+        max_length=MAX_SKILL_COUNT,
         description="Candidate's current skills.",
     )
     resume_text: str = Field(
@@ -23,6 +29,7 @@ class AnalyzeRequest(BaseModel):
     )
     target_roles: list[str] = Field(
         default_factory=list,
+        max_length=MAX_TARGET_ROLE_COUNT,
         description="Target job titles or role keywords.",
     )
     search_query: str = Field(
@@ -39,10 +46,12 @@ class AnalyzeRequest(BaseModel):
     )
     location: str = Field(
         default="Any",
+        max_length=120,
         description="Location filter. Use 'Any' to disable location filtering.",
     )
     experience_level: str = Field(
         default="Any",
+        max_length=80,
         description="Experience level filter. Use 'Any' to disable filtering.",
     )
     top_n: int = Field(
@@ -53,11 +62,32 @@ class AnalyzeRequest(BaseModel):
     )
     dataset_name: str | None = Field(
         default=None,
+        max_length=120,
         description=(
             "Optional PostgreSQL dataset name. If omitted, the API uses "
             "the local sample dataset."
         ),
     )
+
+    @field_validator("current_skills", "target_roles")
+    @classmethod
+    def clean_text_list(cls, values: list[str]) -> list[str]:
+        cleaned_values = []
+
+        for value in values:
+            cleaned_value = str(value).strip()
+
+            if not cleaned_value:
+                continue
+
+            if len(cleaned_value) > MAX_LIST_ITEM_LENGTH:
+                raise ValueError(
+                    f"List values must be {MAX_LIST_ITEM_LENGTH} characters or fewer."
+                )
+
+            cleaned_values.append(cleaned_value)
+
+        return cleaned_values
 
     @model_validator(mode="after")
     def require_search_scope(self) -> "AnalyzeRequest":

@@ -325,6 +325,7 @@ JobLens AI
 │   ├── database.md
 │   ├── resume-analysis.md
 │   ├── semantic-search.md
+│   ├── testing.md
 │   └── aws-deployment.md
 ├── scripts
 │   ├── fetch_greenhouse_jobs.py
@@ -679,6 +680,15 @@ The project includes tests for dashboard service logic, matching behavior, role-
 
 Tests are also run automatically through GitHub Actions on pushes and pull requests.
 
+Run coverage locally:
+
+```bash
+pytest --cov=src --cov-report=term-missing --cov-report=xml
+```
+
+See [docs/testing.md](docs/testing.md) for the test strategy, fixture design,
+reliability regression coverage, and CI behavior.
+
 Run the offline skill extraction evaluation:
 
 ```bash
@@ -723,6 +733,7 @@ Completed:
 - PostgreSQL seeding script for processed jobs
 - Optional PostgreSQL dashboard loading with CSV fallback
 - pytest test suite
+- CI coverage reporting for the source package
 - GitHub Actions test workflow
 - Weekly GitHub Actions Canada snapshot refresh workflow
 - Canada refresh pipeline metrics and failure summaries

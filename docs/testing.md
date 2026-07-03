@@ -1,0 +1,69 @@
+# Testing Strategy
+
+JobLens AI uses an offline-first pytest suite. Tests should not call live ATS
+boards, LLM providers, cloud services, or PostgreSQL unless a test explicitly
+mocks or isolates that dependency.
+
+## Test Layers
+
+- Unit tests cover matching, search, resume analysis, skill extraction schemas,
+  location normalization, and ingestion helpers.
+- API tests use FastAPI `TestClient` and monkeypatch database access where
+  needed.
+- Pipeline tests validate fetch/build summaries, ingestion metrics, duplicate
+  detection, malformed records, and workflow behavior.
+- Dashboard service tests cover filtering, uploads, reports, search modes, and
+  candidate-facing summaries without launching a browser.
+- Reliability regression tests focus on failure paths such as malformed CSVs,
+  invalid API inputs, duplicate postings, empty result sets, and resume privacy.
+
+## Fixtures
+
+Shared fixtures live in:
+
+```text
+tests/conftest.py
+```
+
+They provide representative processed jobs, resume text, API payloads, and saved
+analysis data. New tests should prefer these fixtures over hand-rolled records
+unless the test needs a very specific edge case.
+
+## Running Tests
+
+Run the full suite:
+
+```bash
+pytest
+```
+
+Run a focused slice:
+
+```bash
+pytest tests/test_reliability_regressions.py tests/test_api.py -q
+```
+
+Run coverage locally after installing dependencies:
+
+```bash
+pytest --cov=src --cov-report=term-missing --cov-report=xml
+```
+
+## CI
+
+The main test workflow installs dependencies, runs pytest with source coverage,
+prints missing-line coverage to the job log, and uploads `coverage.xml` as an
+artifact. The Canada snapshot refresh workflow still runs the full pytest suite
+after rebuilding the candidate snapshot, but it does not upload coverage because
+its primary purpose is data quality gating.
+
+## Reliability Rules
+
+- Tests must not require live external APIs.
+- LLM behavior should be tested with mocked responses or deterministic fallback
+  paths.
+- Resume tests must not persist or echo raw resume text.
+- CSV upload tests should cover malformed rows, missing columns, blank values,
+  and empty inputs.
+- Ingestion tests should cover missing required fields and duplicate stable
+  identifiers such as `job_id` and `source_url`.

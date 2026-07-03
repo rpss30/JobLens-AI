@@ -102,11 +102,11 @@ The dashboard also shows market-level insights such as top required skills, role
 - Optional semantic and hybrid search modes using local deterministic SVD embeddings
 - Optional PostgreSQL-backed data loading with CSV fallback
 - Local database seeding script for processed job postings
-- Custom CSV upload validation and error handling
+- Custom CSV upload validation with extension, size, row-count, and schema checks
 - Uploaded CSV datasets can be saved to PostgreSQL
 - Uploaded CSV datasets can be named, renamed, and deleted through focused management overlays
 - Saved PostgreSQL datasets can be selected and reloaded from the dashboard
-- FastAPI backend with health check and candidate analysis endpoint
+- FastAPI backend with health check, candidate analysis, CORS allowlist, safe errors, and rate limiting
 - Docker Compose support for running the dashboard, API, and PostgreSQL together
 - FastAPI dataset, analysis run, and PostgreSQL-backed analysis support
 - First-party Greenhouse, Lever, Ashby, and JSON-LD ingestion support
@@ -325,6 +325,7 @@ JobLens AI
 │   ├── database.md
 │   ├── resume-analysis.md
 │   ├── semantic-search.md
+│   ├── security.md
 │   ├── testing.md
 │   └── aws-deployment.md
 ├── scripts
@@ -571,6 +572,10 @@ Create a `.env` file in the project root:
 
 ```env
 DATABASE_URL=postgresql+psycopg://localhost:5432/joblens_ai
+JOBLENS_CORS_ORIGINS=http://localhost:8501,http://localhost:8502
+JOBLENS_RATE_LIMIT_ENABLED=true
+JOBLENS_ANALYZE_RATE_LIMIT=60
+JOBLENS_RATE_LIMIT_WINDOW_SECONDS=60
 ```
 
 Do not commit `.env`.
@@ -676,7 +681,7 @@ Run the test suite locally:
 ```bash
 pytest
 ```
-The project includes tests for dashboard service logic, matching behavior, role-specific weighting, CSV upload validation, and database helper utilities.
+The project includes tests for dashboard service logic, matching behavior, role-specific weighting, CSV upload validation, API security controls, and database helper utilities.
 
 Tests are also run automatically through GitHub Actions on pushes and pull requests.
 
@@ -703,6 +708,9 @@ search design, hybrid scoring behavior, and `pgvector` tradeoff.
 
 See [docs/resume-analysis.md](docs/resume-analysis.md) for resume matching
 behavior, API usage, privacy boundaries, and tradeoffs.
+
+See [docs/security.md](docs/security.md) for CORS, rate limiting, upload
+validation, resume privacy, secret handling, and AWS hardening notes.
 
 
 ## Current Status
@@ -743,6 +751,7 @@ Completed:
 - Saved analysis runs can be persisted to PostgreSQL and previewed later from the dashboard sidebar.
 - FastAPI backend with `/health` and `/analyze` endpoints
 - FastAPI endpoints for datasets and saved analysis runs
+- FastAPI CORS allowlist, request limits, safe exception responses, and `/analyze` rate limiting
 - Docker Compose setup for Streamlit, FastAPI, and PostgreSQL
 - FastAPI can list PostgreSQL datasets and analyze a selected saved dataset
 - AWS deployment helpers for ECR, RDS PostgreSQL, ALB, and ECS Fargate
@@ -750,6 +759,7 @@ Completed:
 - Structured AI skill extraction contract and offline quality evaluation
 - Semantic and hybrid job search modes with local deterministic embeddings
 - Privacy-conscious paste-in resume analysis with API and dashboard support
+- Dashboard upload security controls and safe database error messages
 - Verified AWS deployment with private RDS, Secrets Manager, ALB, and ECS Fargate
 
 Not built yet:
@@ -772,6 +782,7 @@ Not built yet:
 - Resume analysis currently supports paste-in text, not PDF or DOCX uploads.
 - AWS provisioning is automated with shell helpers, but not yet managed as declarative infrastructure with Terraform, CloudFormation, or CDK.
 - The current AWS demo uses an HTTP ALB endpoint without a custom domain or TLS certificate.
+- The current API rate limiter is per process and resets on restart; a distributed limiter would be needed for horizontally scaled production traffic.
 
 
 

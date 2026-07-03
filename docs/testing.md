@@ -9,7 +9,7 @@ mocks or isolates that dependency.
 - Unit tests cover matching, search, resume analysis, skill extraction schemas,
   location normalization, and ingestion helpers.
 - API tests use FastAPI `TestClient` and monkeypatch database access where
-  needed.
+  needed, including request validation, CORS, and rate limiting behavior.
 - Pipeline tests validate fetch/build summaries, ingestion metrics, duplicate
   detection, malformed records, and workflow behavior.
 - Dashboard service tests cover filtering, uploads, reports, search modes, and
@@ -64,6 +64,6 @@ its primary purpose is data quality gating.
   paths.
 - Resume tests must not persist or echo raw resume text.
 - CSV upload tests should cover malformed rows, missing columns, blank values,
-  and empty inputs.
+  empty inputs, unsafe extensions, oversized files, and row-count limits.
 - Ingestion tests should cover missing required fields and duplicate stable
   identifiers such as `job_id` and `source_url`.

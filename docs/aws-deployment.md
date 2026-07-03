@@ -63,6 +63,10 @@ Required environment variables:
 ```env
 PYTHONPATH=/app
 DATABASE_URL=postgresql+psycopg://<db_user>:<db_password>@<rds-endpoint>:5432/joblens_ai
+JOBLENS_CORS_ORIGINS=https://<your-dashboard-domain>
+JOBLENS_RATE_LIMIT_ENABLED=true
+JOBLENS_ANALYZE_RATE_LIMIT=60
+JOBLENS_RATE_LIMIT_WINDOW_SECONDS=60
 ```
 
 Keep `DATABASE_URL` in AWS Secrets Manager or AWS Systems Manager Parameter

@@ -45,6 +45,9 @@ from src.search.semantic_search import (
 RAW_DATA_PATH = "data/raw/sample_jobs.csv"
 PROCESSED_DATA_PATH = "data/processed/processed_jobs.csv"
 CANADA_JOBS_SNAPSHOT_PATH = "data/processed/canada_jobs_snapshot.csv"
+MAX_UPLOADED_CSV_BYTES = 2 * 1024 * 1024
+MAX_UPLOADED_CSV_ROWS = 5_000
+ALLOWED_UPLOAD_EXTENSIONS = {".csv"}
 GREENHOUSE_AI_DEMO_PATH = "data/processed/greenhouse_ai_demo_jobs.csv"
 
 
@@ -121,18 +124,72 @@ def load_processed_jobs_from_csv(path: str) -> pd.DataFrame:
     loaded_df = pd.read_csv(csv_path)
     return prepare_processed_jobs_for_dashboard(loaded_df)
 
+
+def get_uploaded_file_name(uploaded_file) -> str:
+    if isinstance(uploaded_file, (str, Path)):
+        return Path(uploaded_file).name
+
+    return str(getattr(uploaded_file, "name", "") or "")
+
+
+def get_uploaded_file_size(uploaded_file) -> int | None:
+    if isinstance(uploaded_file, (str, Path)):
+        return Path(uploaded_file).stat().st_size
+
+    uploaded_size = getattr(uploaded_file, "size", None)
+
+    if uploaded_size is not None:
+        return int(uploaded_size)
+
+    if hasattr(uploaded_file, "getbuffer"):
+        return len(uploaded_file.getbuffer())
+
+    if all(hasattr(uploaded_file, method) for method in ("tell", "seek")):
+        current_position = uploaded_file.tell()
+        uploaded_file.seek(0, 2)
+        uploaded_size = uploaded_file.tell()
+        uploaded_file.seek(current_position)
+        return int(uploaded_size)
+
+    return None
+
+
+def validate_uploaded_jobs_file(uploaded_file) -> tuple[bool, str]:
+    uploaded_name = get_uploaded_file_name(uploaded_file)
+    uploaded_suffix = Path(uploaded_name).suffix.lower() if uploaded_name else ""
+
+    if uploaded_suffix and uploaded_suffix not in ALLOWED_UPLOAD_EXTENSIONS:
+        return False, "Uploaded file must be a CSV file."
+
+    uploaded_size = get_uploaded_file_size(uploaded_file)
+
+    if uploaded_size == 0:
+        return False, "Uploaded CSV is empty. Please upload a valid jobs CSV."
+
+    if uploaded_size and uploaded_size > MAX_UPLOADED_CSV_BYTES:
+        max_size_mb = MAX_UPLOADED_CSV_BYTES / (1024 * 1024)
+        return False, f"Uploaded CSV must be {max_size_mb:.0f} MB or smaller."
+
+    return True, "Uploaded file metadata is valid."
+
+
 def read_uploaded_jobs_csv(uploaded_file) -> pd.DataFrame:
     """
     Read an uploaded jobs CSV using strict parsing so malformed rows
     are caught before validation.
     """
+    is_valid_file, validation_message = validate_uploaded_jobs_file(uploaded_file)
+
+    if not is_valid_file:
+        raise ValueError(validation_message)
 
     return pd.read_csv(
         uploaded_file,
         engine="python",
         on_bad_lines="error",
     )
-    
+
+
 def validate_uploaded_jobs_csv(uploaded_df: pd.DataFrame) -> tuple[bool, str]:
     """
     Validate that an uploaded jobs CSV has the required structure
@@ -149,6 +206,13 @@ def validate_uploaded_jobs_csv(uploaded_df: pd.DataFrame) -> tuple[bool, str]:
 
     if uploaded_df.empty:
         return False, "Uploaded CSV is empty. Please upload a file with at least one job posting."
+
+    if len(uploaded_df) > MAX_UPLOADED_CSV_ROWS:
+        return (
+            False,
+            f"Uploaded CSV has {len(uploaded_df)} rows; the limit is "
+            f"{MAX_UPLOADED_CSV_ROWS} rows.",
+        )
 
     missing_columns = required_columns - set(uploaded_df.columns)
 

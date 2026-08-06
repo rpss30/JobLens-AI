@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>JobLens Operations</title>
+    <style>
+      body {
+        margin: 0;
+        background: #f6f8fb;
+        color: #142033;
+        font-family: Arial, sans-serif;
+      }
+
+      header,
+      main {
+        margin: 0 auto;
+        max-width: 960px;
+        padding: 32px;
+      }
+
+      header {
+        border-bottom: 1px solid #d8e0ea;
+      }
+
+      .eyebrow {
+        color: #516278;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+      }
+
+      .grid {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      }
+
+      .card {
+        background: white;
+        border: 1px solid #d8e0ea;
+        border-radius: 8px;
+        padding: 20px;
+      }
+
+      .metric {
+        font-size: 32px;
+        font-weight: 700;
+      }
+
+      .muted {
+        color: #516278;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="eyebrow">Staff Operations</div>
+      <h1>JobLens Operations</h1>
+      <p class="muted">Django foundation connected to existing pipeline tables.</p>
+    </header>
+    <main>
+      {% if database_ready %}
+        <section class="grid" aria-label="Pipeline overview">
+          <article class="card">
+            <div class="muted">Pipeline runs</div>
+            <div class="metric">{{ pipeline_run_count }}</div>
+          </article>
+          <article class="card">
+            <div class="muted">Empty extractions</div>
+            <div class="metric">{{ empty_extraction_count }}</div>
+          </article>
+          <article class="card">
+            <div class="muted">Latest run</div>
+            {% if latest_run %}
+              <h2>{{ latest_run.source_type }}</h2>
+              <p>{{ latest_run.status }} · {{ latest_run.processed_job_count }}/{{ latest_run.raw_job_count }}</p>
+              <p class="muted">{{ latest_run.started_at }}</p>
+            {% else %}
+              <p>No pipeline runs have been recorded yet.</p>
+            {% endif %}
+          </article>
+        </section>
+      {% else %}
+        <section class="card">
+          <h2>Pipeline tables unavailable</h2>
+          <p class="muted">{{ database_error }}</p>
+        </section>
+      {% endif %}
+    </main>
+  </body>
+</html>

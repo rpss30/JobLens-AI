@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.views import LoginView, LogoutView
 from django.db import DatabaseError
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
+from django.urls import reverse_lazy
 from django.views.decorators.http import require_GET
 
+from django_ops.pipeline.auth import can_manage_operations, operations_view_required
 from django_ops.pipeline.services import (
     check_database_connection,
     load_foundation_context,
@@ -38,16 +40,30 @@ def redirect_to_operations(request: HttpRequest) -> HttpResponse:
     return redirect("operations-home")
 
 
-@staff_member_required(login_url="/admin/login/")
+class OperationsLoginView(LoginView):
+    template_name = "pipeline/login.html"
+    redirect_authenticated_user = True
+
+    def get_success_url(self) -> str:
+        return self.get_redirect_url() or str(reverse_lazy("operations-home"))
+
+
+class OperationsLogoutView(LogoutView):
+    next_page = reverse_lazy("operations-login")
+
+
+@operations_view_required
 def operations_home(request: HttpRequest) -> HttpResponse:
     try:
         context = {
             "database_ready": True,
+            "can_manage_operations": can_manage_operations(request.user),
             **load_foundation_context(),
         }
     except DatabaseError as error:
         context = {
             "database_ready": False,
+            "can_manage_operations": can_manage_operations(request.user),
             "database_error": str(error),
             "pipeline_run_count": 0,
             "latest_run": None,

@@ -33,6 +33,17 @@ Create a local staff user:
 docker compose exec django-ops python -m django_ops.manage createsuperuser
 ```
 
+Create the operations access groups:
+
+```bash
+docker compose exec django-ops python -m django_ops.manage bootstrap_ops_roles
+```
+
+Assign the staff user to one of:
+
+- `JobLens Ops Viewers` for read-only operations access.
+- `JobLens Ops Managers` for future state-changing operations workflows.
+
 The Django service runs at:
 
 ```text
@@ -50,6 +61,42 @@ Staff-only operations route:
 ```text
 http://localhost:8001/ops/
 ```
+
+Dedicated login and logout routes:
+
+```text
+http://localhost:8001/ops/login/
+http://localhost:8001/ops/logout/
+```
+
+Logout accepts POST only and is protected by Django CSRF middleware.
+
+## Authentication and Authorization
+
+The operations portal uses Django's built-in user, session, CSRF, and group
+systems.
+
+Access requirements for `/ops/`:
+
+- user is authenticated
+- user is active
+- user has `is_staff = True`
+- user is a superuser, belongs to `JobLens Ops Viewers`, or belongs to
+  `JobLens Ops Managers`
+
+Current permission levels:
+
+| Role | Access |
+| --- | --- |
+| `JobLens Ops Viewers` | Can view the operations dashboard foundation. |
+| `JobLens Ops Managers` | Can view the dashboard and is reserved for later reviewed/retry actions. |
+
+Session and CSRF settings:
+
+- session cookie is HTTP-only
+- session and CSRF cookies use `SameSite=Lax`
+- secure cookies default to enabled when `DJANGO_DEBUG=false`
+- logout is POST-only and CSRF-protected
 
 ## Migration Ownership
 
@@ -94,13 +141,14 @@ Implemented:
 - Django project and settings.
 - PostgreSQL configuration through `DATABASE_URL`.
 - Gunicorn-compatible WSGI entrypoint.
-- Staff-only `/ops/` route.
+- Dedicated `/ops/login/` and `/ops/logout/` routes.
+- Staff-only `/ops/` route protected by operations groups.
 - `/health/` database connectivity endpoint.
 - Unmanaged Django models for existing pipeline metadata tables.
+- `bootstrap_ops_roles` command for creating operations groups.
 
 Not implemented yet:
 
-- Dedicated operations login UI beyond Django admin login.
 - Pipeline-run filters, pagination, or detail pages.
 - Failed-extraction review notes or retry actions.
 - Audit records for state-changing operations.

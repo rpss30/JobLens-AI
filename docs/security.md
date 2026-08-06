@@ -17,6 +17,11 @@ avoid leaking private inputs, and make deployment assumptions explicit.
   pasted resume text.
 - CSV uploads are limited to `.csv` files, 2 MB, 5,000 rows, and the required
   `title`, `company`, `location`, `description`, and `experience_level` columns.
+- The Django operations portal requires an authenticated, active staff user in
+  an operations group before showing internal pipeline data.
+- Django operations logout is POST-only and protected by CSRF middleware.
+- Django operations sessions use HTTP-only cookies with `SameSite=Lax`; secure
+  cookies are enabled by default when `DJANGO_DEBUG=false`.
 
 ## Environment Variables
 
@@ -31,6 +36,13 @@ JOBLENS_CORS_ORIGINS=http://localhost:8501,http://localhost:8502,http://127.0.0.
 JOBLENS_RATE_LIMIT_ENABLED=true
 JOBLENS_ANALYZE_RATE_LIMIT=60
 JOBLENS_RATE_LIMIT_WINDOW_SECONDS=60
+DJANGO_SECRET_KEY=
+DJANGO_DEBUG=false
+DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
+DJANGO_CSRF_TRUSTED_ORIGINS=
+DJANGO_SESSION_COOKIE_SECURE=true
+DJANGO_CSRF_COOKIE_SECURE=true
+DJANGO_SESSION_COOKIE_AGE=28800
 ```
 
 `JOBLENS_CORS_ORIGINS` should be set to the dashboard origins that are allowed
@@ -77,7 +89,9 @@ available.
   A distributed limiter backed by Redis or an API gateway would be needed for
   horizontally scaled production traffic.
 - The project has no login system. This keeps the portfolio demo easy to try,
-  but it means saved data should be treated as demo data unless authentication
-  and ownership checks are added.
+  but it means saved public dashboard/API data should be treated as demo data
+  unless account-level ownership checks are added. The internal Django
+  operations portal now has staff authentication, but it is not yet a complete
+  user-account system for the public demo.
 - CSV upload checks reduce accidental misuse and oversized inputs, but they are
   not a malware scanner or full data-loss-prevention system.

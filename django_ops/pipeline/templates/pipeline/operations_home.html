@@ -51,16 +51,48 @@
       .muted {
         color: #516278;
       }
+
+      .topbar {
+        align-items: center;
+        display: flex;
+        justify-content: space-between;
+      }
+
+      .logout {
+        background: transparent;
+        border: 1px solid #b8c4d4;
+        border-radius: 6px;
+        color: #142033;
+        cursor: pointer;
+        font-weight: 700;
+        padding: 8px 12px;
+      }
     </style>
   </head>
   <body>
     <header>
-      <div class="eyebrow">Staff Operations</div>
-      <h1>JobLens Operations</h1>
-      <p class="muted">Django foundation connected to existing pipeline tables.</p>
+      <div class="topbar">
+        <div>
+          <div class="eyebrow">Staff Operations</div>
+          <h1>JobLens Operations</h1>
+          <p class="muted">Django foundation connected to existing pipeline tables.</p>
+        </div>
+        <form method="post" action="{% url 'operations-logout' %}">
+          {% csrf_token %}
+          <button class="logout" type="submit">Sign out</button>
+        </form>
+      </div>
     </header>
     <main>
       {% if database_ready %}
+        <p class="muted">
+          Signed in as {{ request.user.username }}.
+          {% if can_manage_operations %}
+            Manager access enabled.
+          {% else %}
+            Viewer access enabled.
+          {% endif %}
+        </p>
         <section class="grid" aria-label="Pipeline overview">
           <article class="card">
             <div class="muted">Pipeline runs</div>

@@ -1,11 +1,10 @@
-# Django Operations Foundation
+# Django Operations Service
 
-JobLens now includes a Django operations service foundation alongside the
-existing FastAPI API, Streamlit dashboard, PostgreSQL database, and legacy Flask
-ops console. This first Django slice is intentionally small: it proves Django
-can start, authenticate staff users, connect to the shared PostgreSQL database,
-and read existing pipeline metadata without taking ownership of FastAPI-owned
-tables.
+JobLens includes a Django operations service alongside the existing FastAPI API,
+Streamlit dashboard, PostgreSQL database, and legacy Flask ops console. The
+service authenticates staff users, connects to the shared PostgreSQL database,
+and reads existing pipeline metadata without taking ownership of
+Alembic-managed application tables.
 
 ## Local Docker Startup
 
@@ -56,10 +55,13 @@ Health check:
 http://localhost:8001/health/
 ```
 
-Staff-only operations route:
+Staff-only operations routes:
 
 ```text
 http://localhost:8001/ops/
+http://localhost:8001/ops/runs/
+http://localhost:8001/ops/runs/<run_id>/
+http://localhost:8001/ops/extractions/issues/
 ```
 
 Dedicated login and logout routes:
@@ -76,7 +78,7 @@ Logout accepts POST only and is protected by Django CSRF middleware.
 The operations portal uses Django's built-in user, session, CSRF, and group
 systems.
 
-Access requirements for `/ops/`:
+Access requirements for `/ops/` and child operations pages:
 
 - user is authenticated
 - user is active
@@ -88,7 +90,7 @@ Current permission levels:
 
 | Role | Access |
 | --- | --- |
-| `JobLens Ops Viewers` | Can view the operations dashboard foundation. |
+| `JobLens Ops Viewers` | Can view the operations dashboard and read-only investigation pages. |
 | `JobLens Ops Managers` | Can view the dashboard and is reserved for later reviewed/retry actions. |
 
 Session and CSRF settings:
@@ -134,6 +136,30 @@ Django-managed operations tables, rollbacks must document whether those Django
 migrations are reversible and whether any associated Alembic migration also
 needs to be downgraded.
 
+## Pipeline Investigation
+
+The operations service now provides read-only pages for investigating ingestion
+and enrichment health:
+
+- `/ops/` shows run count, empty extraction count, and the latest pipeline run.
+- `/ops/runs/` lists recent runs with filtering by status, provider, model,
+  prompt version, and free-text search across source metadata and errors.
+- `/ops/runs/<run_id>/` shows one run's timing, counts, dedup rejects,
+  provider/model/prompt counts, source breakdown, and linked extraction issues.
+- `/ops/extractions/issues/` lists extraction attempts with empty skill output
+  or persisted errors, joined back to the source posting.
+
+Run investigation uses `ingestion_runs.run_metadata` for bounded run-scoped
+aggregates such as provider counts, model counts, prompt-version counts,
+per-source totals, and dedup rejected counts. Failed or empty extractions stay
+in `extraction_results`, where they can be queried and joined to
+`processed_jobs` and `job_postings`.
+
+Current limitation: extraction results are linked to run detail pages through
+the run dataset because the application schema does not yet store a direct
+`extraction_results.ingestion_run_id`. That keeps this branch read-only and
+schema-light while still making failures visible from the operations console.
+
 ## Current Scope
 
 Implemented:
@@ -146,10 +172,12 @@ Implemented:
 - `/health/` database connectivity endpoint.
 - Unmanaged Django models for existing pipeline metadata tables.
 - `bootstrap_ops_roles` command for creating operations groups.
+- Pipeline run list with filters and pagination.
+- Pipeline run detail pages with run-scoped metadata and source results.
+- Failed and empty extraction issue list with posting links.
 
 Not implemented yet:
 
-- Pipeline-run filters, pagination, or detail pages.
 - Failed-extraction review notes or retry actions.
 - Audit records for state-changing operations.
 - Production reverse proxy routing.

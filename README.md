@@ -489,7 +489,7 @@ List endpoints support bounded pagination with `limit` and `offset`, plus
 JobLens AI can also be run with Docker Compose.
 
 Build and start the Streamlit dashboard, FastAPI backend, Flask ops console,
-Django ops foundation, and PostgreSQL database:
+Django operations service, and PostgreSQL database:
 
 ```bash
 docker compose up --build
@@ -501,7 +501,7 @@ Once the services are running:
 - FastAPI docs: `http://localhost:8000/docs`
 - FastAPI health check: `http://localhost:8000/health`
 - Flask internal ops console: `http://localhost:5001`
-- Django ops foundation: `http://localhost:8001/ops/`
+- Django operations service: `http://localhost:8001/ops/`
 - Django health check: `http://localhost:8001/health/`
 
 Initialize the PostgreSQL tables:
@@ -522,7 +522,7 @@ Initialize Django-owned auth and session tables:
 docker compose exec django-ops python -m django_ops.manage migrate
 ```
 
-Create a local staff user for the Django ops route:
+Create a local staff user for the Django operations routes:
 
 ```bash
 docker compose exec django-ops python -m django_ops.manage createsuperuser
@@ -591,11 +591,11 @@ Run the ops console tests:
 pytest tests/test_ops_console.py
 ```
 
-## Django Operations Foundation
+## Django Operations Service
 
-JobLens also includes a Django operations service foundation. This service is
-the replacement path for the Flask console, but the Flask console remains in
-place until Django reaches feature parity in later pull requests.
+JobLens also includes a Django operations service. This service is the
+replacement path for the Flask console, but the Flask console remains in place
+until Django reaches feature parity in later pull requests.
 
 The Django service currently provides:
 
@@ -604,12 +604,16 @@ The Django service currently provides:
 - a database-backed `/health/` endpoint
 - dedicated `/ops/login/` and `/ops/logout/` routes
 - a staff-only `/ops/` route protected by operations groups
+- `/ops/runs/` with filters and pagination for persisted pipeline runs
+- `/ops/runs/<run_id>/` run details with metadata, source results, and linked extraction issues
+- `/ops/extractions/issues/` for empty or failed skill extraction attempts joined to postings
 - Docker Compose support through Gunicorn
 
 Alembic owns the existing JobLens application tables. Django currently owns
 only its framework tables for auth, admin, sessions, content types, and
 migration bookkeeping. See [docs/django-ops.md](docs/django-ops.md) for local
-startup, migration ownership, deployment ordering, and current limitations.
+startup, route coverage, migration ownership, deployment ordering, and current
+limitations.
 
 ## AWS Deployment Path
 

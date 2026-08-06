@@ -7,6 +7,8 @@ venv/
 node_modules/
 dist/
 build/
+tmp/
+django_ops.sqlite3
 
 # Test and coverage artifacts
 .coverage

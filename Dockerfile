@@ -19,5 +19,6 @@ COPY . .
 
 EXPOSE 8501
 EXPOSE 8000
+EXPOSE 8001
 
 CMD ["streamlit", "run", "src/dashboard/app.py", "--server.address=0.0.0.0", "--server.port=8501"]

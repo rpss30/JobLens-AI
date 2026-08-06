@@ -245,6 +245,7 @@ def test_build_snapshot_run_summary_counts_providers_and_skips(tmp_path):
                 "job_id": "job-1",
                 "skill_extraction_provider": "groq",
                 "skill_extraction_error": "",
+                "skill_extraction_model": "llama-test",
                 "skill_extraction_prompt_version": "skill-extraction-v2",
                 "skill_extraction_confidence": 0.8,
             }
@@ -257,6 +258,7 @@ def test_build_snapshot_run_summary_counts_providers_and_skips(tmp_path):
     assert summary.raw_job_count == 2
     assert summary.processed_job_count == 1
     assert summary.metadata["provider_counts"] == {"groq": 1}
+    assert summary.metadata["model_counts"] == {"llama-test": 1}
     assert summary.metadata["prompt_version_counts"] == {"skill-extraction-v2": 1}
     assert summary.metadata["average_extraction_confidence"] == 0.8
     assert summary.metadata["skipped_count"] == 1
@@ -273,6 +275,7 @@ def test_build_snapshot_run_summary_ignores_cached_nan_error_fields(tmp_path):
                 "job_id": "job-1",
                 "skill_extraction_provider": "groq",
                 "skill_extraction_error": float("nan"),
+                "skill_extraction_model": float("nan"),
                 "skill_extraction_prompt_version": float("nan"),
                 "skill_extraction_confidence": float("nan"),
             }
@@ -282,6 +285,7 @@ def test_build_snapshot_run_summary_ignores_cached_nan_error_fields(tmp_path):
     )
 
     assert summary.metadata["provider_counts"] == {"groq": 1}
+    assert summary.metadata["model_counts"] == {"unknown": 1}
     assert summary.metadata["prompt_version_counts"] == {"unknown": 1}
     assert summary.metadata["average_extraction_confidence"] is None
     assert summary.error_log == []

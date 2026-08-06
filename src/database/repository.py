@@ -67,6 +67,7 @@ RUN_METADATA_KEYS = {
     "source_results",
     "dedup_rejected_count",
     "provider_counts",
+    "model_counts",
     "prompt_version_counts",
     "skipped_count",
 }

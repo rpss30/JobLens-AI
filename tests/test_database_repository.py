@@ -138,6 +138,7 @@ def test_build_run_metadata_keeps_only_bounded_ops_keys():
             "source_results": [{"company": "GoodCo"}],
             "dedup_rejected_count": 2,
             "provider_counts": {"groq": 1},
+            "model_counts": {"llama-test": 1},
             "prompt_version_counts": {"skill-extraction-v2": 1},
             "skipped_count": 0,
             "output_path": "/tmp/canada_jobs_snapshot.csv",
@@ -146,6 +147,7 @@ def test_build_run_metadata_keeps_only_bounded_ops_keys():
         "source_results": [{"company": "GoodCo"}],
         "dedup_rejected_count": 2,
         "provider_counts": {"groq": 1},
+        "model_counts": {"llama-test": 1},
         "prompt_version_counts": {"skill-extraction-v2": 1},
         "skipped_count": 0,
     }
@@ -416,6 +418,7 @@ def test_save_ingestion_run_summary_persists_operational_metrics(monkeypatch):
         errors=["Two postings had no extracted skills."],
         metadata={
             "provider_counts": {"groq": 68, "deterministic_fallback": 2},
+            "model_counts": {"llama-3.3-70b-versatile": 68},
             "prompt_version_counts": {"skill-extraction-v2": 68},
             "skipped_count": 0,
         },
@@ -442,6 +445,7 @@ def test_save_ingestion_run_summary_persists_operational_metrics(monkeypatch):
     assert ingestion_run.error_log == ["Two postings had no extracted skills."]
     assert ingestion_run.run_metadata == {
         "provider_counts": {"groq": 68, "deterministic_fallback": 2},
+        "model_counts": {"llama-3.3-70b-versatile": 68},
         "prompt_version_counts": {"skill-extraction-v2": 68},
         "skipped_count": 0,
     }

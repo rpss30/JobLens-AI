@@ -1,124 +1,43 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <title>JobLens Operations</title>
-    <style>
-      body {
-        margin: 0;
-        background: #f6f8fb;
-        color: #142033;
-        font-family: Arial, sans-serif;
-      }
+{% extends "pipeline/base.html" %}
 
-      header,
-      main {
-        margin: 0 auto;
-        max-width: 960px;
-        padding: 32px;
-      }
+{% block title %}JobLens Operations{% endblock %}
+{% block heading %}JobLens Operations{% endblock %}
+{% block subheading %}Django foundation connected to existing pipeline tables.{% endblock %}
 
-      header {
-        border-bottom: 1px solid #d8e0ea;
-      }
-
-      .eyebrow {
-        color: #516278;
-        font-size: 12px;
-        font-weight: 700;
-        letter-spacing: .08em;
-        text-transform: uppercase;
-      }
-
-      .grid {
-        display: grid;
-        gap: 16px;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      }
-
-      .card {
-        background: white;
-        border: 1px solid #d8e0ea;
-        border-radius: 8px;
-        padding: 20px;
-      }
-
-      .metric {
-        font-size: 32px;
-        font-weight: 700;
-      }
-
-      .muted {
-        color: #516278;
-      }
-
-      .topbar {
-        align-items: center;
-        display: flex;
-        justify-content: space-between;
-      }
-
-      .logout {
-        background: transparent;
-        border: 1px solid #b8c4d4;
-        border-radius: 6px;
-        color: #142033;
-        cursor: pointer;
-        font-weight: 700;
-        padding: 8px 12px;
-      }
-    </style>
-  </head>
-  <body>
-    <header>
-      <div class="topbar">
-        <div>
-          <div class="eyebrow">Staff Operations</div>
-          <h1>JobLens Operations</h1>
-          <p class="muted">Django foundation connected to existing pipeline tables.</p>
-        </div>
-        <form method="post" action="{% url 'operations-logout' %}">
-          {% csrf_token %}
-          <button class="logout" type="submit">Sign out</button>
-        </form>
-      </div>
-    </header>
-    <main>
-      {% if database_ready %}
-        <p class="muted">
-          Signed in as {{ request.user.username }}.
-          {% if can_manage_operations %}
-            Manager access enabled.
-          {% else %}
-            Viewer access enabled.
-          {% endif %}
-        </p>
-        <section class="grid" aria-label="Pipeline overview">
-          <article class="card">
-            <div class="muted">Pipeline runs</div>
-            <div class="metric">{{ pipeline_run_count }}</div>
-          </article>
-          <article class="card">
-            <div class="muted">Empty extractions</div>
-            <div class="metric">{{ empty_extraction_count }}</div>
-          </article>
-          <article class="card">
-            <div class="muted">Latest run</div>
-            {% if latest_run %}
-              <h2>{{ latest_run.source_type }}</h2>
-              <p>{{ latest_run.status }} · {{ latest_run.processed_job_count }}/{{ latest_run.raw_job_count }}</p>
-              <p class="muted">{{ latest_run.started_at }}</p>
-            {% else %}
-              <p>No pipeline runs have been recorded yet.</p>
-            {% endif %}
-          </article>
-        </section>
+{% block content %}
+  {% if database_ready %}
+    <p class="muted">
+      Signed in as {{ request.user.username }}.
+      {% if can_manage_operations %}
+        Manager access enabled.
       {% else %}
-        <section class="card">
-          <h2>Pipeline tables unavailable</h2>
-          <p class="muted">{{ database_error }}</p>
-        </section>
+        Viewer access enabled.
       {% endif %}
-    </main>
-  </body>
-</html>
+    </p>
+    <section class="grid" aria-label="Pipeline overview">
+      <article class="card">
+        <div class="muted">Pipeline runs</div>
+        <div class="metric">{{ pipeline_run_count }}</div>
+      </article>
+      <article class="card">
+        <div class="muted">Empty extractions</div>
+        <div class="metric">{{ empty_extraction_count }}</div>
+      </article>
+      <article class="card">
+        <div class="muted">Latest run</div>
+        {% if latest_run %}
+          <h2><a href="{% url 'pipeline-run-detail' latest_run.id %}">{{ latest_run.source_type }}</a></h2>
+          <p>{{ latest_run.status }} · {{ latest_run.processed_job_count }}/{{ latest_run.raw_job_count }}</p>
+          <p class="muted">{{ latest_run.started_at }}</p>
+        {% else %}
+          <p>No pipeline runs have been recorded yet.</p>
+        {% endif %}
+      </article>
+    </section>
+  {% else %}
+    <section class="card">
+      <h2>Pipeline tables unavailable</h2>
+      <p class="muted">{{ database_error }}</p>
+    </section>
+  {% endif %}
+{% endblock %}

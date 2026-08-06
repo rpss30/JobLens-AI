@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import pytest
+from django.contrib.auth.models import Group
 from django.contrib.auth.models import User
 from django.db import connection
 from django.urls import reverse
 from django.utils import timezone
 
 from django_ops.config.settings import database_config_from_url
+from django_ops.pipeline.auth import OPS_VIEWER_GROUP
 from django_ops.pipeline import services
 from django_ops.pipeline.models import (
     Dataset,
@@ -136,7 +138,7 @@ def test_operations_route_requires_staff(client):
     response = client.get(reverse("operations-home"))
 
     assert response.status_code == 302
-    assert "/admin/login/" in response["Location"]
+    assert reverse("operations-login") in response["Location"]
 
 
 def test_operations_route_rejects_non_staff_user(client):
@@ -145,8 +147,7 @@ def test_operations_route_rejects_non_staff_user(client):
 
     response = client.get(reverse("operations-home"))
 
-    assert response.status_code == 302
-    assert "/admin/login/" in response["Location"]
+    assert response.status_code == 403
 
 
 def test_staff_operations_route_reads_pipeline_tables(
@@ -158,6 +159,8 @@ def test_staff_operations_route_reads_pipeline_tables(
         password="password",
         is_staff=True,
     )
+    ops_group = Group.objects.create(name=OPS_VIEWER_GROUP)
+    staff_user.groups.add(ops_group)
     client.force_login(staff_user)
 
     response = client.get(reverse("operations-home"))

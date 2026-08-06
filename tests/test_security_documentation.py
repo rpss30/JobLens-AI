@@ -18,6 +18,9 @@ def test_security_documentation_covers_core_controls() -> None:
         "5,000 rows",
         "aws secrets manager",
         "least",
+        "django operations portal",
+        "csrf",
+        "samesite",
     ]
 
     for topic in expected_topics:
@@ -32,6 +35,10 @@ def test_security_environment_template_lists_runtime_controls() -> None:
         "JOBLENS_RATE_LIMIT_ENABLED=",
         "JOBLENS_ANALYZE_RATE_LIMIT=",
         "JOBLENS_RATE_LIMIT_WINDOW_SECONDS=",
+        "DJANGO_SECRET_KEY=",
+        "DJANGO_ALLOWED_HOSTS=",
+        "DJANGO_SESSION_COOKIE_SECURE=",
+        "DJANGO_CSRF_COOKIE_SECURE=",
     ]
 
     for variable in expected_variables:

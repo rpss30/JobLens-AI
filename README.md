@@ -528,6 +528,15 @@ Create a local staff user for the Django ops route:
 docker compose exec django-ops python -m django_ops.manage createsuperuser
 ```
 
+Create the operations access groups:
+
+```bash
+docker compose exec django-ops python -m django_ops.manage bootstrap_ops_roles
+```
+
+Assign the staff user to `JobLens Ops Viewers` for read access or
+`JobLens Ops Managers` for future state-changing operations.
+
 To stop the services:
 
 ```bash
@@ -593,7 +602,8 @@ The Django service currently provides:
 - PostgreSQL configuration through `DATABASE_URL`
 - unmanaged Django models for Alembic-owned pipeline tables
 - a database-backed `/health/` endpoint
-- a staff-only `/ops/` route
+- dedicated `/ops/login/` and `/ops/logout/` routes
+- a staff-only `/ops/` route protected by operations groups
 - Docker Compose support through Gunicorn
 
 Alembic owns the existing JobLens application tables. Django currently owns

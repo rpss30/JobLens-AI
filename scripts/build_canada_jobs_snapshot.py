@@ -267,6 +267,10 @@ def build_snapshot_run_summary(
         metadata_text(row.get("skill_extraction_provider"), default="unknown")
         for row in processed_rows
     )
+    model_counts = Counter(
+        metadata_text(row.get("skill_extraction_model"), default="unknown")
+        for row in processed_rows
+    )
     prompt_version_counts = Counter(
         metadata_text(
             row.get("skill_extraction_prompt_version"),
@@ -310,6 +314,7 @@ def build_snapshot_run_summary(
         metadata={
             "output_path": str(output_path),
             "provider_counts": dict(provider_counts),
+            "model_counts": dict(model_counts),
             "prompt_version_counts": dict(prompt_version_counts),
             "average_extraction_confidence": average_confidence,
             "skipped_count": skipped_count,

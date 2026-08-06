@@ -5,6 +5,7 @@ from src.ingestion.canada_jobs import (
     is_posting_active,
     is_target_technical_job,
     prepare_canada_jobs,
+    prepare_canada_jobs_with_metrics,
     select_balanced_jobs,
 )
 
@@ -95,6 +96,32 @@ def test_deduplicate_jobs_removes_visible_duplicate_with_different_ids():
     ]
 
     assert deduplicate_jobs(jobs) == [jobs[0]]
+
+
+def test_prepare_canada_jobs_with_metrics_counts_dedup_rejections():
+    jobs = [
+        {
+            "job_id": "greenhouse:example:1",
+            "source_url": "https://example.com/jobs/1",
+            "title": "Data Engineer",
+            "company": "Example",
+            "location": "Toronto, Ontario, Canada",
+            "description": "Build data pipelines with Python and SQL.",
+        },
+        {
+            "job_id": "greenhouse:example:1",
+            "source_url": "https://example.com/jobs/1-copy",
+            "title": "Data Engineer",
+            "company": "Example",
+            "location": "Toronto, Ontario, Canada",
+            "description": "Build data pipelines with Python and SQL.",
+        },
+    ]
+
+    prepared, metrics = prepare_canada_jobs_with_metrics(jobs)
+
+    assert len(prepared) == 1
+    assert metrics["dedup_rejected_count"] == 1
 
 
 def test_select_balanced_jobs_limits_company_and_includes_role_categories():

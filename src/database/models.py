@@ -1,7 +1,7 @@
 # src/database/models.py
 
 from datetime import UTC, datetime
-from typing import Optional
+from typing import Any, Optional
 
 from sqlalchemy import (
     Boolean,
@@ -217,6 +217,11 @@ class IngestionRun(Base):
     raw_job_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     processed_job_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     error_log: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
+    run_metadata: Mapped[dict[str, Any]] = mapped_column(
+        JSONB,
+        nullable=False,
+        default=dict,
+    )
 
     dataset: Mapped[Optional["Dataset"]] = relationship(back_populates="ingestion_runs")
 

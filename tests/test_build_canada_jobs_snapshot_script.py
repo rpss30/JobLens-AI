@@ -194,6 +194,46 @@ def test_process_selected_jobs_reextracts_changed_descriptions(monkeypatch):
     assert rows[0]["extracted_skills"] == ["python", "sql"]
 
 
+def test_process_selected_jobs_records_empty_extraction_for_ops_review(monkeypatch):
+    monkeypatch.setattr(
+        build_canada_jobs_snapshot,
+        "extract_skills_groq_first",
+        lambda **kwargs: build_canada_jobs_snapshot.SnapshotSkillExtractionResult(
+            skills=[],
+            provider="deterministic_fallback",
+            error="Groq attempt 2: returned no skills",
+            model=build_canada_jobs_snapshot.DETERMINISTIC_FALLBACK_MODEL,
+            prompt_version=(
+                build_canada_jobs_snapshot.DETERMINISTIC_FALLBACK_PROMPT_VERSION
+            ),
+            confidence=0.0,
+        ),
+    )
+    monkeypatch.setattr(
+        build_canada_jobs_snapshot.time,
+        "sleep",
+        lambda seconds: None,
+    )
+
+    rows = build_canada_jobs_snapshot.process_selected_jobs(
+        [
+            {
+                "job_id": "job-empty",
+                "title": "Data Engineer",
+                "company": "Example",
+                "description": "Coordinate technical programs.",
+            }
+        ],
+        delay_seconds=0,
+    )
+
+    assert len(rows) == 1
+    assert rows[0]["extracted_skills"] == []
+    assert rows[0]["skills_text"] == ""
+    assert rows[0]["skill_extraction_provider"] == "deterministic_fallback"
+    assert "returned no skills" in rows[0]["skill_extraction_error"]
+
+
 def test_build_snapshot_run_summary_counts_providers_and_skips(tmp_path):
     summary = build_canada_jobs_snapshot.build_snapshot_run_summary(
         selected_jobs=[
@@ -223,6 +263,28 @@ def test_build_snapshot_run_summary_counts_providers_and_skips(tmp_path):
     assert summary.error_log == [
         "1 selected postings were skipped during enrichment."
     ]
+
+
+def test_build_snapshot_run_summary_ignores_cached_nan_error_fields(tmp_path):
+    summary = build_canada_jobs_snapshot.build_snapshot_run_summary(
+        selected_jobs=[{"job_id": "job-1"}],
+        processed_rows=[
+            {
+                "job_id": "job-1",
+                "skill_extraction_provider": "groq",
+                "skill_extraction_error": float("nan"),
+                "skill_extraction_prompt_version": float("nan"),
+                "skill_extraction_confidence": float("nan"),
+            }
+        ],
+        started_at=build_canada_jobs_snapshot.current_utc_time(),
+        output_path=tmp_path / "snapshot.csv",
+    )
+
+    assert summary.metadata["provider_counts"] == {"groq": 1}
+    assert summary.metadata["prompt_version_counts"] == {"unknown": 1}
+    assert summary.metadata["average_extraction_confidence"] is None
+    assert summary.error_log == []
 
 
 def test_main_writes_snapshot_run_summaries(monkeypatch, tmp_path):

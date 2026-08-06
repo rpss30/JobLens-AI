@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>{% block title %}JobLens Operations{% endblock %}</title>
+    <style>
+      body {
+        margin: 0;
+        background: #f6f8fb;
+        color: #142033;
+        font-family: Arial, sans-serif;
+      }
+
+      header,
+      main {
+        margin: 0 auto;
+        max-width: 1120px;
+        padding: 32px;
+      }
+
+      header {
+        border-bottom: 1px solid #d8e0ea;
+      }
+
+      a {
+        color: #0f5f6f;
+        font-weight: 700;
+        text-decoration: none;
+      }
+
+      table {
+        border-collapse: collapse;
+        width: 100%;
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid #d8e0ea;
+        padding: 12px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        color: #516278;
+        font-size: 12px;
+        text-transform: uppercase;
+      }
+
+      input,
+      select {
+        border: 1px solid #b8c4d4;
+        border-radius: 6px;
+        box-sizing: border-box;
+        padding: 9px;
+        width: 100%;
+      }
+
+      button,
+      .button {
+        background: #0f5f6f;
+        border: 0;
+        border-radius: 6px;
+        color: white;
+        cursor: pointer;
+        display: inline-block;
+        font-weight: 700;
+        padding: 9px 12px;
+      }
+
+      .eyebrow {
+        color: #516278;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+      }
+
+      .grid {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      }
+
+      .card {
+        background: white;
+        border: 1px solid #d8e0ea;
+        border-radius: 8px;
+        padding: 20px;
+      }
+
+      .metric {
+        font-size: 32px;
+        font-weight: 700;
+      }
+
+      .muted {
+        color: #516278;
+      }
+
+      .topbar {
+        align-items: flex-start;
+        display: flex;
+        gap: 24px;
+        justify-content: space-between;
+      }
+
+      .nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        margin-top: 16px;
+      }
+
+      .logout {
+        background: transparent;
+        border: 1px solid #b8c4d4;
+        border-radius: 6px;
+        color: #142033;
+        cursor: pointer;
+        font-weight: 700;
+        padding: 8px 12px;
+      }
+
+      .filter-grid {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      }
+
+      .badge {
+        background: #edf6f7;
+        border-radius: 999px;
+        display: inline-block;
+        font-size: 12px;
+        font-weight: 700;
+        padding: 4px 8px;
+      }
+
+      .pager {
+        align-items: center;
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+        margin-top: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="topbar">
+        <div>
+          <div class="eyebrow">Staff Operations</div>
+          <h1>{% block heading %}JobLens Operations{% endblock %}</h1>
+          <p class="muted">{% block subheading %}Pipeline visibility for JobLens AI.{% endblock %}</p>
+          <nav class="nav" aria-label="Operations navigation">
+            <a href="{% url 'operations-home' %}">Overview</a>
+            <a href="{% url 'pipeline-run-list' %}">Pipeline Runs</a>
+            <a href="{% url 'extraction-issue-list' %}">Extraction Issues</a>
+          </nav>
+        </div>
+        <form method="post" action="{% url 'operations-logout' %}">
+          {% csrf_token %}
+          <button class="logout" type="submit">Sign out</button>
+        </form>
+      </div>
+    </header>
+    <main>
+      {% block content %}{% endblock %}
+    </main>
+  </body>
+</html>

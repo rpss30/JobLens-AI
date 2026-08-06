@@ -1,0 +1,91 @@
+{% extends "pipeline/base.html" %}
+
+{% block title %}Extraction Issues | JobLens Operations{% endblock %}
+{% block heading %}Extraction Issues{% endblock %}
+{% block subheading %}Postings where extraction returned no skills or persisted an error.{% endblock %}
+
+{% block content %}
+  <section class="card">
+    <form method="get">
+      <div class="filter-grid">
+        <label>
+          Search
+          <input name="q" value="{{ filters.q }}" placeholder="title, company, source, error">
+        </label>
+        <label>
+          Provider
+          <select name="provider">
+            <option value="">Any</option>
+            {% for provider in filter_options.providers %}
+              <option value="{{ provider }}" {% if filters.provider == provider %}selected{% endif %}>{{ provider }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Model
+          <select name="model">
+            <option value="">Any</option>
+            {% for model in filter_options.models %}
+              <option value="{{ model }}" {% if filters.model == model %}selected{% endif %}>{{ model }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Prompt Version
+          <select name="prompt_version">
+            <option value="">Any</option>
+            {% for prompt_version in filter_options.prompt_versions %}
+              <option value="{{ prompt_version }}" {% if filters.prompt_version == prompt_version %}selected{% endif %}>{{ prompt_version }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+      <p><button type="submit">Apply filters</button></p>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>{{ total_matching_issues }} matching issues</h2>
+    {% if issues %}
+      <table>
+        <thead>
+          <tr>
+            <th>Posting</th>
+            <th>Provider</th>
+            <th>Model</th>
+            <th>Prompt</th>
+            <th>Error</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for issue in issues %}
+            <tr>
+              <td>
+                {{ issue.processed_job.job_posting.title }}
+                <div class="muted">{{ issue.processed_job.job_posting.company }} · {{ issue.processed_job.job_posting.source|default:"unknown" }}</div>
+                {% if issue.processed_job.job_posting.source_url %}
+                  <a href="{{ issue.processed_job.job_posting.source_url }}">Source posting</a>
+                {% endif %}
+              </td>
+              <td>{{ issue.provider }}</td>
+              <td>{{ issue.model|default:"unknown" }}</td>
+              <td>{{ issue.prompt_version|default:"unknown" }}</td>
+              <td>{{ issue.error|default:"Empty extraction" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <nav class="pager" aria-label="Pagination">
+        {% if page_obj.has_previous %}
+          <a href="?page={{ page_obj.previous_page_number }}{% if pagination_query %}&{{ pagination_query }}{% endif %}">Previous</a>
+        {% endif %}
+        <span class="muted">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+          <a href="?page={{ page_obj.next_page_number }}{% if pagination_query %}&{{ pagination_query }}{% endif %}">Next</a>
+        {% endif %}
+      </nav>
+    {% else %}
+      <p>No failed or empty extraction results match these filters.</p>
+    {% endif %}
+  </section>
+{% endblock %}

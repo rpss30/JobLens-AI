@@ -1,0 +1,97 @@
+{% extends "pipeline/base.html" %}
+
+{% block title %}Pipeline Runs | JobLens Operations{% endblock %}
+{% block heading %}Pipeline Runs{% endblock %}
+{% block subheading %}Filter and inspect persisted ingestion and enrichment run metadata.{% endblock %}
+
+{% block content %}
+  <section class="card">
+    <form method="get">
+      <div class="filter-grid">
+        <label>
+          Search
+          <input name="q" value="{{ filters.q }}" placeholder="source, status, dataset, error">
+        </label>
+        <label>
+          Status
+          <select name="status">
+            <option value="">Any</option>
+            {% for status in filter_options.statuses %}
+              <option value="{{ status }}" {% if filters.status == status %}selected{% endif %}>{{ status }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Provider
+          <select name="provider">
+            <option value="">Any</option>
+            {% for provider in filter_options.providers %}
+              <option value="{{ provider }}" {% if filters.provider == provider %}selected{% endif %}>{{ provider }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Model
+          <select name="model">
+            <option value="">Any</option>
+            {% for model in filter_options.models %}
+              <option value="{{ model }}" {% if filters.model == model %}selected{% endif %}>{{ model }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Prompt Version
+          <select name="prompt_version">
+            <option value="">Any</option>
+            {% for prompt_version in filter_options.prompt_versions %}
+              <option value="{{ prompt_version }}" {% if filters.prompt_version == prompt_version %}selected{% endif %}>{{ prompt_version }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+      <p><button type="submit">Apply filters</button></p>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>{{ total_matching_runs }} matching runs</h2>
+    {% if runs %}
+      <table>
+        <thead>
+          <tr>
+            <th>Run</th>
+            <th>Status</th>
+            <th>Processed</th>
+            <th>Sources</th>
+            <th>Started</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for run in runs %}
+            <tr>
+              <td>
+                <a href="{% url 'pipeline-run-detail' run.id %}">{{ run.source_type }}</a>
+                {% if run.dataset %}<div class="muted">{{ run.dataset.name }}</div>{% endif %}
+              </td>
+              <td><span class="badge">{{ run.status }}</span></td>
+              <td>{{ run.processed_job_count }}/{{ run.raw_job_count }}</td>
+              <td>{{ run.successful_sources }}/{{ run.total_sources }}</td>
+              <td>{{ run.started_at }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <nav class="pager" aria-label="Pagination">
+        {% if page_obj.has_previous %}
+          <a href="?page={{ page_obj.previous_page_number }}{% if pagination_query %}&{{ pagination_query }}{% endif %}">Previous</a>
+        {% endif %}
+        <span class="muted">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+          <a href="?page={{ page_obj.next_page_number }}{% if pagination_query %}&{{ pagination_query }}{% endif %}">Next</a>
+        {% endif %}
+      </nav>
+    {% else %}
+      <p>No pipeline runs match these filters.</p>
+    {% endif %}
+  </section>
+{% endblock %}

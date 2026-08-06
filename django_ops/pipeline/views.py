@@ -10,7 +10,10 @@ from django.views.decorators.http import require_GET
 from django_ops.pipeline.auth import can_manage_operations, operations_view_required
 from django_ops.pipeline.services import (
     check_database_connection,
+    load_extraction_issues_context,
     load_foundation_context,
+    load_pipeline_run_detail_context,
+    load_pipeline_runs_context,
 )
 
 
@@ -71,3 +74,30 @@ def operations_home(request: HttpRequest) -> HttpResponse:
         }
 
     return render(request, "pipeline/operations_home.html", context)
+
+
+@operations_view_required
+def pipeline_run_list(request: HttpRequest) -> HttpResponse:
+    context = {
+        "can_manage_operations": can_manage_operations(request.user),
+        **load_pipeline_runs_context(request.GET),
+    }
+    return render(request, "pipeline/run_list.html", context)
+
+
+@operations_view_required
+def pipeline_run_detail(request: HttpRequest, run_id: int) -> HttpResponse:
+    context = {
+        "can_manage_operations": can_manage_operations(request.user),
+        **load_pipeline_run_detail_context(run_id),
+    }
+    return render(request, "pipeline/run_detail.html", context)
+
+
+@operations_view_required
+def extraction_issue_list(request: HttpRequest) -> HttpResponse:
+    context = {
+        "can_manage_operations": can_manage_operations(request.user),
+        **load_extraction_issues_context(request.GET),
+    }
+    return render(request, "pipeline/extraction_issue_list.html", context)

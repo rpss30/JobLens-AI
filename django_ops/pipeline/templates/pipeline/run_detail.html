@@ -1,0 +1,120 @@
+{% extends "pipeline/base.html" %}
+
+{% block title %}{{ run.source_type }} | JobLens Operations{% endblock %}
+{% block heading %}{{ run.source_type }}{% endblock %}
+{% block subheading %}{{ run.status }} · {{ run.processed_job_count }}/{{ run.raw_job_count }} processed{% endblock %}
+
+{% block content %}
+  <section class="grid">
+    <article class="card">
+      <div class="muted">Status</div>
+      <div class="metric">{{ run.status }}</div>
+    </article>
+    <article class="card">
+      <div class="muted">Dedup rejected</div>
+      <div class="metric">{{ dedup_rejected_count }}</div>
+    </article>
+    <article class="card">
+      <div class="muted">Failed sources</div>
+      <div class="metric">{{ run.failed_sources }}</div>
+    </article>
+  </section>
+
+  <section class="card">
+    <h2>Run Metadata</h2>
+    <p><strong>Started:</strong> {{ run.started_at }}</p>
+    <p><strong>Completed:</strong> {{ run.completed_at|default:"In progress" }}</p>
+    <p><strong>Dataset:</strong> {% if run.dataset %}{{ run.dataset.name }}{% else %}None recorded{% endif %}</p>
+  </section>
+
+  <section class="grid">
+    <article class="card">
+      <h2>Providers</h2>
+      {% for provider, count in provider_counts.items %}
+        <p>{{ provider }}: {{ count }}</p>
+      {% empty %}
+        <p>No provider metadata recorded.</p>
+      {% endfor %}
+    </article>
+    <article class="card">
+      <h2>Models</h2>
+      {% for model, count in model_counts.items %}
+        <p>{{ model }}: {{ count }}</p>
+      {% empty %}
+        <p>No model metadata recorded.</p>
+      {% endfor %}
+    </article>
+    <article class="card">
+      <h2>Prompt Versions</h2>
+      {% for prompt_version, count in prompt_version_counts.items %}
+        <p>{{ prompt_version }}: {{ count }}</p>
+      {% empty %}
+        <p>No prompt-version metadata recorded.</p>
+      {% endfor %}
+    </article>
+  </section>
+
+  <section class="card">
+    <h2>Source Results</h2>
+    {% if source_results %}
+      <table>
+        <thead>
+          <tr>
+            <th>Company</th>
+            <th>Source</th>
+            <th>Status</th>
+            <th>Jobs</th>
+            <th>Error</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for result in source_results %}
+            <tr>
+              <td>{{ result.company }}</td>
+              <td>{{ result.source_type }}</td>
+              <td>{{ result.status }}</td>
+              <td>{{ result.job_count }}</td>
+              <td>{{ result.error|default:"" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p>No per-source breakdown was recorded for this run.</p>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <h2>Extraction Issues Linked To This Dataset</h2>
+    {% if extraction_issues %}
+      <table>
+        <thead>
+          <tr>
+            <th>Posting</th>
+            <th>Provider</th>
+            <th>Model</th>
+            <th>Error</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for issue in extraction_issues %}
+            <tr>
+              <td>
+                {{ issue.processed_job.job_posting.title }}
+                <div class="muted">{{ issue.processed_job.job_posting.company }}</div>
+                {% if issue.processed_job.job_posting.source_url %}
+                  <a href="{{ issue.processed_job.job_posting.source_url }}">Source posting</a>
+                {% endif %}
+              </td>
+              <td>{{ issue.provider }}</td>
+              <td>{{ issue.model|default:"unknown" }}</td>
+              <td>{{ issue.error|default:"Empty extraction" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p>No failed or empty extraction results are linked to this run's dataset.</p>
+    {% endif %}
+  </section>
+{% endblock %}

@@ -23,6 +23,19 @@ services:
     depends_on:
       - db
 
+  ops:
+    build: .
+    container_name: joblens-ops
+    command: python -m ops.app
+    ports:
+      - "5001:5001"
+    environment:
+      - PYTHONPATH=/app
+      - DATABASE_URL=postgresql+psycopg://postgres:postgres@db:5432/joblens_ai
+      - OPSLENS_PORT=5001
+    depends_on:
+      - db
+
   db:
     image: postgres:16
     container_name: joblens-postgres

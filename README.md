@@ -295,6 +295,7 @@ protected.
 | Data and matching | Python, Pandas, scikit-learn |
 | Dashboard | Streamlit, Altair, Plotly |
 | API | FastAPI, Pydantic, Uvicorn |
+| Ops console | Flask, Jinja, SCSS |
 | Persistence | PostgreSQL, SQLAlchemy, Alembic, psycopg |
 | AI enrichment | Groq, Google Gemini, deterministic fallback |
 | Reports | ReportLab, pypdf |
@@ -487,7 +488,7 @@ List endpoints support bounded pagination with `limit` and `offset`, plus
 
 JobLens AI can also be run with Docker Compose.
 
-Build and start the Streamlit dashboard, FastAPI backend, and PostgreSQL database:
+Build and start the Streamlit dashboard, FastAPI backend, ops console, and PostgreSQL database:
 
 ```bash
 docker compose up --build
@@ -498,6 +499,7 @@ Once the services are running:
 - Streamlit dashboard: `http://localhost:8501`
 - FastAPI docs: `http://localhost:8000/docs`
 - FastAPI health check: `http://localhost:8000/health`
+- Internal ops console: `http://localhost:5001`
 
 Initialize the PostgreSQL tables:
 
@@ -521,6 +523,48 @@ To stop the services and remove the PostgreSQL volume:
 
 ```bash
 docker compose down -v
+```
+
+## Internal Ops Console
+
+JobLens AI includes a small read-only Flask ops console for pipeline visibility.
+It is intentionally separate from the FastAPI app: FastAPI remains the typed
+candidate-analysis API, while Flask serves internal Jinja pages for checking
+pipeline health without opening `psql` or adding mutation routes.
+
+Run the console locally:
+
+```bash
+python -m ops.app
+```
+
+The console runs on:
+
+```text
+http://localhost:5001
+```
+
+It shows postings per source, total persisted postings, the latest ingestion
+timestamp, deduplication rejects from persisted run metadata, recent ingestion
+runs with per-source breakdowns, frequent extracted skills, and queryable empty
+skill-extraction results.
+
+The templates are styled with SCSS. Edit files under:
+
+```text
+ops/static/scss
+```
+
+Compile SCSS to the served CSS file:
+
+```bash
+python -m ops.compile_scss
+```
+
+Run the ops console tests:
+
+```bash
+pytest tests/test_ops_console.py
 ```
 
 ## AWS Deployment Path

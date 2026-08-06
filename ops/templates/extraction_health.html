@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}Extraction Health | JobLens Ops{% endblock %}
+
+{% block content %}
+  <section class="panel">
+    <div class="section-header">
+      <h2>Most Frequent Skills</h2>
+    </div>
+    {% if top_skills %}
+      <div class="skill-cloud">
+        {% for skill in top_skills %}
+          <span>{{ skill.skill }} <strong>{{ skill.count }}</strong></span>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="empty-state">No extracted skills have been persisted yet.</p>
+    {% endif %}
+  </section>
+
+  <section class="panel">
+    <div class="section-header">
+      <h2>Empty Extraction Results</h2>
+    </div>
+    {% if empty_extractions %}
+      <table>
+        <thead>
+          <tr>
+            <th>Posting</th>
+            <th>Company</th>
+            <th>Source</th>
+            <th>Provider</th>
+            <th>Error</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in empty_extractions %}
+            <tr>
+              <td>
+                {% if row.source_url %}
+                  <a href="{{ row.source_url }}">{{ row.title }}</a>
+                {% else %}
+                  {{ row.title }}
+                {% endif %}
+              </td>
+              <td>{{ row.company }}</td>
+              <td>{{ row.source }}</td>
+              <td>{{ row.provider }}</td>
+              <td>{{ row.error or "No error recorded" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="empty-state">No empty extraction results found.</p>
+    {% endif %}
+  </section>
+{% endblock %}
+

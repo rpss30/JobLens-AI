@@ -13,6 +13,10 @@ class ErrorResponse(BaseModel):
     detail: str
 
 
+class HealthResponse(BaseModel):
+    status: str
+
+
 class AnalyzeRequest(BaseModel):
     current_skills: list[str] = Field(
         default_factory=list,

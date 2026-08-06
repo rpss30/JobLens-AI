@@ -18,7 +18,7 @@ from src.ingestion.ashby_client import (
     fetch_ashby_postings,
     normalize_ashby_posting,
 )
-from src.ingestion.canada_jobs import prepare_canada_jobs
+from src.ingestion.canada_jobs import prepare_canada_jobs_with_metrics
 from src.ingestion.greenhouse_client import (
     fetch_greenhouse_jobs,
     normalize_greenhouse_job,
@@ -194,7 +194,7 @@ def main(
     started_at = current_utc_time()
     sources = load_employer_sources(source_path)
     fetched_jobs, source_results = fetch_all_sources_with_results(sources)
-    canada_jobs = prepare_canada_jobs(fetched_jobs)
+    canada_jobs, pipeline_metrics = prepare_canada_jobs_with_metrics(fetched_jobs)
     validation_errors = validate_job_records(canada_jobs)
     summary = build_ingestion_run_summary(
         source_type="canada_jobs_fetch",
@@ -207,6 +207,7 @@ def main(
         metadata={
             "source_path": str(source_path),
             "output_path": str(output_path),
+            **pipeline_metrics,
         },
     )
 

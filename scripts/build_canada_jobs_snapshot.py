@@ -63,7 +63,7 @@ def load_existing_extractions(path: Path) -> dict[str, dict[str, object]]:
     return {
         str(row["job_id"]): row.to_dict()
         for _, row in existing_df.iterrows()
-        if str(row.get("skills_text", "")).strip()
+        if metadata_text(row.get("skills_text"))
     }
 
 
@@ -90,6 +90,21 @@ def parse_confidence_value(value: object) -> float | None:
         return None
 
     return confidence
+
+
+def metadata_text(value: object, *, default: str = "") -> str:
+    """Return a clean text value, treating pandas CSV nulls as blank."""
+    if value is None:
+        return default
+
+    try:
+        if pd.isna(value):
+            return default
+    except (TypeError, ValueError):
+        pass
+
+    text = str(value).strip()
+    return text if text else default
 
 
 def extract_skills_groq_first(
@@ -160,9 +175,9 @@ def process_selected_jobs(
 
         if job_id in existing_rows:
             existing_row = existing_rows[job_id]
-            existing_clean_description = str(
-                existing_row.get("clean_description", "")
-            ).strip()
+            existing_clean_description = metadata_text(
+                existing_row.get("clean_description")
+            )
 
             if existing_clean_description == clean_description:
                 processed_rows.append(
@@ -174,22 +189,21 @@ def process_selected_jobs(
                             "extracted_skills",
                             [],
                         ),
-                        "skills_text": existing_row.get("skills_text", ""),
-                        "skill_extraction_provider": existing_row.get(
-                            "skill_extraction_provider",
-                            "groq",
+                        "skills_text": metadata_text(existing_row.get("skills_text")),
+                        "skill_extraction_provider": metadata_text(
+                            existing_row.get("skill_extraction_provider"),
+                            default="groq",
                         ),
-                        "skill_extraction_error": existing_row.get(
-                            "skill_extraction_error",
-                            "",
+                        "skill_extraction_error": metadata_text(
+                            existing_row.get("skill_extraction_error"),
                         ),
-                        "skill_extraction_model": existing_row.get(
-                            "skill_extraction_model",
-                            "",
+                        "skill_extraction_model": metadata_text(
+                            existing_row.get("skill_extraction_model"),
                         ),
-                        "skill_extraction_prompt_version": existing_row.get(
-                            "skill_extraction_prompt_version",
-                            "",
+                        "skill_extraction_prompt_version": metadata_text(
+                            existing_row.get(
+                                "skill_extraction_prompt_version",
+                            ),
                         ),
                         "skill_extraction_confidence": existing_row.get(
                             "skill_extraction_confidence",
@@ -213,8 +227,7 @@ def process_selected_jobs(
         )
 
         if not extraction_result.skills:
-            print("  Skipped because no technical skills were extracted.")
-            continue
+            print("  No technical skills were extracted; recording for ops review.")
 
         processed_rows.append(
             {
@@ -251,11 +264,14 @@ def build_snapshot_run_summary(
     output_path: Path,
 ) -> IngestionRunSummary:
     provider_counts = Counter(
-        str(row.get("skill_extraction_provider", "")).strip() or "unknown"
+        metadata_text(row.get("skill_extraction_provider"), default="unknown")
         for row in processed_rows
     )
     prompt_version_counts = Counter(
-        str(row.get("skill_extraction_prompt_version", "")).strip() or "unknown"
+        metadata_text(
+            row.get("skill_extraction_prompt_version"),
+            default="unknown",
+        )
         for row in processed_rows
     )
     confidence_values = [
@@ -273,9 +289,9 @@ def build_snapshot_run_summary(
         else None
     )
     extraction_errors = [
-        f"{row.get('job_id', 'unknown')}: {row.get('skill_extraction_error')}"
+        f"{row.get('job_id', 'unknown')}: {error_text}"
         for row in processed_rows
-        if str(row.get("skill_extraction_error", "")).strip()
+        if (error_text := metadata_text(row.get("skill_extraction_error")))
     ]
     skipped_count = max(0, len(selected_jobs) - len(processed_rows))
 

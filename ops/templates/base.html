@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}JobLens Ops{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/ops.css') }}">
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Internal Ops</p>
+        <h1>JobLens AI</h1>
+      </div>
+      <nav class="nav">
+        <a href="{{ url_for('dashboard') }}">Dashboard</a>
+        <a href="{{ url_for('ingestion_runs') }}">Ingestion Runs</a>
+        <a href="{{ url_for('extraction_health') }}">Extraction Health</a>
+      </nav>
+    </header>
+    <main class="page-shell">
+      {% block content %}{% endblock %}
+    </main>
+  </body>
+</html>
+

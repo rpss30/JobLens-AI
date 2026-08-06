@@ -63,6 +63,14 @@ OPTIONAL_PROCESSED_COLUMNS = [
     "skill_extraction_raw_response",
 ]
 
+RUN_METADATA_KEYS = {
+    "source_results",
+    "dedup_rejected_count",
+    "provider_counts",
+    "prompt_version_counts",
+    "skipped_count",
+}
+
 
 def normalize_skill_name(skill: str) -> str:
     return skill.strip().lower()
@@ -147,6 +155,15 @@ def build_extraction_result_from_row(
         raw_response=raw_response,
         error=error,
     )
+
+
+def build_run_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
+    """Keep only bounded run-scoped metadata suitable for ops dashboards."""
+    return {
+        key: metadata[key]
+        for key in RUN_METADATA_KEYS
+        if key in metadata
+    }
 
 
 def parse_skills(value: Any) -> list[str]:
@@ -313,6 +330,7 @@ def save_ingestion_run_summary(
             raw_job_count=summary.raw_job_count,
             processed_job_count=summary.processed_job_count,
             error_log=summary.error_log,
+            run_metadata=build_run_metadata(summary.metadata),
         )
 
         session.add(ingestion_run)

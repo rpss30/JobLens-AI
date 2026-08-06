@@ -148,10 +148,19 @@ def deduplicate_jobs(
     jobs: Iterable[dict[str, object]],
 ) -> list[dict[str, object]]:
     """Deduplicate jobs by stable ID, source URL, then visible identity."""
+    deduplicated, _ = deduplicate_jobs_with_count(jobs)
+    return deduplicated
+
+
+def deduplicate_jobs_with_count(
+    jobs: Iterable[dict[str, object]],
+) -> tuple[list[dict[str, object]], int]:
+    """Deduplicate jobs and return how many records were rejected."""
     deduplicated: list[dict[str, object]] = []
     seen_job_ids: set[str] = set()
     seen_source_urls: set[str] = set()
     seen_visible_keys: set[tuple[str, str, str]] = set()
+    rejected_count = 0
 
     for job in jobs:
         job_id = str(job.get("job_id", "")).strip().lower()
@@ -167,6 +176,7 @@ def deduplicate_jobs(
             or (source_url and source_url in seen_source_urls)
             or visible_key in seen_visible_keys
         ):
+            rejected_count += 1
             continue
 
         if job_id:
@@ -176,15 +186,15 @@ def deduplicate_jobs(
         seen_visible_keys.add(visible_key)
         deduplicated.append(job)
 
-    return deduplicated
+    return deduplicated, rejected_count
 
 
-def prepare_canada_jobs(
+def prepare_canada_job_candidates(
     jobs: Iterable[dict[str, object]],
     *,
     as_of: datetime | None = None,
 ) -> list[dict[str, object]]:
-    """Filter active technical postings to normalized Canadian jobs."""
+    """Filter active technical postings to normalized Canadian job candidates."""
     prepared_jobs: list[dict[str, object]] = []
 
     for job in jobs:
@@ -210,7 +220,33 @@ def prepare_canada_jobs(
         normalized_job["role_category"] = role_category
         prepared_jobs.append(normalized_job)
 
+    return prepared_jobs
+
+
+def prepare_canada_jobs(
+    jobs: Iterable[dict[str, object]],
+    *,
+    as_of: datetime | None = None,
+) -> list[dict[str, object]]:
+    """Filter active technical postings to normalized Canadian jobs."""
+    prepared_jobs = prepare_canada_job_candidates(jobs, as_of=as_of)
     return deduplicate_jobs(prepared_jobs)
+
+
+def prepare_canada_jobs_with_metrics(
+    jobs: Iterable[dict[str, object]],
+    *,
+    as_of: datetime | None = None,
+) -> tuple[list[dict[str, object]], dict[str, int]]:
+    """Prepare Canada jobs and return bounded operational metrics."""
+    prepared_jobs = prepare_canada_job_candidates(jobs, as_of=as_of)
+    deduplicated_jobs, dedup_rejected_count = deduplicate_jobs_with_count(
+        prepared_jobs
+    )
+
+    return deduplicated_jobs, {
+        "dedup_rejected_count": dedup_rejected_count,
+    }
 
 
 def posting_sort_key(job: dict[str, object]) -> tuple[str, str, str]:

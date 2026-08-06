@@ -28,6 +28,7 @@ from src.database.repository import (
     parse_optional_datetime,
     parse_skills,
     slugify_dataset_name,
+    build_run_metadata,
 )
 from src.ingestion.pipeline_runs import build_single_stage_run_summary
 
@@ -129,6 +130,26 @@ def test_parse_skills_from_empty_string():
 
 def test_parse_skills_removes_blank_items_from_list():
     assert parse_skills(["Python", "", " SQL "]) == ["Python", "SQL"]
+
+
+def test_build_run_metadata_keeps_only_bounded_ops_keys():
+    assert build_run_metadata(
+        {
+            "source_results": [{"company": "GoodCo"}],
+            "dedup_rejected_count": 2,
+            "provider_counts": {"groq": 1},
+            "prompt_version_counts": {"skill-extraction-v2": 1},
+            "skipped_count": 0,
+            "output_path": "/tmp/canada_jobs_snapshot.csv",
+        }
+    ) == {
+        "source_results": [{"company": "GoodCo"}],
+        "dedup_rejected_count": 2,
+        "provider_counts": {"groq": 1},
+        "prompt_version_counts": {"skill-extraction-v2": 1},
+        "skipped_count": 0,
+    }
+
 
 def test_slugify_dataset_name_lowercases_and_replaces_special_characters():
     assert slugify_dataset_name("My Jobs Upload.csv") == "my_jobs_upload_csv"
@@ -393,6 +414,11 @@ def test_save_ingestion_run_summary_persists_operational_metrics(monkeypatch):
         raw_job_count=72,
         processed_job_count=70,
         errors=["Two postings had no extracted skills."],
+        metadata={
+            "provider_counts": {"groq": 68, "deterministic_fallback": 2},
+            "prompt_version_counts": {"skill-extraction-v2": 68},
+            "skipped_count": 0,
+        },
     )
 
     ingestion_run_id = repository.save_ingestion_run_summary(
@@ -414,3 +440,61 @@ def test_save_ingestion_run_summary_persists_operational_metrics(monkeypatch):
     assert ingestion_run.raw_job_count == 72
     assert ingestion_run.processed_job_count == 70
     assert ingestion_run.error_log == ["Two postings had no extracted skills."]
+    assert ingestion_run.run_metadata == {
+        "provider_counts": {"groq": 68, "deterministic_fallback": 2},
+        "prompt_version_counts": {"skill-extraction-v2": 68},
+        "skipped_count": 0,
+    }
+
+
+def test_seed_processed_jobs_persists_empty_extraction_result(monkeypatch):
+    fake_session = FakeSeedSession()
+    patch_db_session(monkeypatch, fake_session)
+
+    df = pd.DataFrame(
+        [
+            {
+                "job_id": "greenhouse:test:empty",
+                "title": "Data Engineer",
+                "company": "Example",
+                "location": "Toronto, ON",
+                "description": "Coordinate technical programs.",
+                "experience_level": "Entry Level",
+                "source": "greenhouse",
+                "source_url": "https://example.com/jobs/empty",
+                "clean_title": "data engineer",
+                "clean_description": "coordinate technical programs.",
+                "extracted_skills": [],
+                "role_category": "Data Engineering",
+                "skills_text": "",
+                "skill_extraction_provider": "deterministic_fallback",
+                "skill_extraction_error": "Groq attempt 2: returned no skills",
+                "skill_extraction_model": "deterministic-skill-dictionary",
+                "skill_extraction_prompt_version": "deterministic-skill-dictionary-v1",
+            }
+        ]
+    )
+
+    inserted_count = repository.seed_processed_jobs_from_dataframe(
+        df=df,
+        dataset_name="canada_jobs",
+        source_type="canada_snapshot",
+        replace_existing=False,
+    )
+
+    processed_job = next(
+        item for item in fake_session.added if isinstance(item, ProcessedJob)
+    )
+    extraction_result = next(
+        item for item in fake_session.added if isinstance(item, ExtractionResult)
+    )
+    job_skills = [
+        item for item in fake_session.added if isinstance(item, JobSkill)
+    ]
+
+    assert inserted_count == 1
+    assert processed_job.extracted_skills == []
+    assert extraction_result.processed_job_id == processed_job.id
+    assert extraction_result.extracted_skills == []
+    assert extraction_result.error == "Groq attempt 2: returned no skills"
+    assert job_skills == []

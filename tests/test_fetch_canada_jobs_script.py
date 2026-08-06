@@ -73,8 +73,8 @@ def test_main_writes_pipeline_summaries(monkeypatch, tmp_path):
     )
     monkeypatch.setattr(
         fetch_canada_jobs,
-        "prepare_canada_jobs",
-        lambda jobs: normalized_jobs,
+        "prepare_canada_jobs_with_metrics",
+        lambda jobs: (normalized_jobs, {"dedup_rejected_count": 2}),
     )
 
     output_path = tmp_path / "canada_jobs.csv"
@@ -93,6 +93,9 @@ def test_main_writes_pipeline_summaries(monkeypatch, tmp_path):
 
     assert output_df.iloc[0]["job_id"] == "greenhouse:goodco:1"
     assert '"source_type": "canada_jobs_fetch"' in summary_path.read_text(
+        encoding="utf-8"
+    )
+    assert '"dedup_rejected_count": 2' in summary_path.read_text(
         encoding="utf-8"
     )
     assert "## Canada Jobs Fetch Run" in markdown_path.read_text(encoding="utf-8")
@@ -117,8 +120,11 @@ def test_main_raises_when_validation_fails(monkeypatch, tmp_path):
     )
     monkeypatch.setattr(
         fetch_canada_jobs,
-        "prepare_canada_jobs",
-        lambda jobs: [{"job_id": "missing-fields"}],
+        "prepare_canada_jobs_with_metrics",
+        lambda jobs: (
+            [{"job_id": "missing-fields"}],
+            {"dedup_rejected_count": 0},
+        ),
     )
 
     summary_path = tmp_path / "fetch-summary.json"

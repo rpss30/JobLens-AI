@@ -25,6 +25,11 @@ data/raw/canada_jobs.csv
 data/raw/uploaded_jobs.csv
 data/processed/uploaded_processed_jobs.csv
 
+# Generated production operations artifacts
+deploy/backups/
+deploy/logs/
+deploy/monitoring/
+
 # Generated AI extraction experiment outputs
 data/processed/greenhouse_processed_jobs.csv
 data/processed/greenhouse_ai_processed_jobs_sample.csv

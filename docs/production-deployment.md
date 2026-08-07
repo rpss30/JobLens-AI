@@ -145,6 +145,11 @@ Database backup and restore procedures are documented separately in
 [database-backups.md](database-backups.md). Run and verify a fresh backup before
 high-risk deployments or restores.
 
+Local post-deploy status checks and log snapshots are documented in
+[operations-monitoring.md](operations-monitoring.md). Run the operations status
+check after a release when investigating service health, backup freshness, or
+disk pressure.
+
 ## Current Limits
 
 - no server provisioning
@@ -152,3 +157,4 @@ high-risk deployments or restores.
 - no image registry publishing
 - no dependency or container image scanning
 - no scheduled automatic deployment
+- no external uptime monitoring or alert delivery

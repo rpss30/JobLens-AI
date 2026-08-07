@@ -83,6 +83,8 @@ GitHub Actions deployment workflow and rollback procedure that run this Compose
 sequence on an already-provisioned server.
 See [database-backups.md](database-backups.md) for backup and restore scripts
 that run through this stack's internal PostgreSQL service.
+See [operations-monitoring.md](operations-monitoring.md) for local service
+health, disk usage, backup freshness, and log-snapshot checks.
 
 ## Startup
 
@@ -157,6 +159,12 @@ Check the latest local database backup status:
 BACKUP_STATUS_FILE=/srv/joblens-backups/latest_backup.json deploy/scripts/check_database_backup_status.sh
 ```
 
+Check the full local operations status:
+
+```bash
+MONITOR_STATUS_FILE=/srv/joblens-monitoring/latest_status.json deploy/scripts/check_operations_status.sh
+```
+
 ## Updates
 
 Pull the latest application code, rebuild, run migrations, then restart:
@@ -181,5 +189,6 @@ This stack intentionally does not include:
 
 - cloud resource provisioning
 - off-server backup storage
+- external uptime monitoring or central log aggregation
 
 Those belong in later focused branches.

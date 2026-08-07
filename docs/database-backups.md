@@ -117,6 +117,10 @@ deploy/scripts/check_database_backup_status.sh
 This script exits nonzero if the status file is missing, the latest backup
 failed, or the status file is older than the allowed age.
 
+The broader production status check in
+[operations-monitoring.md](operations-monitoring.md) runs this backup freshness
+check alongside service health and disk usage checks.
+
 ## Restore Test
 
 Test a dump without touching the production database:

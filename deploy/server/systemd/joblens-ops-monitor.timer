@@ -1,0 +1,11 @@
+[Unit]
+Description=Run JobLens operations status checks every five minutes
+
+[Timer]
+OnCalendar=*:0/5
+Persistent=true
+RandomizedDelaySec=30
+Unit=joblens-ops-monitor.service
+
+[Install]
+WantedBy=timers.target

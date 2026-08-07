@@ -1,0 +1,58 @@
+name: External Uptime Check
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Optional health-check base URL override"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  uptime:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate uptime scripts
+        run: |
+          bash -n deploy/scripts/check_external_uptime.sh
+          bash -n deploy/scripts/send_operations_alert.sh
+
+      - name: Run external uptime check
+        env:
+          INPUT_BASE_URL: ${{ inputs.base_url }}
+          PRODUCTION_HEALTH_BASE_URL: ${{ secrets.PRODUCTION_HEALTH_BASE_URL }}
+          PRODUCTION_DOMAIN: ${{ secrets.PRODUCTION_DOMAIN }}
+          ALERT_WEBHOOK_URL: ${{ secrets.PRODUCTION_ALERT_WEBHOOK_URL }}
+          UPTIME_STATUS_FILE: deploy/uptime-reports/latest_uptime_check.json
+          SKIP_UPTIME_CHECK_IF_UNCONFIGURED: "true"
+        run: |
+          if [ -n "$INPUT_BASE_URL" ]; then
+            export JOBLENS_UPTIME_BASE_URL="$INPUT_BASE_URL"
+          elif [ -n "$PRODUCTION_HEALTH_BASE_URL" ]; then
+            export JOBLENS_UPTIME_BASE_URL="$PRODUCTION_HEALTH_BASE_URL"
+          elif [ -n "$PRODUCTION_DOMAIN" ]; then
+            export JOBLENS_DOMAIN="$PRODUCTION_DOMAIN"
+          fi
+
+          if [ -n "$ALERT_WEBHOOK_URL" ]; then
+            export ALERT_ON_FAILURE=true
+          fi
+
+          deploy/scripts/check_external_uptime.sh
+
+      - name: Upload uptime report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: uptime-report
+          path: deploy/uptime-reports/latest_uptime_check.json
+          if-no-files-found: ignore

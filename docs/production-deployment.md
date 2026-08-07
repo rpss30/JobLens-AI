@@ -31,6 +31,8 @@ Before running the deployment pipeline, confirm:
 See [server-hardening.md](server-hardening.md) and
 [production-compose.md](production-compose.md) before using this workflow on a
 public host.
+Use [production-readiness.md](production-readiness.md) as the final preflight
+checklist before running the first production deployment.
 
 ## GitHub Actions
 
@@ -154,6 +156,11 @@ disk pressure.
 Runtime secret audit and rotation steps are documented in
 [secret-rotation.md](secret-rotation.md). Run the audit after changing
 `.env.production` and before starting a deployment window.
+
+The full rollout checklist is documented in
+[production-readiness.md](production-readiness.md). It ties together cost
+guardrails, server prerequisites, secret audit, backups, monitoring, and
+post-deploy verification.
 
 ## Current Limits
 

@@ -92,6 +92,10 @@ See [secret-rotation.md](secret-rotation.md) for runtime secret inventory,
 `.env.production` auditing, planned rotation order, deployment SSH key
 rotation, and emergency replacement steps.
 
+See [production-readiness.md](production-readiness.md) for the pre-deployment
+checklist covering cost guardrails, server prerequisites, secret audit,
+database backups, monitoring, and post-deploy verification.
+
 ## Resume Privacy
 
 Resume text is analyzed in memory for a single request. The API and dashboard do

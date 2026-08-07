@@ -81,6 +81,9 @@ host firewall, SSH, deployment-user, and Docker log-rotation runbook.
 See [production-deployment.md](production-deployment.md) for the manual
 GitHub Actions deployment workflow and rollback procedure that run this Compose
 sequence on an already-provisioned server.
+See [parameter-store-secrets.md](parameter-store-secrets.md) for rendering the
+production env file from an existing Parameter Store path before starting
+Compose.
 See [database-backups.md](database-backups.md) for backup and restore scripts
 that run through this stack's internal PostgreSQL service.
 See [offsite-backups-alerts.md](offsite-backups-alerts.md) for the opt-in

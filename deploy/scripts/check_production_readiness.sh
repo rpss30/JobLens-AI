@@ -5,6 +5,7 @@ READINESS_STATUS_FILE="${READINESS_STATUS_FILE:-deploy/readiness/latest_readines
 STRICT_READINESS="${STRICT_READINESS:-false}"
 RUN_COMPOSE_CONFIG="${RUN_COMPOSE_CONFIG:-false}"
 RUN_SECRET_AUDIT="${RUN_SECRET_AUDIT:-false}"
+RUN_PARAMETER_STORE_RENDER_CHECK="${RUN_PARAMETER_STORE_RENDER_CHECK:-false}"
 RUN_BACKUP_STATUS_CHECK="${RUN_BACKUP_STATUS_CHECK:-false}"
 RUN_OFFSITE_BACKUP_STATUS_CHECK="${RUN_OFFSITE_BACKUP_STATUS_CHECK:-false}"
 RUN_OPERATIONS_STATUS_CHECK="${RUN_OPERATIONS_STATUS_CHECK:-false}"
@@ -90,6 +91,12 @@ check_compose_config() {
 check_secret_audit() {
   ENV_FILE="${ENV_FILE}" AUDIT_STATUS_FILE="${READINESS_STATUS_FILE}.secret-audit.json" \
     deploy/scripts/audit_secret_configuration.sh
+}
+
+check_parameter_store_render() {
+  PARAMETER_STORE_DRY_RUN=true \
+  PARAMETER_STORE_STATUS_FILE="${READINESS_STATUS_FILE}.parameter-store-env.json" \
+    deploy/scripts/render_env_from_parameter_store.sh
 }
 
 check_backup_status() {
@@ -188,6 +195,7 @@ required_files=(
   docs/database-backups.md
   docs/operations-monitoring.md
   docs/offsite-backups-alerts.md
+  docs/parameter-store-secrets.md
   docs/secret-rotation.md
   docs/security.md
   docs/lightsail-deployment-plan.md
@@ -216,6 +224,7 @@ required_scripts=(
   deploy/scripts/check_operations_status.sh
   deploy/scripts/check_disk_usage.sh
   deploy/scripts/audit_secret_configuration.sh
+  deploy/scripts/render_env_from_parameter_store.sh
   deploy/scripts/run_ingestion_refresh.sh
   deploy/scripts/check_ingestion_refresh_status.sh
 )
@@ -251,6 +260,7 @@ fi
 
 run_optional_check "compose-config" "${RUN_COMPOSE_CONFIG}" check_compose_config
 run_optional_check "secret-audit" "${RUN_SECRET_AUDIT}" check_secret_audit
+run_optional_check "parameter-store-render" "${RUN_PARAMETER_STORE_RENDER_CHECK}" check_parameter_store_render
 run_optional_check "backup-status" "${RUN_BACKUP_STATUS_CHECK}" check_backup_status
 run_optional_check "offsite-backup-status" "${RUN_OFFSITE_BACKUP_STATUS_CHECK}" check_offsite_backup_status
 run_optional_check "operations-status" "${RUN_OPERATIONS_STATUS_CHECK}" check_operations_status

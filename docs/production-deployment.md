@@ -61,6 +61,9 @@ Optional encrypted secrets:
 The workflow does not store production application secrets. Runtime secrets
 remain in the server-side `.env.production` file or a later approved secret
 store.
+For servers that already have a Parameter Store path and read permissions,
+[parameter-store-secrets.md](parameter-store-secrets.md) documents the
+pre-deploy render step.
 
 ## Deployment Order
 
@@ -165,6 +168,10 @@ Runtime secret audit and rotation steps are documented in
 [secret-rotation.md](secret-rotation.md). Run the audit after changing
 `.env.production` and before starting a deployment window.
 
+Rendering `.env.production` from an existing Parameter Store path is documented
+in [parameter-store-secrets.md](parameter-store-secrets.md). The renderer reads
+parameters only and runs the same local secret audit after writing the env file.
+
 The full rollout checklist is documented in
 [production-readiness.md](production-readiness.md). It ties together cost
 guardrails, server prerequisites, secret audit, backups, monitoring, and
@@ -178,3 +185,4 @@ post-deploy verification.
 - no dependency or container image scanning
 - no scheduled automatic deployment
 - no external uptime monitoring
+- no automatic provider key rotation

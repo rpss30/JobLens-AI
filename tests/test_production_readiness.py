@@ -90,6 +90,7 @@ def test_readiness_script_tracks_required_files_scripts_and_ignored_outputs() ->
         "docs/database-backups.md",
         "docs/operations-monitoring.md",
         "docs/offsite-backups-alerts.md",
+        "docs/parameter-store-secrets.md",
         "docs/secret-rotation.md",
         "docs/security.md",
         "docs/lightsail-deployment-plan.md",
@@ -115,6 +116,7 @@ def test_readiness_script_tracks_required_files_scripts_and_ignored_outputs() ->
         "deploy/scripts/check_operations_status.sh",
         "deploy/scripts/check_disk_usage.sh",
         "deploy/scripts/audit_secret_configuration.sh",
+        "deploy/scripts/render_env_from_parameter_store.sh",
         "deploy/scripts/run_ingestion_refresh.sh",
         "deploy/scripts/check_ingestion_refresh_status.sh",
     ]
@@ -124,6 +126,7 @@ def test_readiness_script_tracks_required_files_scripts_and_ignored_outputs() ->
 
     assert "RUN_COMPOSE_CONFIG" in script
     assert "RUN_SECRET_AUDIT" in script
+    assert "RUN_PARAMETER_STORE_RENDER_CHECK" in script
     assert "RUN_BACKUP_STATUS_CHECK" in script
     assert "RUN_OFFSITE_BACKUP_STATUS_CHECK" in script
     assert "RUN_OPERATIONS_STATUS_CHECK" in script
@@ -206,6 +209,7 @@ def test_readiness_script_does_not_execute_cloud_provisioning() -> None:
     assert "! -name \"check_production_readiness.sh\"" in script
     assert "docker compose --env-file .env.production.example" in script
     assert "deploy/scripts/audit_secret_configuration.sh" in script
+    assert "deploy/scripts/render_env_from_parameter_store.sh" in script
     assert "deploy/scripts/check_database_backup_status.sh" in script
     assert "deploy/scripts/check_offsite_backup_status.sh" in script
     assert "deploy/scripts/check_operations_status.sh" in script
@@ -229,6 +233,7 @@ def test_production_readiness_documentation_covers_rollout_gates() -> None:
         "server preconditions",
         "network and dns preconditions",
         "secret preconditions",
+        "parameter store",
         "database preconditions",
         "deployment preconditions",
         "post-deploy verification",
@@ -245,6 +250,7 @@ def test_production_readiness_documentation_covers_rollout_gates() -> None:
         "ingestion refresh status",
         "require approval",
         "offsite-backups-alerts.md",
+        "parameter-store-secrets.md",
     ]
 
     for topic in expected_topics:

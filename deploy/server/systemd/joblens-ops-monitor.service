@@ -16,11 +16,14 @@ Environment=OFFSITE_BACKUP_STATUS_FILE=/srv/joblens-backups/latest_offsite_backu
 Environment=OFFSITE_BACKUP_MAX_AGE_HOURS=30
 Environment=INGESTION_STATUS_FILE=/srv/joblens-ingestion/latest_ingestion_refresh.json
 Environment=INGESTION_MAX_AGE_HOURS=192
-Environment=DISK_PATHS=/ /srv/joblens-backups
+Environment=LOG_AGGREGATION_STATUS_FILE=/srv/joblens-logs/latest_log_aggregation.json
+Environment=LOG_AGGREGATION_MAX_AGE_HOURS=6
+Environment=DISK_PATHS=/ /srv/joblens-backups /srv/joblens-logs
 Environment=DISK_WARN_PERCENT=80
 Environment=DISK_CRITICAL_PERCENT=90
 Environment=SKIP_PUBLIC_HEALTH_CHECK=true
 Environment=SKIP_OFFSITE_BACKUP_CHECK=true
+Environment=SKIP_LOG_AGGREGATION_CHECK=false
 Environment=ALERT_ON_FAILURE=false
 Environment=MONITOR_STATUS_FILE=/srv/joblens-monitoring/latest_status.json
 ExecStart=/srv/joblens-ai/deploy/scripts/check_operations_status.sh

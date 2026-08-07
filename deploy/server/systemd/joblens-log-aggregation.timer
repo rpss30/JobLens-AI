@@ -1,0 +1,11 @@
+[Unit]
+Description=Aggregate JobLens production logs every fifteen minutes
+
+[Timer]
+OnCalendar=*:0/15
+Persistent=true
+RandomizedDelaySec=60
+Unit=joblens-log-aggregation.service
+
+[Install]
+WantedBy=timers.target

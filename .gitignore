@@ -38,6 +38,7 @@ deploy/lightsail/terraform/*.tfplan
 deploy/lightsail/terraform/*.tfstate
 deploy/lightsail/terraform/*.tfstate.*
 deploy/lightsail/terraform/terraform.tfvars
+deploy/log-aggregation/
 deploy/logs/
 deploy/monitoring/
 deploy/readiness/

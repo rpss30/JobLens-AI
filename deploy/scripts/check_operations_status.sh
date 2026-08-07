@@ -10,6 +10,7 @@ SKIP_PUBLIC_HEALTH_CHECK="${SKIP_PUBLIC_HEALTH_CHECK:-false}"
 SKIP_BACKUP_STATUS_CHECK="${SKIP_BACKUP_STATUS_CHECK:-false}"
 SKIP_OFFSITE_BACKUP_CHECK="${SKIP_OFFSITE_BACKUP_CHECK:-true}"
 SKIP_INGESTION_REFRESH_CHECK="${SKIP_INGESTION_REFRESH_CHECK:-false}"
+SKIP_LOG_AGGREGATION_CHECK="${SKIP_LOG_AGGREGATION_CHECK:-false}"
 SKIP_DISK_CHECK="${SKIP_DISK_CHECK:-false}"
 ALERT_ON_FAILURE="${ALERT_ON_FAILURE:-false}"
 ALERT_FAILURES_ARE_FATAL="${ALERT_FAILURES_ARE_FATAL:-false}"
@@ -97,8 +98,14 @@ run_ingestion_refresh_check() {
     "$(dirname "${BASH_SOURCE[0]}")/check_ingestion_refresh_status.sh"
 }
 
+run_log_aggregation_check() {
+  LOG_AGGREGATION_STATUS_FILE="${LOG_AGGREGATION_STATUS_FILE:-/srv/joblens-logs/latest_log_aggregation.json}" \
+  LOG_AGGREGATION_MAX_AGE_HOURS="${LOG_AGGREGATION_MAX_AGE_HOURS:-6}" \
+    "$(dirname "${BASH_SOURCE[0]}")/check_log_aggregation_status.sh"
+}
+
 run_disk_check() {
-  DISK_PATHS="${DISK_PATHS:-/ /srv/joblens-backups}" \
+  DISK_PATHS="${DISK_PATHS:-/ /srv/joblens-backups /srv/joblens-logs}" \
   DISK_WARN_PERCENT="${DISK_WARN_PERCENT:-80}" \
   DISK_CRITICAL_PERCENT="${DISK_CRITICAL_PERCENT:-90}" \
   SKIP_MISSING_DISK_PATHS="${SKIP_MISSING_DISK_PATHS:-false}" \
@@ -186,6 +193,12 @@ if [[ "${SKIP_INGESTION_REFRESH_CHECK}" == "true" ]]; then
   record_check "ingestion_refresh" "skipped" "0"
 else
   run_check "ingestion_refresh" run_ingestion_refresh_check
+fi
+
+if [[ "${SKIP_LOG_AGGREGATION_CHECK}" == "true" ]]; then
+  record_check "log_aggregation" "skipped" "0"
+else
+  run_check "log_aggregation" run_log_aggregation_check
 fi
 
 if [[ "${SKIP_DISK_CHECK}" == "true" ]]; then

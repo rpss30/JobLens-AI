@@ -5,16 +5,24 @@ from typing import Any
 from urllib.parse import urlencode
 
 from django.core.paginator import Page, Paginator
-from django.db import DatabaseError, connection
+from django.db import DatabaseError, connection, transaction
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 
-from django_ops.pipeline.models import ExtractionResult, IngestionRun
+from django_ops.pipeline.models import (
+    ExtractionResult,
+    ExtractionReview,
+    IngestionRun,
+    OperationsAuditEvent,
+)
 
 
 DEFAULT_RUN_PAGE_SIZE = 10
 DEFAULT_ISSUE_PAGE_SIZE = 15
 MAX_FILTERED_RUNS = 500
+MAX_REVIEW_NOTE_LENGTH = 2000
+EXTRACTION_AUDIT_TARGET = "extraction_result"
 
 
 @dataclass(frozen=True)
@@ -32,6 +40,10 @@ class ExtractionIssueFilters:
     model: str = ""
     prompt_version: str = ""
     q: str = ""
+
+
+class OperationsActionError(ValueError):
+    pass
 
 
 def check_database_connection() -> bool:
@@ -264,6 +276,214 @@ def extraction_issue_queryset():
     )
 
 
+def actor_username(user: Any) -> str:
+    username = getattr(user, "get_username", lambda: "")()
+    return str(username or getattr(user, "username", "") or "unknown")
+
+
+def clean_review_note(note: object) -> str:
+    cleaned_note = clean_query_value(note)
+
+    if len(cleaned_note) > MAX_REVIEW_NOTE_LENGTH:
+        raise OperationsActionError(
+            f"Review notes must be {MAX_REVIEW_NOTE_LENGTH} characters or fewer."
+        )
+
+    return cleaned_note
+
+
+def extraction_issue_or_404(result_id: int) -> ExtractionResult:
+    return get_object_or_404(extraction_issue_queryset(), pk=result_id)
+
+
+def audit_metadata_for_extraction(result: ExtractionResult) -> dict[str, Any]:
+    posting = result.processed_job.job_posting
+    return {
+        "posting_id": posting.id,
+        "processed_job_id": result.processed_job_id,
+        "title": posting.title,
+        "company": posting.company,
+        "source": posting.source,
+        "provider": result.provider,
+        "model": result.model,
+        "prompt_version": result.prompt_version,
+    }
+
+
+def record_audit_event(
+    *,
+    actor: Any,
+    action: str,
+    result: ExtractionResult,
+    metadata: dict[str, Any] | None = None,
+) -> OperationsAuditEvent:
+    event_metadata = audit_metadata_for_extraction(result)
+    event_metadata.update(metadata or {})
+
+    return OperationsAuditEvent.objects.create(
+        actor=actor if getattr(actor, "is_authenticated", False) else None,
+        actor_username=actor_username(actor),
+        action=action,
+        target_type=EXTRACTION_AUDIT_TARGET,
+        target_id=result.id,
+        metadata=event_metadata,
+    )
+
+
+def review_state_for_result(
+    result: ExtractionResult,
+) -> tuple[ExtractionReview, bool]:
+    return ExtractionReview.objects.select_for_update().get_or_create(
+        extraction_result_id=result.id,
+    )
+
+
+def attach_operation_state(issues: list[ExtractionResult]) -> list[ExtractionResult]:
+    issue_ids = [issue.id for issue in issues]
+
+    if not issue_ids:
+        return issues
+
+    reviews = {
+        review.extraction_result_id: review
+        for review in ExtractionReview.objects.filter(
+            extraction_result_id__in=issue_ids,
+        )
+    }
+    audits_by_target: dict[int, list[OperationsAuditEvent]] = {
+        issue_id: [] for issue_id in issue_ids
+    }
+
+    for event in OperationsAuditEvent.objects.filter(
+        target_type=EXTRACTION_AUDIT_TARGET,
+        target_id__in=issue_ids,
+    ).order_by("-created_at"):
+        audits_by_target.setdefault(event.target_id, []).append(event)
+
+    for issue in issues:
+        issue.ops_review = reviews.get(issue.id)
+        issue.ops_audit_events = audits_by_target.get(issue.id, [])
+
+    return issues
+
+
+@transaction.atomic
+def save_extraction_review_note(
+    *,
+    result_id: int,
+    actor: Any,
+    note: object,
+) -> ExtractionReview:
+    result = extraction_issue_or_404(result_id)
+    review, _ = review_state_for_result(result)
+    now = timezone.now()
+
+    review.note = clean_review_note(note)
+    review.note_updated_by = actor
+    review.note_updated_by_username = actor_username(actor)
+    review.note_updated_at = now
+    review.save(
+        update_fields=[
+            "note",
+            "note_updated_by",
+            "note_updated_by_username",
+            "note_updated_at",
+            "updated_at",
+        ]
+    )
+    record_audit_event(
+        actor=actor,
+        action=OperationsAuditEvent.ACTION_NOTE_SAVED,
+        result=result,
+        metadata={"note_length": len(review.note)},
+    )
+
+    return review
+
+
+@transaction.atomic
+def mark_extraction_reviewed(
+    *,
+    result_id: int,
+    actor: Any,
+    note: object = "",
+) -> ExtractionReview:
+    result = extraction_issue_or_404(result_id)
+    review, _ = review_state_for_result(result)
+    now = timezone.now()
+    cleaned_note = clean_review_note(note)
+    update_fields = [
+        "status",
+        "reviewed_by",
+        "reviewed_by_username",
+        "reviewed_at",
+        "updated_at",
+    ]
+
+    review.status = ExtractionReview.STATUS_REVIEWED
+    review.reviewed_by = actor
+    review.reviewed_by_username = actor_username(actor)
+    review.reviewed_at = now
+
+    if cleaned_note:
+        review.note = cleaned_note
+        review.note_updated_by = actor
+        review.note_updated_by_username = actor_username(actor)
+        review.note_updated_at = now
+        update_fields.extend(
+            [
+                "note",
+                "note_updated_by",
+                "note_updated_by_username",
+                "note_updated_at",
+            ]
+        )
+
+    review.save(update_fields=update_fields)
+    record_audit_event(
+        actor=actor,
+        action=OperationsAuditEvent.ACTION_MARKED_REVIEWED,
+        result=result,
+        metadata={"note_updated": bool(cleaned_note)},
+    )
+
+    return review
+
+
+@transaction.atomic
+def request_extraction_retry(
+    *,
+    result_id: int,
+    actor: Any,
+) -> ExtractionReview:
+    result = extraction_issue_or_404(result_id)
+    review, _ = review_state_for_result(result)
+
+    if review.retry_requested_at:
+        raise OperationsActionError("A retry has already been requested.")
+
+    review.retry_status = ExtractionReview.RETRY_STATUS_REQUESTED
+    review.retry_requested_by = actor
+    review.retry_requested_by_username = actor_username(actor)
+    review.retry_requested_at = timezone.now()
+    review.save(
+        update_fields=[
+            "retry_status",
+            "retry_requested_by",
+            "retry_requested_by_username",
+            "retry_requested_at",
+            "updated_at",
+        ]
+    )
+    record_audit_event(
+        actor=actor,
+        action=OperationsAuditEvent.ACTION_RETRY_REQUESTED,
+        result=result,
+    )
+
+    return review
+
+
 def extraction_issue_matches_search(result: ExtractionResult, query: str) -> bool:
     if not query:
         return True
@@ -314,7 +534,7 @@ def load_extraction_issues(
             if extraction_issue_matches_search(result, filters.q)
         ]
 
-    return results
+    return attach_operation_state(results)
 
 
 def extraction_filter_options() -> dict[str, list[str]]:

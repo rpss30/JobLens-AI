@@ -83,8 +83,10 @@ GitHub Actions deployment workflow and rollback procedure that run this Compose
 sequence on an already-provisioned server.
 See [database-backups.md](database-backups.md) for backup and restore scripts
 that run through this stack's internal PostgreSQL service.
+See [offsite-backups-alerts.md](offsite-backups-alerts.md) for the opt-in
+off-server backup copy and webhook alert workflow.
 See [operations-monitoring.md](operations-monitoring.md) for local service
-health, disk usage, backup freshness, and log-snapshot checks.
+health, disk usage, backup freshness, alert delivery, and log-snapshot checks.
 See [production-ingestion.md](production-ingestion.md) for the weekly
 server-side Canada jobs refresh and PostgreSQL publishing workflow.
 See [production-readiness.md](production-readiness.md) for the final preflight

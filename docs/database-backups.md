@@ -8,9 +8,11 @@ writes backup files on the server filesystem. It creates no cloud resources.
 
 ```text
 deploy/scripts/backup_database.sh
+deploy/scripts/upload_database_backup.sh
 deploy/scripts/verify_database_backup.sh
 deploy/scripts/restore_database.sh
 deploy/scripts/check_database_backup_status.sh
+deploy/scripts/check_offsite_backup_status.sh
 deploy/server/systemd/joblens-db-backup.service
 deploy/server/systemd/joblens-db-backup.timer
 ```
@@ -61,10 +63,17 @@ Defaults:
 | `BACKUP_RETENTION_COUNT` | `14` |
 | `BACKUP_COMPRESS_LEVEL` | `6` |
 | `BACKUP_STATUS_FILE` | `$BACKUP_DIR/latest_backup.json` |
+| `OFFSITE_BACKUP_ENABLED` | `false` |
+| `OFFSITE_BACKUP_STATUS_FILE` | `$BACKUP_DIR/latest_offsite_backup.json` |
 
 Use a server path outside the repository, such as `/srv/joblens-backups`, for
 production backups. Keep that directory readable only by the deployment user
 because dumps contain application data.
+
+When `OFFSITE_BACKUP_ENABLED=true`, the backup script calls
+`upload_database_backup.sh` after the local dump and manifest succeed. The
+upload path is disabled by default and must be configured with an existing
+destination before use.
 
 ## Retention
 
@@ -121,6 +130,9 @@ The broader production status check in
 [operations-monitoring.md](operations-monitoring.md) runs this backup freshness
 check alongside service health and disk usage checks.
 
+Off-server copy setup, dry-run behavior, status checks, and alert delivery are
+covered in [offsite-backups-alerts.md](offsite-backups-alerts.md).
+
 ## Restore Test
 
 Test a dump without touching the production database:
@@ -172,11 +184,10 @@ maintenance where public routing is not available.
 
 ## Current Limits
 
-- backups are local to the server
-- no S3 upload or other off-server copy is implemented
+- off-server backup copy is opt-in and requires a preapproved existing S3 URI
 - no encryption-at-rest wrapper is added beyond the server disk controls
 - no automated restore drill is scheduled
-- no alert delivery is configured
+- alert delivery is opt-in through a generic webhook
 
 Off-server storage should be added only with a clear cost note, retention
 policy, restore test, and approval before any paid cloud storage is created.

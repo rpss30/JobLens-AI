@@ -116,6 +116,7 @@ The dashboard also shows market-level insights such as top required skills, role
 - JSON/Markdown ingestion run summaries with refresh metrics and failure logs
 - Weekly Canada snapshot refreshes with automated quality gates and reviewable pull requests
 - AWS deployment automation for Amazon ECR, ECS Fargate, ALB, Secrets Manager, and RDS PostgreSQL
+- Opt-in off-server database backup upload checks and webhook alert delivery for production monitoring
 
 
 
@@ -327,6 +328,7 @@ JobLens AI
 │   ├── database-backups.md
 │   ├── django-ops.md
 │   ├── lightsail-deployment-plan.md
+│   ├── offsite-backups-alerts.md
 │   ├── operations-monitoring.md
 │   ├── production-ingestion.md
 │   ├── production-compose.md
@@ -592,9 +594,12 @@ See [docs/database-backups.md](docs/database-backups.md) for PostgreSQL
 `pg_dump` backups, local retention, restore validation, backup status checks,
 and gated restore procedures.
 
+See [docs/offsite-backups-alerts.md](docs/offsite-backups-alerts.md) for the
+optional off-server backup copy and webhook alerting workflow.
+
 See [docs/operations-monitoring.md](docs/operations-monitoring.md) for local
-service health, backup freshness, disk usage, and log-snapshot monitoring on
-the single-server production path.
+service health, backup freshness, off-server backup checks, disk usage, alert
+delivery, and log-snapshot monitoring on the single-server production path.
 
 See [docs/production-ingestion.md](docs/production-ingestion.md) for the
 weekly server-side Canada jobs refresh timer, ingestion status file, PostgreSQL
@@ -873,7 +878,8 @@ Completed:
 - Server hardening runbook for host firewall, SSH, deployment user, and Docker log rotation
 - Manual production deployment workflow with SSH, migration ordering, health checks, and rollback
 - Local PostgreSQL backup scripts with retention, restore validation, backup freshness checks, and a daily systemd timer template
-- Local operations monitoring scripts for Compose service health, public health checks, backup freshness, disk usage, and log snapshots
+- Optional off-server database backup copies to an existing S3 URI with freshness checks and cost guardrails
+- Local operations monitoring scripts for Compose service health, public health checks, backup freshness, off-server backup checks, disk usage, alert delivery, and log snapshots
 - Weekly production ingestion scheduler that refreshes, validates, and publishes the Canada jobs dataset into PostgreSQL
 - Production secret audit script and rotation runbook for `.env.production`, provider keys, Django, PostgreSQL, and deployment SSH keys
 - Production readiness checker and rollout checklist for the single-server deployment path
@@ -892,7 +898,6 @@ Not built yet:
 - Authentication or multi-user support
 - Production-grade NLP role classification
 - Applied infrastructure-as-code deployment
-- Off-server database backup storage and alert delivery
 - External uptime monitoring or central log aggregation
 - Managed secret store integration or automated provider key rotation
 

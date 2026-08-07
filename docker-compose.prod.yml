@@ -6,6 +6,7 @@ x-app-build: &app-build
 x-app-env: &app-env
   PYTHONPATH: /app
   DATABASE_URL: ${DATABASE_URL:?DATABASE_URL must be set}
+  JOBLENS_API_ROOT_PATH: ${JOBLENS_API_ROOT_PATH:-/api}
   JOBLENS_CORS_ORIGINS: ${JOBLENS_CORS_ORIGINS:?JOBLENS_CORS_ORIGINS must be set}
   JOBLENS_RATE_LIMIT_ENABLED: ${JOBLENS_RATE_LIMIT_ENABLED:-true}
   JOBLENS_ANALYZE_RATE_LIMIT: ${JOBLENS_ANALYZE_RATE_LIMIT:-60}
@@ -15,6 +16,35 @@ x-app-env: &app-env
   GEMINI_API_KEY: ${GEMINI_API_KEY:-}
 
 services:
+  caddy:
+    image: caddy:2.8
+    restart: unless-stopped
+    environment:
+      JOBLENS_DOMAIN: ${JOBLENS_DOMAIN:?JOBLENS_DOMAIN must be set}
+      CADDY_ACME_EMAIL: ${CADDY_ACME_EMAIL:?CADDY_ACME_EMAIL must be set}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - edge
+    depends_on:
+      dashboard:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+      django-ops:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "caddy", "validate", "--config", "/etc/caddy/Caddyfile"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
   dashboard:
     build: *app-build
     image: joblens-app:${JOBLENS_IMAGE_TAG:-latest}
@@ -127,3 +157,5 @@ networks:
 
 volumes:
   postgres_data:
+  caddy_data:
+  caddy_config:

@@ -6,6 +6,7 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parents[1]
 COMPOSE_PATH = ROOT_DIR / "docker-compose.prod.yml"
 ENV_EXAMPLE_PATH = ROOT_DIR / ".env.production.example"
+CADDYFILE_PATH = ROOT_DIR / "deploy" / "caddy" / "Caddyfile"
 
 
 def read_production_compose() -> str:
@@ -36,6 +37,10 @@ def test_production_compose_does_not_publish_internal_service_ports():
     for service_name in ["dashboard", "api", "django-ops", "db"]:
         assert "\n    ports:\n" not in service_block(compose_text, service_name)
 
+    caddy_block = service_block(compose_text, "caddy")
+
+    assert '"80:80"' in caddy_block
+    assert '"443:443"' in caddy_block
     assert "internal: true" in compose_text
 
 
@@ -55,13 +60,14 @@ def test_production_compose_uses_production_application_servers():
 def test_production_compose_has_health_checks_and_persistent_database_volume():
     compose_text = read_production_compose()
 
-    for service_name in ["dashboard", "api", "django-ops", "db"]:
+    for service_name in ["caddy", "dashboard", "api", "django-ops", "db"]:
         assert "healthcheck:" in service_block(compose_text, service_name)
 
     assert "postgres_data:/var/lib/postgresql/data" in service_block(
         compose_text,
         "db",
     )
+    assert "caddy_data:/data" in service_block(compose_text, "caddy")
 
 
 def test_production_env_example_declares_required_runtime_settings():
@@ -72,7 +78,10 @@ def test_production_env_example_declares_required_runtime_settings():
         "POSTGRES_USER=",
         "POSTGRES_PASSWORD=",
         "DATABASE_URL=",
+        "JOBLENS_DOMAIN=",
+        "CADDY_ACME_EMAIL=",
         "JOBLENS_CORS_ORIGINS=",
+        "JOBLENS_API_ROOT_PATH=/api",
         "DJANGO_SECRET_KEY=",
         "DJANGO_ALLOWED_HOSTS=",
         "DJANGO_CSRF_TRUSTED_ORIGINS=",
@@ -83,3 +92,16 @@ def test_production_env_example_declares_required_runtime_settings():
 
     assert "localhost:5432" not in env_text
     assert "replace-with-a-long-random" in env_text
+
+
+def test_caddy_routes_api_ops_and_dashboard_paths():
+    caddyfile = CADDYFILE_PATH.read_text()
+
+    assert "{$JOBLENS_DOMAIN}" in caddyfile
+    assert "handle_path /api/*" in caddyfile
+    assert "reverse_proxy api:8000" in caddyfile
+    assert "handle /ops*" in caddyfile
+    assert "reverse_proxy django-ops:8001" in caddyfile
+    assert "reverse_proxy dashboard:8501" in caddyfile
+    assert "Strict-Transport-Security" in caddyfile
+    assert "max_size 5MB" in caddyfile

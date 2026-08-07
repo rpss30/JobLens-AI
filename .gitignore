@@ -42,6 +42,7 @@ deploy/logs/
 deploy/monitoring/
 deploy/readiness/
 deploy/secret-audits/
+deploy/security-reports/
 
 # Generated AI extraction experiment outputs
 data/processed/greenhouse_processed_jobs.csv

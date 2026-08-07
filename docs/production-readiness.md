@@ -14,6 +14,7 @@ deploy/lightsail/resource-plan.example.json
 docs/production-ingestion.md
 docs/offsite-backups-alerts.md
 docs/parameter-store-secrets.md
+docs/security-scanning.md
 ```
 
 ## Local Repo Readiness
@@ -27,8 +28,9 @@ deploy/scripts/check_production_readiness.sh
 The default mode checks that the repo contains the production Compose stack,
 Caddy config, deployment workflow, deployment scripts, backup scripts,
 monitoring scripts, scheduled ingestion scripts, secret audit script, Parameter
-Store renderer, security docs, and required ignore rules. It also scans
-deployment automation for forbidden cloud provisioning commands.
+Store renderer, security scan workflow, security docs, and required ignore
+rules. It also scans deployment automation for forbidden cloud provisioning
+commands.
 
 On a development machine, the script usually reports a warning because
 `.env.production` is intentionally not present. On the server, after
@@ -172,6 +174,7 @@ off-server upload or alert delivery.
 Before running the GitHub Actions deployment workflow:
 
 - local and remote tests are green
+- security scans have passed or each finding has a documented exception
 - deployment branch is merged to `main`
 - production environment approvals are configured if needed
 - `PRODUCTION_SSH_HOST`, `PRODUCTION_SSH_USER`, `PRODUCTION_SSH_KEY`,
@@ -218,6 +221,7 @@ The deployment is ready to share when:
 - monitoring status is fresh
 - secret audit passes
 - Parameter Store render status is fresh when that workflow is used
+- dependency, static Python, and container image scans have passed
 - rollback steps are documented
 - cost guardrails are in place
 - all production URLs and resource identifiers are recorded privately

@@ -100,6 +100,9 @@ See [parameter-store-secrets.md](parameter-store-secrets.md) for rendering
 `.env.production` from an existing Parameter Store path without printing secret
 values.
 
+See [security-scanning.md](security-scanning.md) for dependency, static Python,
+and container image scans used before production releases.
+
 See [production-readiness.md](production-readiness.md) for the pre-deployment
 checklist covering cost guardrails, server prerequisites, secret audit,
 database backups, monitoring, and post-deploy verification.

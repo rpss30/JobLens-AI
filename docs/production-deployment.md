@@ -141,11 +141,14 @@ services. It uses the existing server and normal GitHub Actions minutes. Server,
 static IP, DNS, and storage costs must be tracked separately in the production
 resource inventory.
 
+Database backup and restore procedures are documented separately in
+[database-backups.md](database-backups.md). Run and verify a fresh backup before
+high-risk deployments or restores.
+
 ## Current Limits
 
 - no server provisioning
 - no DNS updates
-- no database backups
 - no image registry publishing
 - no dependency or container image scanning
 - no scheduled automatic deployment

@@ -324,6 +324,7 @@ JobLens AI
 ├── docs
 │   ├── ai-extraction.md
 │   ├── database.md
+│   ├── database-backups.md
 │   ├── django-ops.md
 │   ├── production-compose.md
 │   ├── production-deployment.md
@@ -578,6 +579,10 @@ See [docs/production-deployment.md](docs/production-deployment.md) for the
 manual GitHub Actions deployment workflow, SSH-based server update script,
 ordered Alembic and Django migrations, public health checks, and rollback
 procedure.
+
+See [docs/database-backups.md](docs/database-backups.md) for PostgreSQL
+`pg_dump` backups, local retention, restore validation, backup status checks,
+and gated restore procedures.
 
 ## Django Operations Service
 
@@ -838,6 +843,7 @@ Completed:
 - Production Compose stack with Caddy HTTPS routing and internal PostgreSQL networking
 - Server hardening runbook for host firewall, SSH, deployment user, and Docker log rotation
 - Manual production deployment workflow with SSH, migration ordering, health checks, and rollback
+- Local PostgreSQL backup scripts with retention, restore validation, backup freshness checks, and a daily systemd timer template
 - FastAPI can list PostgreSQL datasets and analyze a selected saved dataset
 - AWS deployment helpers for ECR, RDS PostgreSQL, ALB, and ECS Fargate
 - Multi-employer Canadian ingestion and a curated Groq-enriched snapshot
@@ -853,6 +859,7 @@ Not built yet:
 - Authentication or multi-user support
 - Production-grade NLP role classification
 - Infrastructure-as-code deployment automation
+- Off-server database backup storage and alert delivery
 
 
 

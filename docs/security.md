@@ -76,6 +76,11 @@ See [production-deployment.md](production-deployment.md) for the manual
 deployment and rollback workflow. The deployment automation updates an existing
 server and creates no cloud resources.
 
+See [database-backups.md](database-backups.md) for local PostgreSQL backup,
+restore validation, and gated restore procedures. Backup dumps contain
+application data and should be stored outside the repository with permissions
+limited to the deployment user.
+
 ## Resume Privacy
 
 Resume text is analyzed in memory for a single request. The API and dashboard do

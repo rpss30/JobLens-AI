@@ -1,0 +1,13 @@
+aws_region        = "ca-central-1"
+availability_zone = "ca-central-1a"
+instance_name     = "joblens-production"
+static_ip_name    = "joblens-production-ip"
+blueprint_id      = "ubuntu_24_04"
+bundle_id         = "small_3_0"
+key_pair_name     = "joblens-production-key"
+enable_ssh_access = true
+ssh_cidrs         = ["203.0.113.10/32"]
+
+extra_tags = {
+  Owner = "portfolio"
+}

@@ -32,6 +32,11 @@ data/processed/uploaded_processed_jobs.csv
 deploy/backups/
 deploy/lightsail/deployment-evidence/
 deploy/lightsail/production-inventory.json
+deploy/lightsail/terraform/.terraform/
+deploy/lightsail/terraform/*.tfplan
+deploy/lightsail/terraform/*.tfstate
+deploy/lightsail/terraform/*.tfstate.*
+deploy/lightsail/terraform/terraform.tfvars
 deploy/logs/
 deploy/monitoring/
 deploy/readiness/

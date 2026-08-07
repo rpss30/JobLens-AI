@@ -299,7 +299,7 @@ protected.
 | Persistence | PostgreSQL, SQLAlchemy, Alembic, psycopg |
 | AI enrichment | Groq, Google Gemini, deterministic fallback |
 | Reports | ReportLab, pypdf |
-| Infrastructure | Docker, Docker Compose, Caddy, Amazon ECR, ECS Fargate, ALB, RDS, Secrets Manager, CloudWatch |
+| Infrastructure | Docker, Docker Compose, Caddy, Terraform templates, Amazon ECR, ECS Fargate, ALB, RDS, Secrets Manager, CloudWatch |
 | Quality and delivery | pytest, GitHub Actions, deployment scripts, Streamlit Cloud |
 
 
@@ -341,6 +341,7 @@ JobLens AI
 ├── deploy
 │   ├── caddy
 │   ├── lightsail
+│   │   └── terraform
 │   ├── scripts
 │   └── server
 ├── scripts
@@ -603,7 +604,8 @@ secret audit, backups, deployment, monitoring, and post-deploy verification.
 
 See [docs/lightsail-deployment-plan.md](docs/lightsail-deployment-plan.md) for
 the plan-only Lightsail resource inventory, current cost estimate, approval
-gate, and teardown checklist for the low-cost single-server target.
+gate, Terraform template, and teardown checklist for the low-cost single-server
+target.
 
 ## Django Operations Service
 
@@ -868,7 +870,7 @@ Completed:
 - Local operations monitoring scripts for Compose service health, public health checks, backup freshness, disk usage, and log snapshots
 - Production secret audit script and rotation runbook for `.env.production`, provider keys, Django, PostgreSQL, and deployment SSH keys
 - Production readiness checker and rollout checklist for the single-server deployment path
-- Lightsail deployment plan with cost estimate, resource inventory template, approval gate, and teardown checklist
+- Lightsail deployment plan with cost estimate, resource inventory template, Terraform scaffold, approval gate, and teardown checklist
 - FastAPI can list PostgreSQL datasets and analyze a selected saved dataset
 - AWS deployment helpers for ECR, RDS PostgreSQL, ALB, and ECS Fargate
 - Multi-employer Canadian ingestion and a curated Groq-enriched snapshot
@@ -883,7 +885,7 @@ Not built yet:
 - Continuously running ingestion
 - Authentication or multi-user support
 - Production-grade NLP role classification
-- Infrastructure-as-code deployment automation
+- Applied infrastructure-as-code deployment
 - Off-server database backup storage and alert delivery
 - External uptime monitoring or central log aggregation
 - Managed secret store integration or automated provider key rotation

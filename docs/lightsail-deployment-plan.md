@@ -14,11 +14,16 @@ allowances, and snapshot prices can change.
 ```text
 docs/lightsail-deployment-plan.md
 deploy/lightsail/resource-plan.example.json
+deploy/lightsail/terraform
 ```
 
 The example JSON file is safe to commit because every resource is marked as not
 created. A real production inventory should be stored privately and must not be
 committed.
+
+The Terraform template in `deploy/lightsail/terraform` is also safe to commit
+and validate locally. It defines the planned Lightsail resources, but it has no
+remote backend, committed state, credentials, or approved apply step.
 
 ## Recommended Baseline
 
@@ -77,6 +82,25 @@ aws route53 create-hosted-zone
 aws s3 mb
 terraform apply
 ```
+
+## Terraform Template
+
+The optional Terraform template tracks the same bounded resource set as this
+plan: one Lightsail instance, one static IPv4 address, an attachment between
+them, and instance firewall rules for SSH, HTTP, and HTTPS. It does not create
+DNS, RDS, S3, ECS, load balancers, NAT gateways, or external monitoring.
+
+Local validation is allowed before approval:
+
+```bash
+terraform -chdir=deploy/lightsail/terraform fmt -check
+terraform -chdir=deploy/lightsail/terraform init -backend=false
+terraform -chdir=deploy/lightsail/terraform validate
+```
+
+`terraform plan` requires explicit approval because it can contact the target
+AWS account and produce reviewed resource changes. `terraform apply` requires a
+second explicit approval for the exact plan and cost.
 
 ## Provisioning Checklist
 
@@ -137,7 +161,7 @@ the filled inventory in a private note or ignored local file.
 - no off-server backup storage is included
 - no external uptime alerting is included
 - no managed secret store is included
-- no infrastructure-as-code module is provided
+- no Terraform state, backend, or apply approval is included
 
 ## Sources
 

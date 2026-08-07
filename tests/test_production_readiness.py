@@ -93,6 +93,12 @@ def test_readiness_script_tracks_required_files_scripts_and_ignored_outputs() ->
         "docs/security.md",
         "docs/lightsail-deployment-plan.md",
         "deploy/lightsail/resource-plan.example.json",
+        "deploy/lightsail/terraform/README.md",
+        "deploy/lightsail/terraform/main.tf",
+        "deploy/lightsail/terraform/outputs.tf",
+        "deploy/lightsail/terraform/terraform.tfvars.example",
+        "deploy/lightsail/terraform/variables.tf",
+        "deploy/lightsail/terraform/versions.tf",
         "deploy/scripts/deploy_production.sh",
         "deploy/scripts/rollback_production.sh",
         "deploy/scripts/check_production_health.sh",
@@ -111,6 +117,7 @@ def test_readiness_script_tracks_required_files_scripts_and_ignored_outputs() ->
     assert "RUN_SECRET_AUDIT" in script
     assert "RUN_BACKUP_STATUS_CHECK" in script
     assert "RUN_OPERATIONS_STATUS_CHECK" in script
+    assert "RUN_TERRAFORM_VALIDATE" in script
     assert "STRICT_READINESS" in script
     assert "check_production_readiness.sh" in script
 
@@ -121,6 +128,10 @@ def test_readiness_generated_output_is_ignored() -> None:
     assert "deploy/readiness/" in gitignore
     assert "deploy/lightsail/production-inventory.json" in gitignore
     assert "deploy/lightsail/deployment-evidence/" in gitignore
+    assert "deploy/lightsail/terraform/.terraform/" in gitignore
+    assert "deploy/lightsail/terraform/*.tfplan" in gitignore
+    assert "deploy/lightsail/terraform/*.tfstate" in gitignore
+    assert "deploy/lightsail/terraform/terraform.tfvars" in gitignore
 
     ignored = subprocess.run(
         ["git", "check-ignore", "--no-index", "deploy/readiness/latest_readiness.json"],
@@ -139,6 +150,10 @@ def test_readiness_generated_output_is_ignored() -> None:
             "--no-index",
             "deploy/lightsail/production-inventory.json",
             "deploy/lightsail/deployment-evidence/example.json",
+            "deploy/lightsail/terraform/.terraform/example",
+            "deploy/lightsail/terraform/terraform.tfvars",
+            "deploy/lightsail/terraform/reviewed.tfplan",
+            "deploy/lightsail/terraform/terraform.tfstate",
         ],
         check=True,
         capture_output=True,
@@ -148,6 +163,10 @@ def test_readiness_generated_output_is_ignored() -> None:
 
     assert "deploy/lightsail/production-inventory.json" in ignored_lightsail.stdout
     assert "deploy/lightsail/deployment-evidence/example.json" in ignored_lightsail.stdout
+    assert "deploy/lightsail/terraform/.terraform/example" in ignored_lightsail.stdout
+    assert "deploy/lightsail/terraform/terraform.tfvars" in ignored_lightsail.stdout
+    assert "deploy/lightsail/terraform/reviewed.tfplan" in ignored_lightsail.stdout
+    assert "deploy/lightsail/terraform/terraform.tfstate" in ignored_lightsail.stdout
 
 
 def test_readiness_script_does_not_execute_cloud_provisioning() -> None:
@@ -196,6 +215,8 @@ def test_production_readiness_documentation_covers_rollout_gates() -> None:
         "no cloud resource has been provisioned",
         "lightsail-deployment-plan.md",
         "deploy/lightsail/resource-plan.example.json",
+        "terraform template",
+        "no terraform state",
         "private inventory",
         "require approval",
     ]

@@ -1,18 +1,19 @@
 # Production Docker Compose Stack
 
 This stack is the low-cost production base for running JobLens on one Linux
-server. It runs the Streamlit dashboard, FastAPI API, Django operations service,
-and PostgreSQL with Docker Compose.
+server. It runs Caddy, the Streamlit dashboard, FastAPI API, Django operations
+service, and PostgreSQL with Docker Compose.
 
-It does not create cloud resources, configure DNS, or terminate HTTPS. A later
-reverse-proxy branch should attach Caddy or Nginx to the `joblens_edge` network
-and publish only ports 80 and 443.
+It does not create cloud resources or configure DNS. Caddy terminates HTTPS
+with automatic certificates once the configured domain points at the server and
+ports 80 and 443 are reachable.
 
 ## Files
 
 ```text
 docker-compose.prod.yml
 .env.production.example
+deploy/caddy/Caddyfile
 ```
 
 Copy the example environment file on the server:
@@ -27,6 +28,8 @@ Then replace every placeholder secret before starting the stack:
 - `POSTGRES_PASSWORD`
 - `DATABASE_URL`
 - `DJANGO_SECRET_KEY`
+- `JOBLENS_DOMAIN`
+- `CADDY_ACME_EMAIL`
 - optional provider keys such as `GROQ_API_KEY`
 
 Keep `.env.production` out of Git.
@@ -37,20 +40,43 @@ Production Compose defines two Docker networks:
 
 | Network | Purpose |
 | --- | --- |
-| `joblens_edge` | Shared by app services and the future reverse proxy. |
+| `joblens_edge` | Shared by Caddy and app services. |
 | `joblens_database` | Internal database network shared only by app services and PostgreSQL. |
 
-The production Compose file uses `expose` instead of `ports` for Streamlit,
-FastAPI, and Django. PostgreSQL does not publish a host port. Until a reverse
-proxy is added, the services are reachable only from inside Docker networks.
+Caddy is the only service that publishes host ports:
 
-The intended future public routing is:
+```text
+80/tcp
+443/tcp
+```
+
+The production Compose file uses `expose` instead of `ports` for Streamlit,
+FastAPI, and Django. PostgreSQL does not publish a host port.
+
+Public routing:
 
 ```text
 /       -> dashboard:8501
-/api/*  -> api:8000
+/api/*  -> api:8000 with /api stripped before the request reaches FastAPI
 /ops/*  -> django-ops:8001
+/healthz -> Caddy edge health response
 ```
+
+FastAPI uses `JOBLENS_API_ROOT_PATH=/api` so generated OpenAPI and Swagger UI
+links work behind the `/api/*` proxy prefix. Django receives forwarded scheme
+and host headers from Caddy and uses secure cookies in production.
+
+## DNS and Firewall Preconditions
+
+Before starting Caddy with a real domain:
+
+- point `JOBLENS_DOMAIN` at the server's public IP address
+- allow inbound TCP 80 and 443 through the provider firewall
+- allow inbound TCP 80 and 443 through the host firewall
+- do not expose PostgreSQL, FastAPI, Django, or Docker daemon ports publicly
+
+For initial server work, SSH should be restricted separately to a trusted source
+address where possible.
 
 ## Startup
 
@@ -112,6 +138,13 @@ docker compose --env-file .env.production -f docker-compose.prod.yml exec django
 docker compose --env-file .env.production -f docker-compose.prod.yml exec dashboard curl -fsS http://localhost:8501/_stcore/health
 ```
 
+Check the public edge after DNS and TLS are ready:
+
+```bash
+curl -fsS https://$JOBLENS_DOMAIN/healthz
+curl -fsS https://$JOBLENS_DOMAIN/api/health
+```
+
 ## Updates
 
 Pull the latest application code, rebuild, run migrations, then restart:
@@ -131,9 +164,6 @@ migrations after checking whether the target migration is explicitly reversible.
 
 This branch intentionally does not include:
 
-- Caddy or Nginx
-- HTTPS
-- domain routing
 - host firewall rules
 - automated deploys
 - database backups

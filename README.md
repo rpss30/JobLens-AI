@@ -550,8 +550,8 @@ docker compose down -v
 
 For the production-style single-server Compose stack, use
 [`docker-compose.prod.yml`](docker-compose.prod.yml) with a private PostgreSQL
-network, app health checks, persistent database storage, and no public database
-port:
+network, Caddy HTTPS routing, app health checks, persistent database storage,
+and no public database port:
 
 ```bash
 cp .env.production.example .env.production
@@ -559,9 +559,9 @@ docker compose --env-file .env.production -f docker-compose.prod.yml config -q
 ```
 
 See [docs/production-compose.md](docs/production-compose.md) for startup,
-migration order, health checks, and current limits. The production Compose file
-does not provision cloud resources or publish public HTTP/HTTPS ports; reverse
-proxy routing is intentionally left for a separate branch.
+migration order, routing, health checks, and current limits. The production
+Compose file publishes only Caddy on ports 80 and 443 and does not provision
+cloud resources.
 
 ## Django Operations Service
 

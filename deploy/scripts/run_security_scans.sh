@@ -41,16 +41,21 @@ record_check() {
 
 run_check() {
   local name="$1"
+  local exit_code
   shift
 
   echo "Running security scan: ${name}"
 
-  if "$@"; then
+  set +e
+  "$@"
+  exit_code=$?
+  set -e
+
+  if [[ "${exit_code}" -eq 0 ]]; then
     record_check "${name}" "ok" "0"
     return
   fi
 
-  local exit_code=$?
   record_check "${name}" "failed" "${exit_code}"
 }
 
@@ -90,6 +95,8 @@ write_status_file() {
 }
 
 run_pip_audit() {
+  local scanner_exit=0
+
   if [[ ! -f "${REQUIREMENTS_FILE}" ]]; then
     echo "Requirements file is missing: ${REQUIREMENTS_FILE}" >&2
     return 1
@@ -99,11 +106,14 @@ run_pip_audit() {
     -r "${REQUIREMENTS_FILE}" \
     --progress-spinner off \
     --format json \
-    --output "${SECURITY_SCAN_REPORT_DIR}/pip-audit.json"
+    --output "${SECURITY_SCAN_REPORT_DIR}/pip-audit.json" || scanner_exit=$?
+
+  return "${scanner_exit}"
 }
 
 run_bandit_scan() {
   local source_path_args=()
+  local scanner_exit=0
 
   read -r -a source_path_args <<< "${SOURCE_PATHS}"
 
@@ -112,14 +122,17 @@ run_bandit_scan() {
     -r "${source_path_args[@]}" \
     -x "*/__pycache__/*,*/venv/*,*/.venv/*" \
     -f json \
-    -o "${SECURITY_SCAN_REPORT_DIR}/bandit.json"
+    -o "${SECURITY_SCAN_REPORT_DIR}/bandit.json" || scanner_exit=$?
+
+  return "${scanner_exit}"
 }
 
 run_trivy_image_scan() {
   local trivy_args=()
+  local scanner_exit=0
 
   if [[ "${BUILD_IMAGE_BEFORE_TRIVY}" == "true" ]]; then
-    docker build -t "${SECURITY_SCAN_IMAGE_REF}" .
+    docker build -t "${SECURITY_SCAN_IMAGE_REF}" . || return $?
   fi
 
   trivy_args=(
@@ -136,7 +149,9 @@ run_trivy_image_scan() {
 
   trivy_args+=("${SECURITY_SCAN_IMAGE_REF}")
 
-  "${TRIVY_BIN}" "${trivy_args[@]}"
+  "${TRIVY_BIN}" "${trivy_args[@]}" || scanner_exit=$?
+
+  return "${scanner_exit}"
 }
 
 if [[ "${RUN_PIP_AUDIT}" == "true" ]]; then

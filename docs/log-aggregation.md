@@ -1,9 +1,10 @@
 # Local Log Aggregation
 
 This runbook covers the low-cost central log aggregation path for the
-single-server production deployment. It collects recent Docker Compose service
-logs and selected systemd journal entries into one normalized JSONL file on the
-server. It creates no cloud resources and does not require a hosted logging
+single-server production deployment. It is a server-local workflow that
+collects recent Docker Compose service logs and selected systemd journal
+entries into one normalized JSONL file on the server. It creates no cloud resources
+and does not require a hosted logging
 provider.
 
 ## Files

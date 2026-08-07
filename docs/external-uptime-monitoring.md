@@ -109,6 +109,6 @@ If the uptime check fails:
 ## Current Limits
 
 - GitHub Actions scheduling is not a paging-grade uptime service
-- no central log aggregation is configured
+- server-local log aggregation is configured separately
 - no latency SLO or historical uptime dashboard is maintained
 - no paid external monitoring provider is configured

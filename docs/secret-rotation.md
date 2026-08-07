@@ -10,6 +10,7 @@ without creating cloud resources.
 .env.production.example
 deploy/scripts/audit_secret_configuration.sh
 deploy/scripts/render_env_from_parameter_store.sh
+deploy/scripts/rotate_provider_keys.sh
 docs/secret-rotation.md
 ```
 
@@ -30,7 +31,9 @@ Runtime secrets and sensitive values:
 | `DATABASE_URL` | `.env.production` | FastAPI, Streamlit, Django, Alembic | Must match the current database password. |
 | `DJANGO_SECRET_KEY` | `.env.production` | Django operations service | Existing sessions may be invalidated after rotation. |
 | `GROQ_API_KEY` | `.env.production` when configured | Skill extraction scripts | Revoke and replace through the provider account. |
+| `GROQ_API_KEY_NEXT` | `.env.production` during rotation only | `rotate_provider_keys.sh` | Staged replacement value promoted into `GROQ_API_KEY`. |
 | `GEMINI_API_KEY` | `.env.production` when configured | Optional skill extraction | Revoke and replace through the provider account. |
+| `GEMINI_API_KEY_NEXT` | `.env.production` during rotation only | `rotate_provider_keys.sh` | Staged replacement value promoted into `GEMINI_API_KEY`. |
 
 Deployment secrets stored in GitHub Actions encrypted secrets:
 
@@ -83,6 +86,15 @@ deploy/scripts/render_env_from_parameter_store.sh
 
 The renderer writes key-name only status output and then runs the same secret
 audit by default.
+
+Provider key rotation also writes key-name only status output:
+
+```bash
+ENV_FILE=.env.production \
+PROVIDER_KEY_ROTATION_STATUS_FILE=/srv/joblens-monitoring/latest_provider_key_rotation.json \
+PROVIDER_KEY_ROTATION_DRY_RUN=true \
+deploy/scripts/rotate_provider_keys.sh
+```
 
 ## Runtime Secret Rotation Order
 
@@ -165,10 +177,38 @@ Operations users may need to log in again after rotation.
 For `GROQ_API_KEY` and `GEMINI_API_KEY`:
 
 1. Create the replacement key in the provider account.
-2. Update `.env.production`.
-3. Restart only services or scripts that need the provider key.
-4. Run the relevant ingestion or extraction workflow in a controlled test.
-5. Revoke the old provider key after the replacement is verified.
+2. Add the replacement to `GROQ_API_KEY_NEXT` or `GEMINI_API_KEY_NEXT` in `.env.production`.
+3. Run a dry run and confirm the status lists only the intended key names.
+4. Promote staged keys with `CONFIRM_PROVIDER_KEY_ROTATION=yes`.
+5. Restart only services or scripts that need the provider key.
+6. Run the relevant ingestion or extraction workflow in a controlled test.
+7. Revoke the old provider key after the replacement is verified.
+
+Dry run:
+
+```bash
+ENV_FILE=.env.production \
+PROVIDER_KEY_ROTATION_STATUS_FILE=/srv/joblens-monitoring/latest_provider_key_rotation.json \
+PROVIDER_KEY_ROTATION_DRY_RUN=true \
+deploy/scripts/rotate_provider_keys.sh
+```
+
+Promote staged keys:
+
+```bash
+ENV_FILE=.env.production \
+PROVIDER_KEY_ROTATION_STATUS_FILE=/srv/joblens-monitoring/latest_provider_key_rotation.json \
+PROVIDER_KEY_ROTATION_BACKUP_DIR=/srv/joblens-secret-backups \
+PROVIDER_KEY_ROTATION_DRY_RUN=false \
+CONFIRM_PROVIDER_KEY_ROTATION=yes \
+deploy/scripts/rotate_provider_keys.sh
+```
+
+The script atomically promotes non-empty staged `*_NEXT` values, clears the
+staged entries after promotion, writes a backup copy before changing the env
+file, and runs `audit_secret_configuration.sh` by default. The status file
+records key names, backup path, dry-run state, and whether the rotation
+succeeded; it does not include secret values.
 
 If the key was exposed, revoke the old key first and accept the temporary
 extraction outage while the replacement is installed.
@@ -206,7 +246,7 @@ Git history. Treat it as exposed and rotate it.
 - no provider API key validity check
 - no automatic password rotation
 - no historical secret scanning beyond local Git checks
-- no automatic provider-side key rotation
+- provider-side key creation and revocation still happen in the provider account
 
 Parameter Store integration is read-only from this repository. Creating or
 changing parameters, IAM permissions, or KMS keys still requires cost notes and

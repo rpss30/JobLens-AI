@@ -4,11 +4,13 @@ import json
 import os
 import stat
 import subprocess
+import sys
 from pathlib import Path
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 AUDIT_SCRIPT = ROOT_DIR / "deploy" / "scripts" / "audit_secret_configuration.sh"
+PROVIDER_KEY_ROTATION_SCRIPT = ROOT_DIR / "deploy" / "scripts" / "rotate_provider_keys.sh"
 PARAMETER_RENDER_SCRIPT = (
     ROOT_DIR / "deploy" / "scripts" / "render_env_from_parameter_store.sh"
 )
@@ -33,7 +35,9 @@ def write_fake_production_env(path: Path) -> None:
                 "DJANGO_ALLOWED_HOSTS=jobs.test.invalid",
                 "DJANGO_CSRF_TRUSTED_ORIGINS=https://jobs.test.invalid",
                 "GROQ_API_KEY=",
+                "GROQ_API_KEY_NEXT=",
                 "GEMINI_API_KEY=",
+                "GEMINI_API_KEY_NEXT=",
             ],
         )
         + "\n",
@@ -42,7 +46,11 @@ def write_fake_production_env(path: Path) -> None:
 
 
 def test_secret_audit_script_is_executable_and_valid_bash() -> None:
-    for script_path in [AUDIT_SCRIPT, PARAMETER_RENDER_SCRIPT]:
+    for script_path in [
+        AUDIT_SCRIPT,
+        PROVIDER_KEY_ROTATION_SCRIPT,
+        PARAMETER_RENDER_SCRIPT,
+    ]:
         assert script_path.stat().st_mode & stat.S_IXUSR
         subprocess.run(["bash", "-n", str(script_path)], check=True)
 
@@ -264,6 +272,179 @@ def test_secret_audit_fails_placeholder_missing_and_public_env_file(tmp_path: Pa
     assert "replace-with-a-long-random-password" not in result.stdout + result.stderr
 
 
+def test_provider_key_rotation_dry_run_reports_key_names_without_writing_values(
+    tmp_path: Path,
+) -> None:
+    env_file = tmp_path / ".env.production"
+    status_file = tmp_path / "provider-key-rotation.json"
+    write_fake_production_env(env_file)
+    env_file.write_text(
+        env_file.read_text(encoding="utf-8").replace(
+            "GROQ_API_KEY=\nGROQ_API_KEY_NEXT=",
+            "GROQ_API_KEY=old-provider-secret\nGROQ_API_KEY_NEXT=new-provider-secret",
+        ),
+        encoding="utf-8",
+    )
+    env_file.chmod(0o600)
+
+    result = subprocess.run(
+        [str(PROVIDER_KEY_ROTATION_SCRIPT)],
+        check=True,
+        capture_output=True,
+        env={
+            **os.environ,
+            "ENV_FILE": str(env_file),
+            "PROVIDER_KEY_ROTATION_STATUS_FILE": str(status_file),
+            "PROVIDER_KEY_ROTATION_DRY_RUN": "true",
+            "PROVIDER_KEYS_TO_ROTATE": "GROQ_API_KEY",
+            "PYTHON_BIN": sys.executable,
+        },
+        text=True,
+    )
+
+    status_payload = json.loads(status_file.read_text(encoding="utf-8"))
+    combined_output = (
+        result.stdout + result.stderr + status_file.read_text(encoding="utf-8")
+    )
+
+    assert status_payload["status"] == "dry_run"
+    assert status_payload["dry_run"] is True
+    assert status_payload["rotated_keys"] == ["GROQ_API_KEY"]
+    assert status_payload["missing_staged_keys"] == []
+    assert status_payload["secret_values_printed"] is False
+    assert "Provider key rotation dry run succeeded" in result.stdout
+    assert "old-provider-secret" not in combined_output
+    assert "new-provider-secret" not in combined_output
+    assert "GROQ_API_KEY=old-provider-secret" in env_file.read_text(encoding="utf-8")
+
+
+def test_provider_key_rotation_promotes_staged_keys_and_clears_next_value(
+    tmp_path: Path,
+) -> None:
+    env_file = tmp_path / ".env.production"
+    status_file = tmp_path / "provider-key-rotation.json"
+    audit_status_file = tmp_path / "provider-key-rotation-audit.json"
+    backup_dir = tmp_path / "backups"
+    write_fake_production_env(env_file)
+    env_file.write_text(
+        env_file.read_text(encoding="utf-8")
+        .replace(
+            "GROQ_API_KEY=\nGROQ_API_KEY_NEXT=",
+            "GROQ_API_KEY=old-provider-secret\nGROQ_API_KEY_NEXT=new-provider-secret",
+        )
+        .replace(
+            "GEMINI_API_KEY=\nGEMINI_API_KEY_NEXT=",
+            "GEMINI_API_KEY=\nGEMINI_API_KEY_NEXT=new-gemini-secret",
+        ),
+        encoding="utf-8",
+    )
+    env_file.chmod(0o600)
+
+    result = subprocess.run(
+        [str(PROVIDER_KEY_ROTATION_SCRIPT)],
+        check=True,
+        capture_output=True,
+        env={
+            **os.environ,
+            "ENV_FILE": str(env_file),
+            "PROVIDER_KEY_ROTATION_STATUS_FILE": str(status_file),
+            "PROVIDER_KEY_ROTATION_BACKUP_DIR": str(backup_dir),
+            "PROVIDER_KEY_ROTATION_AUDIT_STATUS_FILE": str(audit_status_file),
+            "PROVIDER_KEY_ROTATION_DRY_RUN": "false",
+            "CONFIRM_PROVIDER_KEY_ROTATION": "yes",
+            "PROVIDER_KEY_ROTATION_TIMESTAMP": "20260807T120000Z",
+            "PYTHON_BIN": sys.executable,
+        },
+        text=True,
+    )
+
+    updated_env = env_file.read_text(encoding="utf-8")
+    status_payload = json.loads(status_file.read_text(encoding="utf-8"))
+    audit_payload = json.loads(audit_status_file.read_text(encoding="utf-8"))
+    backup_file = backup_dir / ".env.production.20260807T120000Z.bak"
+    combined_output = (
+        result.stdout
+        + result.stderr
+        + status_file.read_text(encoding="utf-8")
+        + audit_status_file.read_text(encoding="utf-8")
+    )
+
+    assert status_payload["status"] == "succeeded"
+    assert status_payload["dry_run"] is False
+    assert status_payload["rotated_keys"] == ["GEMINI_API_KEY", "GROQ_API_KEY"]
+    assert status_payload["backup_file"] == str(backup_file)
+    assert audit_payload["status"] == "succeeded"
+    assert backup_file.exists()
+    assert stat.S_IMODE(backup_file.stat().st_mode) == 0o600
+    assert "GROQ_API_KEY=new-provider-secret" in updated_env
+    assert "GROQ_API_KEY_NEXT=" in updated_env
+    assert "GEMINI_API_KEY=new-gemini-secret" in updated_env
+    assert "GEMINI_API_KEY_NEXT=" in updated_env
+    assert "old-provider-secret" in backup_file.read_text(encoding="utf-8")
+    assert "Promoted staged provider keys" in result.stdout
+    assert "old-provider-secret" not in combined_output
+    assert "new-provider-secret" not in combined_output
+    assert "new-gemini-secret" not in combined_output
+
+
+def test_provider_key_rotation_requires_confirmation_and_staged_values(
+    tmp_path: Path,
+) -> None:
+    env_file = tmp_path / ".env.production"
+    status_file = tmp_path / "provider-key-rotation.json"
+    write_fake_production_env(env_file)
+    env_file.chmod(0o600)
+
+    missing_staged = subprocess.run(
+        [str(PROVIDER_KEY_ROTATION_SCRIPT)],
+        check=False,
+        capture_output=True,
+        env={
+            **os.environ,
+            "ENV_FILE": str(env_file),
+            "PROVIDER_KEY_ROTATION_STATUS_FILE": str(status_file),
+            "PROVIDER_KEY_ROTATION_DRY_RUN": "true",
+            "PYTHON_BIN": sys.executable,
+        },
+        text=True,
+    )
+    missing_payload = json.loads(status_file.read_text(encoding="utf-8"))
+
+    env_file.write_text(
+        env_file.read_text(encoding="utf-8").replace(
+            "GROQ_API_KEY_NEXT=",
+            "GROQ_API_KEY_NEXT=new-provider-secret",
+        ),
+        encoding="utf-8",
+    )
+    no_confirmation = subprocess.run(
+        [str(PROVIDER_KEY_ROTATION_SCRIPT)],
+        check=False,
+        capture_output=True,
+        env={
+            **os.environ,
+            "ENV_FILE": str(env_file),
+            "PROVIDER_KEY_ROTATION_STATUS_FILE": str(status_file),
+            "PROVIDER_KEY_ROTATION_DRY_RUN": "false",
+            "PYTHON_BIN": sys.executable,
+        },
+        text=True,
+    )
+    confirmation_payload = json.loads(status_file.read_text(encoding="utf-8"))
+
+    assert missing_staged.returncode == 1
+    assert missing_payload["status"] == "failed"
+    assert missing_payload["missing_staged_keys"] == [
+        "GEMINI_API_KEY_NEXT",
+        "GROQ_API_KEY_NEXT",
+    ]
+    assert "no staged provider keys" not in missing_staged.stdout
+    assert no_confirmation.returncode == 1
+    assert confirmation_payload["status"] == "failed"
+    assert confirmation_payload["failure"] == "confirmation is required"
+    assert "CONFIRM_PROVIDER_KEY_ROTATION=yes" in no_confirmation.stderr
+
+
 def test_production_env_files_are_ignored_but_examples_are_allowed() -> None:
     gitignore = GITIGNORE.read_text(encoding="utf-8")
 
@@ -295,6 +476,7 @@ def test_secret_audit_script_does_not_provision_cloud_resources() -> None:
     combined = "\n".join(
         [
             AUDIT_SCRIPT.read_text(encoding="utf-8"),
+            PROVIDER_KEY_ROTATION_SCRIPT.read_text(encoding="utf-8"),
             PARAMETER_RENDER_SCRIPT.read_text(encoding="utf-8"),
         ]
     ).lower()
@@ -322,6 +504,9 @@ def test_secret_audit_script_does_not_provision_cloud_resources() -> None:
         assert forbidden_write not in combined
 
     assert "get-parameters-by-path" in combined
+    assert "put-parameter" not in PROVIDER_KEY_ROTATION_SCRIPT.read_text(
+        encoding="utf-8"
+    ).lower()
 
 
 def test_secret_rotation_documentation_covers_inventory_rotation_and_emergency_steps() -> None:
@@ -339,10 +524,13 @@ def test_secret_rotation_documentation_covers_inventory_rotation_and_emergency_s
         "gemini_api_key",
         "production_ssh_key",
         "audit_secret_configuration.sh",
+        "rotate_provider_keys.sh",
         "no secret values",
         "postgresql password rotation",
         "django secret key rotation",
         "provider api key rotation",
+        "provider_key_rotation_dry_run=true",
+        "confirm_provider_key_rotation=yes",
         "deployment ssh key rotation",
         "emergency replacement",
         "parameter store",
@@ -360,7 +548,7 @@ def test_secret_rotation_documentation_covers_inventory_rotation_and_emergency_s
         "key-name only",
         "no parameters, iam policies, kms keys, or cloud resources are created",
         "ssm:getparametersbypath",
-        "no automatic provider-side key rotation",
+        "no provider-side key creation or revocation",
     ]:
         assert topic in parameter_doc
 

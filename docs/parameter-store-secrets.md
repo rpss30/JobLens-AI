@@ -28,7 +28,9 @@ Use one existing path per environment:
 /joblens/production/DJANGO_ALLOWED_HOSTS
 /joblens/production/DJANGO_CSRF_TRUSTED_ORIGINS
 /joblens/production/GROQ_API_KEY
+/joblens/production/GROQ_API_KEY_NEXT
 /joblens/production/GEMINI_API_KEY
+/joblens/production/GEMINI_API_KEY_NEXT
 ```
 
 The renderer uses the final path segment as the env key. Values not stored in
@@ -96,21 +98,22 @@ select the correct region.
 
 For planned runtime secret rotation:
 
-1. Update the existing Parameter Store value through the approved operations path.
+1. For provider keys, write the replacement into the existing `*_NEXT` parameter.
 2. Run `render_env_from_parameter_store.sh` on the server.
-3. Confirm `audit_secret_configuration.sh` passes.
-4. Restart only the affected Compose services.
-5. Run `check_operations_status.sh`.
-6. Remove any temporary local recovery copy after the replacement is verified.
+3. Run `rotate_provider_keys.sh` in dry-run mode.
+4. Promote the staged provider key with `CONFIRM_PROVIDER_KEY_ROTATION=yes`.
+5. Confirm `audit_secret_configuration.sh` passes.
+6. Restart only the affected Compose services.
+7. Run `check_operations_status.sh`.
+8. Remove any temporary local recovery copy after the replacement is verified.
 
-Provider-side revocation still happens in the provider account. This repository
-does not automate external provider key rotation.
+Provider-side creation and revocation still happen in the provider account.
 
 ## Current Limits
 
 - no parameters, IAM policies, KMS keys, or cloud resources are created
 - no GitHub Actions secret validation is performed
 - no provider API key validity check is performed
-- no automatic provider-side key rotation is implemented
+- no provider-side key creation or revocation is performed
 - no secret history or version rollback workflow is implemented beyond the
   provider's native Parameter Store version history

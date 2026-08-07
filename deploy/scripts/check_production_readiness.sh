@@ -5,6 +5,7 @@ READINESS_STATUS_FILE="${READINESS_STATUS_FILE:-deploy/readiness/latest_readines
 STRICT_READINESS="${STRICT_READINESS:-false}"
 RUN_COMPOSE_CONFIG="${RUN_COMPOSE_CONFIG:-false}"
 RUN_SECRET_AUDIT="${RUN_SECRET_AUDIT:-false}"
+RUN_PROVIDER_KEY_ROTATION_DRY_RUN="${RUN_PROVIDER_KEY_ROTATION_DRY_RUN:-false}"
 RUN_PARAMETER_STORE_RENDER_CHECK="${RUN_PARAMETER_STORE_RENDER_CHECK:-false}"
 RUN_BACKUP_STATUS_CHECK="${RUN_BACKUP_STATUS_CHECK:-false}"
 RUN_OFFSITE_BACKUP_STATUS_CHECK="${RUN_OFFSITE_BACKUP_STATUS_CHECK:-false}"
@@ -92,6 +93,14 @@ check_compose_config() {
 check_secret_audit() {
   ENV_FILE="${ENV_FILE}" AUDIT_STATUS_FILE="${READINESS_STATUS_FILE}.secret-audit.json" \
     deploy/scripts/audit_secret_configuration.sh
+}
+
+check_provider_key_rotation_dry_run() {
+  ENV_FILE="${ENV_FILE}" \
+  PROVIDER_KEY_ROTATION_DRY_RUN=true \
+  PROVIDER_KEY_ROTATION_STATUS_FILE="${READINESS_STATUS_FILE}.provider-key-rotation.json" \
+  PROVIDER_KEY_ROTATION_BACKUP_DIR="$(dirname "${READINESS_STATUS_FILE}")/provider-key-rotation-backups" \
+    deploy/scripts/rotate_provider_keys.sh
 }
 
 check_parameter_store_render() {
@@ -236,6 +245,7 @@ required_scripts=(
   deploy/scripts/check_operations_status.sh
   deploy/scripts/check_disk_usage.sh
   deploy/scripts/audit_secret_configuration.sh
+  deploy/scripts/rotate_provider_keys.sh
   deploy/scripts/render_env_from_parameter_store.sh
   deploy/scripts/run_security_scans.sh
   deploy/scripts/check_external_uptime.sh
@@ -279,6 +289,7 @@ fi
 
 run_optional_check "compose-config" "${RUN_COMPOSE_CONFIG}" check_compose_config
 run_optional_check "secret-audit" "${RUN_SECRET_AUDIT}" check_secret_audit
+run_optional_check "provider-key-rotation-dry-run" "${RUN_PROVIDER_KEY_ROTATION_DRY_RUN}" check_provider_key_rotation_dry_run
 run_optional_check "parameter-store-render" "${RUN_PARAMETER_STORE_RENDER_CHECK}" check_parameter_store_render
 run_optional_check "backup-status" "${RUN_BACKUP_STATUS_CHECK}" check_backup_status
 run_optional_check "offsite-backup-status" "${RUN_OFFSITE_BACKUP_STATUS_CHECK}" check_offsite_backup_status

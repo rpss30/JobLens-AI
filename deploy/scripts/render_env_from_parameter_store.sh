@@ -112,7 +112,9 @@ defaultable_keys = {
 
 blank_optional_keys = {
     "GROQ_API_KEY",
+    "GROQ_API_KEY_NEXT",
     "GEMINI_API_KEY",
+    "GEMINI_API_KEY_NEXT",
 }
 
 key_pattern = re.compile(r"^([A-Z0-9_]+)=(.*)$")

@@ -7,6 +7,7 @@ RUN_COMPOSE_CONFIG="${RUN_COMPOSE_CONFIG:-false}"
 RUN_SECRET_AUDIT="${RUN_SECRET_AUDIT:-false}"
 RUN_BACKUP_STATUS_CHECK="${RUN_BACKUP_STATUS_CHECK:-false}"
 RUN_OPERATIONS_STATUS_CHECK="${RUN_OPERATIONS_STATUS_CHECK:-false}"
+RUN_TERRAFORM_VALIDATE="${RUN_TERRAFORM_VALIDATE:-false}"
 ENV_FILE="${ENV_FILE:-.env.production}"
 
 check_names=()
@@ -98,6 +99,11 @@ check_operations_status() {
   deploy/scripts/check_operations_status.sh
 }
 
+check_lightsail_terraform_validate() {
+  terraform -chdir=deploy/lightsail/terraform init -backend=false -input=false >/dev/null
+  terraform -chdir=deploy/lightsail/terraform validate >/dev/null
+}
+
 check_forbidden_cloud_provisioning() {
   local combined_text
   local forbidden_commands=(
@@ -180,6 +186,12 @@ required_files=(
   docs/security.md
   docs/lightsail-deployment-plan.md
   deploy/lightsail/resource-plan.example.json
+  deploy/lightsail/terraform/README.md
+  deploy/lightsail/terraform/main.tf
+  deploy/lightsail/terraform/outputs.tf
+  deploy/lightsail/terraform/terraform.tfvars.example
+  deploy/lightsail/terraform/variables.tf
+  deploy/lightsail/terraform/versions.tf
 )
 
 required_scripts=(
@@ -210,6 +222,10 @@ require_ignored "deploy/readiness/latest_readiness.json"
 require_ignored "deploy/secret-audits/latest_secret_audit.json"
 require_ignored "deploy/lightsail/production-inventory.json"
 require_ignored "deploy/lightsail/deployment-evidence/example.json"
+require_ignored "deploy/lightsail/terraform/.terraform/example"
+require_ignored "deploy/lightsail/terraform/terraform.tfvars"
+require_ignored "deploy/lightsail/terraform/reviewed.tfplan"
+require_ignored "deploy/lightsail/terraform/terraform.tfstate"
 check_forbidden_cloud_provisioning
 
 if [[ -f "${ENV_FILE}" ]]; then
@@ -222,6 +238,7 @@ run_optional_check "compose-config" "${RUN_COMPOSE_CONFIG}" check_compose_config
 run_optional_check "secret-audit" "${RUN_SECRET_AUDIT}" check_secret_audit
 run_optional_check "backup-status" "${RUN_BACKUP_STATUS_CHECK}" check_backup_status
 run_optional_check "operations-status" "${RUN_OPERATIONS_STATUS_CHECK}" check_operations_status
+run_optional_check "lightsail-terraform-validate" "${RUN_TERRAFORM_VALIDATE}" check_lightsail_terraform_validate
 
 if (( failure_count > 0 )); then
   readiness_status="failed"

@@ -65,11 +65,14 @@ load balancer, NAT gateway, or any other paid resource without explicit
 approval.
 
 Use [lightsail-deployment-plan.md](lightsail-deployment-plan.md) as the
-plan-only resource inventory for the low-cost Lightsail path. The committed
-`deploy/lightsail/resource-plan.example.json` is only a template; live resource
-identifiers, IP addresses, URLs, and approval notes must stay in a private
-inventory file or private deployment note. Treat the private inventory as the
-source of truth after provisioning.
+plan-only resource inventory for the low-cost Lightsail path. Terraform template
+files live in `deploy/lightsail/terraform` for local formatting and validation,
+but do not plan against an AWS account or apply before approval.
+No Terraform state is committed or required for local validation.
+The committed `deploy/lightsail/resource-plan.example.json` is only a template;
+live resource identifiers, IP addresses, URLs, and approval notes must stay in a
+private inventory file or private deployment note. Treat the private inventory
+as the source of truth after provisioning.
 
 Before the first production deployment, confirm:
 

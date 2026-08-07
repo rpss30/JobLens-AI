@@ -14,6 +14,9 @@ LOG_SCRIPT = ROOT_DIR / "deploy" / "scripts" / "collect_operations_logs.sh"
 MONITOR_SERVICE = ROOT_DIR / "deploy" / "server" / "systemd" / "joblens-ops-monitor.service"
 MONITOR_TIMER = ROOT_DIR / "deploy" / "server" / "systemd" / "joblens-ops-monitor.timer"
 GITIGNORE = ROOT_DIR / ".gitignore"
+MONITORING_DOC = ROOT_DIR / "docs" / "operations-monitoring.md"
+README_PATH = ROOT_DIR / "README.md"
+PRODUCTION_COMPOSE_DOC = ROOT_DIR / "docs" / "production-compose.md"
 
 
 def read_file(path: Path) -> str:
@@ -153,3 +156,32 @@ def test_operations_monitoring_files_do_not_create_cloud_resources() -> None:
 
     for command in forbidden_commands:
         assert command not in combined
+
+
+def test_operations_monitoring_documentation_covers_checks_and_limits() -> None:
+    doc = read_file(MONITORING_DOC).lower()
+    readme = read_file(README_PATH)
+    compose_doc = read_file(PRODUCTION_COMPOSE_DOC)
+
+    expected_topics = [
+        "compose services",
+        "public health",
+        "database backup",
+        "disk usage",
+        "latest_status.json",
+        "check_operations_status.sh",
+        "check_disk_usage.sh",
+        "collect_operations_logs.sh",
+        "systemd",
+        "failure triage",
+        "no cloud resources",
+        "no external uptime monitor",
+        "no email, slack, sms, or paging alerts",
+        "no central log aggregation",
+    ]
+
+    for topic in expected_topics:
+        assert topic in doc
+
+    assert "docs/operations-monitoring.md" in readme
+    assert "operations-monitoring.md" in compose_doc

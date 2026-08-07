@@ -81,6 +81,11 @@ restore validation, and gated restore procedures. Backup dumps contain
 application data and should be stored outside the repository with permissions
 limited to the deployment user.
 
+See [operations-monitoring.md](operations-monitoring.md) for local health,
+backup freshness, disk usage, and log snapshot checks. Monitoring status files
+and log snapshots should stay outside Git and remain readable only by the
+deployment user.
+
 ## Resume Privacy
 
 Resume text is analyzed in memory for a single request. The API and dashboard do

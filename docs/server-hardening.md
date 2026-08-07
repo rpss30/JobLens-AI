@@ -107,4 +107,6 @@ Keep recovery access procedures documented before applying host changes.
 This runbook does not provision the server, install Docker, configure DNS, or
 install the database backup timer. Application deployment is covered separately
 in [production-deployment.md](production-deployment.md), and backup operations
-are covered in [database-backups.md](database-backups.md).
+are covered in [database-backups.md](database-backups.md). Local operations
+monitoring timers and log snapshots are covered in
+[operations-monitoring.md](operations-monitoring.md).

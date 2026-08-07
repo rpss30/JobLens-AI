@@ -326,6 +326,7 @@ JobLens AI
 │   ├── database.md
 │   ├── database-backups.md
 │   ├── django-ops.md
+│   ├── operations-monitoring.md
 │   ├── production-compose.md
 │   ├── production-deployment.md
 │   ├── resume-analysis.md
@@ -583,6 +584,10 @@ procedure.
 See [docs/database-backups.md](docs/database-backups.md) for PostgreSQL
 `pg_dump` backups, local retention, restore validation, backup status checks,
 and gated restore procedures.
+
+See [docs/operations-monitoring.md](docs/operations-monitoring.md) for local
+service health, backup freshness, disk usage, and log-snapshot monitoring on
+the single-server production path.
 
 ## Django Operations Service
 
@@ -844,6 +849,7 @@ Completed:
 - Server hardening runbook for host firewall, SSH, deployment user, and Docker log rotation
 - Manual production deployment workflow with SSH, migration ordering, health checks, and rollback
 - Local PostgreSQL backup scripts with retention, restore validation, backup freshness checks, and a daily systemd timer template
+- Local operations monitoring scripts for Compose service health, public health checks, backup freshness, disk usage, and log snapshots
 - FastAPI can list PostgreSQL datasets and analyze a selected saved dataset
 - AWS deployment helpers for ECR, RDS PostgreSQL, ALB, and ECS Fargate
 - Multi-employer Canadian ingestion and a curated Groq-enriched snapshot
@@ -860,6 +866,7 @@ Not built yet:
 - Production-grade NLP role classification
 - Infrastructure-as-code deployment automation
 - Off-server database backup storage and alert delivery
+- External uptime monitoring or central log aggregation
 
 
 

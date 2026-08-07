@@ -563,6 +563,9 @@ migration order, routing, health checks, and current limits. The production
 Compose file publishes only Caddy on ports 80 and 443 and does not provision
 cloud resources.
 
+See [docs/server-hardening.md](docs/server-hardening.md) for the host firewall,
+SSH, deployment-user, unattended-update, and Docker log-rotation runbook.
+
 ## Django Operations Service
 
 JobLens includes a Django operations service for authenticated internal
@@ -819,6 +822,8 @@ Completed:
 - FastAPI endpoints for datasets and saved analysis runs
 - FastAPI CORS allowlist, request limits, safe exception responses, and `/analyze` rate limiting
 - Docker Compose setup for Streamlit, FastAPI, and PostgreSQL
+- Production Compose stack with Caddy HTTPS routing and internal PostgreSQL networking
+- Server hardening runbook for host firewall, SSH, deployment user, and Docker log rotation
 - FastAPI can list PostgreSQL datasets and analyze a selected saved dataset
 - AWS deployment helpers for ECR, RDS PostgreSQL, ALB, and ECS Fargate
 - Multi-employer Canadian ingestion and a curated Groq-enriched snapshot

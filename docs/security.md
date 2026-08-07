@@ -27,6 +27,9 @@ avoid leaking private inputs, and make deployment assumptions explicit.
 - Caddy is the only public production Compose service. It publishes ports 80 and
   443, redirects HTTP to HTTPS, adds security headers, and routes `/api/*`,
   `/ops/*`, and dashboard traffic to internal services.
+- The server hardening runbook restricts host firewall ingress to HTTP, HTTPS,
+  and SSH from an explicit trusted source range; disables SSH password and root
+  login; and enables Docker log rotation.
 
 ## Environment Variables
 
@@ -58,6 +61,10 @@ development URLs.
 For the single-server production Compose path, copy
 `.env.production.example` to `.env.production`, replace every placeholder
 secret, and keep the file readable only by the deployment user.
+
+See [server-hardening.md](server-hardening.md) before applying host firewall or
+SSH changes. Keep an active SSH session and a recovery-console path available
+until a new key-based login has been verified.
 
 ## Resume Privacy
 

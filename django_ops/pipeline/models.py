@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from django.conf import settings
 from django.db import models
 
 
@@ -132,3 +133,84 @@ class ExtractionResult(models.Model):
 
     def __str__(self) -> str:
         return f"{self.provider} extraction for processed job {self.processed_job_id}"
+
+
+class ExtractionReview(models.Model):
+    STATUS_OPEN = "open"
+    STATUS_REVIEWED = "reviewed"
+    RETRY_STATUS_REQUESTED = "requested"
+
+    extraction_result_id = models.PositiveIntegerField(unique=True, db_index=True)
+    status = models.CharField(max_length=30, default=STATUS_OPEN)
+    note = models.TextField(blank=True)
+    note_updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="updated_extraction_review_notes",
+    )
+    note_updated_by_username = models.CharField(max_length=150, blank=True)
+    note_updated_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="reviewed_extraction_results",
+    )
+    reviewed_by_username = models.CharField(max_length=150, blank=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    retry_status = models.CharField(max_length=30, blank=True, default="")
+    retry_requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="requested_extraction_retries",
+    )
+    retry_requested_by_username = models.CharField(max_length=150, blank=True)
+    retry_requested_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "ops_extraction_reviews"
+        indexes = [
+            models.Index(fields=["status", "updated_at"]),
+            models.Index(fields=["retry_status", "retry_requested_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"review state for extraction result {self.extraction_result_id}"
+
+
+class OperationsAuditEvent(models.Model):
+    ACTION_NOTE_SAVED = "extraction_note_saved"
+    ACTION_MARKED_REVIEWED = "extraction_marked_reviewed"
+    ACTION_RETRY_REQUESTED = "extraction_retry_requested"
+
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="operations_audit_events",
+    )
+    actor_username = models.CharField(max_length=150)
+    action = models.CharField(max_length=100, db_index=True)
+    target_type = models.CharField(max_length=100, db_index=True)
+    target_id = models.PositiveIntegerField(db_index=True)
+    metadata = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "ops_audit_events"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["target_type", "target_id", "created_at"]),
+            models.Index(fields=["actor_username", "created_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.action} on {self.target_type} {self.target_id}"

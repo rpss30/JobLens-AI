@@ -178,6 +178,8 @@ required_files=(
   docs/operations-monitoring.md
   docs/secret-rotation.md
   docs/security.md
+  docs/lightsail-deployment-plan.md
+  deploy/lightsail/resource-plan.example.json
 )
 
 required_scripts=(
@@ -206,6 +208,8 @@ require_ignored "deploy/logs/example.log"
 require_ignored "deploy/monitoring/latest_status.json"
 require_ignored "deploy/readiness/latest_readiness.json"
 require_ignored "deploy/secret-audits/latest_secret_audit.json"
+require_ignored "deploy/lightsail/production-inventory.json"
+require_ignored "deploy/lightsail/deployment-evidence/example.json"
 check_forbidden_cloud_provisioning
 
 if [[ -f "${ENV_FILE}" ]]; then

@@ -9,6 +9,8 @@ again before high-risk releases. It creates no cloud resources.
 ```text
 deploy/scripts/check_production_readiness.sh
 docs/production-readiness.md
+docs/lightsail-deployment-plan.md
+deploy/lightsail/resource-plan.example.json
 ```
 
 ## Local Repo Readiness
@@ -62,11 +64,19 @@ Do not create a server, static IP, DNS hosted zone, S3 bucket, RDS instance,
 load balancer, NAT gateway, or any other paid resource without explicit
 approval.
 
+Use [lightsail-deployment-plan.md](lightsail-deployment-plan.md) as the
+plan-only resource inventory for the low-cost Lightsail path. The committed
+`deploy/lightsail/resource-plan.example.json` is only a template; live resource
+identifiers, IP addresses, URLs, and approval notes must stay in a private
+inventory file or private deployment note. Treat the private inventory as the
+source of truth after provisioning.
+
 Before the first production deployment, confirm:
 
 - an AWS Budget or equivalent billing guardrail exists
 - billing alerts are configured at several thresholds
 - persistent resources are listed in a private deployment note
+- the Lightsail plan has been reviewed if Lightsail is the chosen server target
 - teardown steps are written before provisioning
 - project tags are decided for any future cloud resources
 
@@ -191,6 +201,7 @@ The deployment is ready to share when:
 ## Current Limits
 
 - no cloud resource has been provisioned by this repository work
+- no Lightsail instance, static IPv4 address, DNS record, or snapshot has been provisioned
 - no external uptime monitor is configured
 - no alert delivery is configured
 - no off-server backup copy is implemented

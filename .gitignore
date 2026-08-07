@@ -32,6 +32,7 @@ data/processed/uploaded_processed_jobs.csv
 deploy/backups/
 deploy/logs/
 deploy/monitoring/
+deploy/readiness/
 deploy/secret-audits/
 
 # Generated AI extraction experiment outputs

@@ -1,0 +1,20 @@
+[Unit]
+Description=Refresh the JobLens Canada jobs dataset
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+User=joblens
+Group=joblens
+WorkingDirectory=/srv/joblens-ai
+Environment=DEPLOY_ENV_FILE=.env.production
+Environment=COMPOSE_FILE=docker-compose.prod.yml
+Environment=INGESTION_OUTPUT_DIR=/srv/joblens-ingestion
+Environment=INGESTION_STATUS_FILE=/srv/joblens-ingestion/latest_ingestion_refresh.json
+Environment=INGESTION_DATASET_NAME=canada_jobs
+Environment=INGESTION_MAX_JOBS=72
+Environment=INGESTION_MAX_PER_COMPANY=6
+Environment=INGESTION_MAX_PER_LOCATION=18
+Environment=INGESTION_DELAY_SECONDS=1
+ExecStart=/srv/joblens-ai/deploy/scripts/run_ingestion_refresh.sh

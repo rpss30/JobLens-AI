@@ -10,19 +10,21 @@ journald, and local status files. It creates no cloud resources.
 deploy/scripts/check_operations_status.sh
 deploy/scripts/check_disk_usage.sh
 deploy/scripts/collect_operations_logs.sh
+deploy/scripts/check_ingestion_refresh_status.sh
 deploy/server/systemd/joblens-ops-monitor.service
 deploy/server/systemd/joblens-ops-monitor.timer
 ```
 
 ## What Gets Checked
 
-`check_operations_status.sh` runs four checks:
+`check_operations_status.sh` runs five checks:
 
 | Check | What It Verifies |
 | --- | --- |
 | Compose services | `caddy`, `dashboard`, `api`, `django-ops`, and `db` are running. |
 | Public health | `/healthz`, `/api/health`, and `/ops/login/` respond through the public edge when a domain or base URL is configured. |
 | Database backup | `latest_backup.json` exists, reports success, and is fresh. |
+| Ingestion refresh | `latest_ingestion_refresh.json` exists, reports success, and is fresh. |
 | Disk usage | watched filesystem paths are below warning and critical thresholds. |
 
 Each run writes a compact JSON status file:
@@ -42,6 +44,7 @@ Run from the repository checkout on the server:
 ```bash
 JOBLENS_DOMAIN=jobs.example.com \
 BACKUP_STATUS_FILE=/srv/joblens-backups/latest_backup.json \
+INGESTION_STATUS_FILE=/srv/joblens-ingestion/latest_ingestion_refresh.json \
 MONITOR_STATUS_FILE=/srv/joblens-monitoring/latest_status.json \
 deploy/scripts/check_operations_status.sh
 ```
@@ -58,6 +61,8 @@ Useful defaults:
 | `EXPECTED_SERVICES` | `caddy dashboard api django-ops db` |
 | `BACKUP_STATUS_FILE` | `/srv/joblens-backups/latest_backup.json` |
 | `BACKUP_MAX_AGE_HOURS` | `30` |
+| `INGESTION_STATUS_FILE` | `/srv/joblens-ingestion/latest_ingestion_refresh.json` |
+| `INGESTION_MAX_AGE_HOURS` | `192` |
 | `DISK_PATHS` | `/ /srv/joblens-backups` |
 | `DISK_WARN_PERCENT` | `80` |
 | `DISK_CRITICAL_PERCENT` | `90` |
@@ -68,6 +73,7 @@ For maintenance windows, individual checks can be skipped with:
 SKIP_COMPOSE_CHECK=true
 SKIP_PUBLIC_HEALTH_CHECK=true
 SKIP_BACKUP_STATUS_CHECK=true
+SKIP_INGESTION_REFRESH_CHECK=true
 SKIP_DISK_CHECK=true
 ```
 
@@ -140,6 +146,7 @@ repository path, backup path, or monitoring path differs from:
 User=joblens
 WorkingDirectory=/srv/joblens-ai
 BACKUP_STATUS_FILE=/srv/joblens-backups/latest_backup.json
+INGESTION_STATUS_FILE=/srv/joblens-ingestion/latest_ingestion_refresh.json
 MONITOR_STATUS_FILE=/srv/joblens-monitoring/latest_status.json
 ```
 
@@ -181,6 +188,13 @@ Database backup check fails:
 - inspect `journalctl -u joblens-db-backup.service --since today`
 - run a manual backup and then `verify_database_backup.sh`
 - check disk usage on the backup directory
+
+Ingestion refresh check fails:
+
+- run `systemctl status joblens-ingestion-refresh.service --no-pager`
+- inspect `journalctl -u joblens-ingestion-refresh.service --since today`
+- inspect `/srv/joblens-ingestion/<run-id>/canada-fetch-summary.md`
+- run a manual refresh after verifying provider keys and database health
 
 Disk check fails:
 

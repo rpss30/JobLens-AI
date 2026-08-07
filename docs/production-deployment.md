@@ -153,6 +153,10 @@ Local post-deploy status checks and log snapshots are documented in
 check after a release when investigating service health, backup freshness, or
 disk pressure.
 
+Scheduled Canada jobs refreshes are documented in
+[production-ingestion.md](production-ingestion.md). Run and verify the refresh
+manually before enabling the weekly production timer.
+
 Runtime secret audit and rotation steps are documented in
 [secret-rotation.md](secret-rotation.md). Run the audit after changing
 `.env.production` and before starting a deployment window.

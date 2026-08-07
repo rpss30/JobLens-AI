@@ -328,6 +328,7 @@ JobLens AI
 │   ├── django-ops.md
 │   ├── lightsail-deployment-plan.md
 │   ├── operations-monitoring.md
+│   ├── production-ingestion.md
 │   ├── production-compose.md
 │   ├── production-deployment.md
 │   ├── production-readiness.md
@@ -344,6 +345,7 @@ JobLens AI
 │   │   └── terraform
 │   ├── scripts
 │   └── server
+│       └── systemd
 ├── scripts
 │   ├── fetch_greenhouse_jobs.py
 │   ├── fetch_canada_jobs.py
@@ -593,6 +595,10 @@ and gated restore procedures.
 See [docs/operations-monitoring.md](docs/operations-monitoring.md) for local
 service health, backup freshness, disk usage, and log-snapshot monitoring on
 the single-server production path.
+
+See [docs/production-ingestion.md](docs/production-ingestion.md) for the
+weekly server-side Canada jobs refresh timer, ingestion status file, PostgreSQL
+dataset publishing flow, and failure triage.
 
 See [docs/secret-rotation.md](docs/secret-rotation.md) for production runtime
 secret inventory, `.env.production` auditing, planned rotation, deployment SSH
@@ -868,6 +874,7 @@ Completed:
 - Manual production deployment workflow with SSH, migration ordering, health checks, and rollback
 - Local PostgreSQL backup scripts with retention, restore validation, backup freshness checks, and a daily systemd timer template
 - Local operations monitoring scripts for Compose service health, public health checks, backup freshness, disk usage, and log snapshots
+- Weekly production ingestion scheduler that refreshes, validates, and publishes the Canada jobs dataset into PostgreSQL
 - Production secret audit script and rotation runbook for `.env.production`, provider keys, Django, PostgreSQL, and deployment SSH keys
 - Production readiness checker and rollout checklist for the single-server deployment path
 - Lightsail deployment plan with cost estimate, resource inventory template, Terraform scaffold, approval gate, and teardown checklist
@@ -882,7 +889,6 @@ Completed:
 
 Not built yet:
 
-- Continuously running ingestion
 - Authentication or multi-user support
 - Production-grade NLP role classification
 - Applied infrastructure-as-code deployment

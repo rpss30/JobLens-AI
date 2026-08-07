@@ -11,6 +11,7 @@ deploy/scripts/check_production_readiness.sh
 docs/production-readiness.md
 docs/lightsail-deployment-plan.md
 deploy/lightsail/resource-plan.example.json
+docs/production-ingestion.md
 ```
 
 ## Local Repo Readiness
@@ -23,9 +24,9 @@ deploy/scripts/check_production_readiness.sh
 
 The default mode checks that the repo contains the production Compose stack,
 Caddy config, deployment workflow, deployment scripts, backup scripts,
-monitoring scripts, secret audit script, security docs, and required ignore
-rules. It also scans deployment automation for forbidden cloud provisioning
-commands.
+monitoring scripts, scheduled ingestion scripts, secret audit script, security
+docs, and required ignore rules. It also scans deployment automation for
+forbidden cloud provisioning commands.
 
 On a development machine, the script usually reports a warning because
 `.env.production` is intentionally not present. On the server, after
@@ -37,6 +38,7 @@ RUN_COMPOSE_CONFIG=true \
 RUN_SECRET_AUDIT=true \
 RUN_BACKUP_STATUS_CHECK=true \
 RUN_OPERATIONS_STATUS_CHECK=true \
+RUN_TERRAFORM_VALIDATE=true \
 deploy/scripts/check_production_readiness.sh
 ```
 
@@ -94,6 +96,7 @@ deploying:
 - the deployment user can run Docker Compose
 - `/srv/joblens-backups` or the chosen backup path exists
 - `/srv/joblens-monitoring` or the chosen status path exists
+- `/srv/joblens-ingestion` or the chosen ingestion artifact path exists
 - a recovery-console path is known in case SSH is lost
 
 ## Network and DNS Preconditions
@@ -178,6 +181,7 @@ After deployment:
 - Django operations login works for a staff operations user
 - `check_operations_status.sh` passes
 - backup status remains fresh
+- ingestion refresh status remains fresh
 - logs show no repeated application startup errors
 
 Collect a log snapshot for any failed release:
@@ -195,6 +199,7 @@ The deployment is ready to share when:
 - production routing works over HTTPS
 - PostgreSQL is private
 - backups exist and restore verification has passed
+- the scheduled ingestion refresh has succeeded at least once
 - monitoring status is fresh
 - secret audit passes
 - rollback steps are documented

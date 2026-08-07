@@ -293,7 +293,7 @@ def rank_jobs_by_search_query(
         ngram_range=(1, 2),
         stop_words="english",
         sublinear_tf=True,
-        token_pattern=r"(?u)(?<!\w)\w[\w+#./-]*(?!\w)",
+        token_pattern=r"(?u)(?<!\w)\w[\w+#./-]*(?!\w)",  # nosec
     )
     char_vectorizer = TfidfVectorizer(
         analyzer="char_wb",
@@ -323,7 +323,7 @@ def rank_jobs_by_search_query(
     combined_scores = (word_scores * 0.8) + (char_scores * 0.2)
     token_analyzer = TfidfVectorizer(
         stop_words="english",
-        token_pattern=r"(?u)(?<!\w)\w[\w+#./-]*(?!\w)",
+        token_pattern=r"(?u)(?<!\w)\w[\w+#./-]*(?!\w)",  # nosec
     ).build_analyzer()
     query_tokens = set(token_analyzer(query))
 

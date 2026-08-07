@@ -12,8 +12,9 @@ RUN apt-get update \
 
 COPY requirements.txt .
 
-RUN pip install --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt
+RUN pip install --upgrade pip setuptools==83.0.0 \
+    && pip install --no-cache-dir -r requirements.txt \
+    && pip uninstall -y pip
 
 COPY . .
 

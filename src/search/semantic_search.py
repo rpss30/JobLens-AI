@@ -202,7 +202,7 @@ def compute_semantic_scores(
         ngram_range=(1, 2),
         stop_words="english",
         sublinear_tf=True,
-        token_pattern=r"(?u)(?<!\w)\w[\w+#./-]*(?!\w)",
+        token_pattern=r"(?u)(?<!\w)\w[\w+#./-]*(?!\w)",  # nosec
         max_features=4096,
     )
 

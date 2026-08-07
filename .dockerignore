@@ -13,6 +13,7 @@ __pycache__
 
 data/raw/uploaded_jobs.csv
 data/processed/uploaded_processed_jobs.csv
+deploy/security-reports
 
 *.pyc
 *.pyo

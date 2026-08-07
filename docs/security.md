@@ -88,9 +88,13 @@ off-server backup upload or webhook alert delivery. Destination credentials and
 webhook URLs should stay in private server-side configuration.
 
 See [operations-monitoring.md](operations-monitoring.md) for local health,
-backup freshness, off-server backup checks, disk usage, alert delivery, and log
-snapshot checks. Monitoring status files and log snapshots should stay outside
-Git and remain readable only by the deployment user.
+backup freshness, off-server backup checks, disk usage, alert delivery, log
+snapshots, and local log aggregation. Monitoring status files, log snapshots,
+and aggregated log files should stay outside Git and remain readable only by
+the deployment user.
+
+See [log-aggregation.md](log-aggregation.md) for the local JSONL log format,
+timer, retention, and operational limits.
 
 See [secret-rotation.md](secret-rotation.md) for runtime secret inventory,
 `.env.production` auditing, planned rotation order, deployment SSH key

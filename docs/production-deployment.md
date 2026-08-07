@@ -155,10 +155,12 @@ Off-server backup copy and alert delivery procedures are documented in
 [offsite-backups-alerts.md](offsite-backups-alerts.md). Keep those integrations
 disabled until the destination, credentials, and cost approval are in place.
 
-Local post-deploy status checks and log snapshots are documented in
+Local post-deploy status checks, log snapshots, and log aggregation are documented in
 [operations-monitoring.md](operations-monitoring.md). Run the operations status
 check after a release when investigating service health, backup freshness, or
 disk pressure.
+The local JSONL log aggregation workflow is documented in
+[log-aggregation.md](log-aggregation.md).
 
 Scheduled Canada jobs refreshes are documented in
 [production-ingestion.md](production-ingestion.md). Run and verify the refresh
@@ -191,5 +193,4 @@ the production domain and HTTPS routing are stable.
 - no DNS updates
 - no image registry publishing
 - no scheduled automatic deployment
-- no central log aggregation
 - no automatic provider key rotation

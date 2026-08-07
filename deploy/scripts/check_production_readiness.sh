@@ -9,6 +9,7 @@ RUN_PARAMETER_STORE_RENDER_CHECK="${RUN_PARAMETER_STORE_RENDER_CHECK:-false}"
 RUN_BACKUP_STATUS_CHECK="${RUN_BACKUP_STATUS_CHECK:-false}"
 RUN_OFFSITE_BACKUP_STATUS_CHECK="${RUN_OFFSITE_BACKUP_STATUS_CHECK:-false}"
 RUN_OPERATIONS_STATUS_CHECK="${RUN_OPERATIONS_STATUS_CHECK:-false}"
+RUN_LOG_AGGREGATION_STATUS_CHECK="${RUN_LOG_AGGREGATION_STATUS_CHECK:-false}"
 RUN_TERRAFORM_VALIDATE="${RUN_TERRAFORM_VALIDATE:-false}"
 ENV_FILE="${ENV_FILE:-.env.production}"
 
@@ -111,6 +112,10 @@ check_operations_status() {
   deploy/scripts/check_operations_status.sh
 }
 
+check_log_aggregation_status() {
+  deploy/scripts/check_log_aggregation_status.sh
+}
+
 check_lightsail_terraform_validate() {
   terraform -chdir=deploy/lightsail/terraform init -backend=false -input=false >/dev/null
   terraform -chdir=deploy/lightsail/terraform validate >/dev/null
@@ -202,6 +207,7 @@ required_files=(
   docs/security.md
   docs/security-scanning.md
   docs/external-uptime-monitoring.md
+  docs/log-aggregation.md
   docs/lightsail-deployment-plan.md
   deploy/lightsail/resource-plan.example.json
   deploy/lightsail/terraform/README.md
@@ -213,6 +219,8 @@ required_files=(
   docs/production-ingestion.md
   deploy/server/systemd/joblens-ingestion-refresh.service
   deploy/server/systemd/joblens-ingestion-refresh.timer
+  deploy/server/systemd/joblens-log-aggregation.service
+  deploy/server/systemd/joblens-log-aggregation.timer
 )
 
 required_scripts=(
@@ -231,6 +239,8 @@ required_scripts=(
   deploy/scripts/render_env_from_parameter_store.sh
   deploy/scripts/run_security_scans.sh
   deploy/scripts/check_external_uptime.sh
+  deploy/scripts/aggregate_operations_logs.sh
+  deploy/scripts/check_log_aggregation_status.sh
   deploy/scripts/run_ingestion_refresh.sh
   deploy/scripts/check_ingestion_refresh_status.sh
 )
@@ -246,6 +256,7 @@ done
 require_ignored ".env.production"
 require_ignored "deploy/backups/example.dump"
 require_ignored "deploy/ingestion/latest_ingestion_refresh.json"
+require_ignored "deploy/log-aggregation/latest_log_aggregation.json"
 require_ignored "deploy/logs/example.log"
 require_ignored "deploy/monitoring/latest_status.json"
 require_ignored "deploy/readiness/latest_readiness.json"
@@ -272,6 +283,7 @@ run_optional_check "parameter-store-render" "${RUN_PARAMETER_STORE_RENDER_CHECK}
 run_optional_check "backup-status" "${RUN_BACKUP_STATUS_CHECK}" check_backup_status
 run_optional_check "offsite-backup-status" "${RUN_OFFSITE_BACKUP_STATUS_CHECK}" check_offsite_backup_status
 run_optional_check "operations-status" "${RUN_OPERATIONS_STATUS_CHECK}" check_operations_status
+run_optional_check "log-aggregation-status" "${RUN_LOG_AGGREGATION_STATUS_CHECK}" check_log_aggregation_status
 run_optional_check "lightsail-terraform-validate" "${RUN_TERRAFORM_VALIDATE}" check_lightsail_terraform_validate
 
 if (( failure_count > 0 )); then

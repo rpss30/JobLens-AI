@@ -331,6 +331,7 @@ JobLens AI
 │   ├── database-backups.md
 │   ├── django-ops.md
 │   ├── external-uptime-monitoring.md
+│   ├── log-aggregation.md
 │   ├── lightsail-deployment-plan.md
 │   ├── offsite-backups-alerts.md
 │   ├── operations-monitoring.md
@@ -605,7 +606,8 @@ optional off-server backup copy and webhook alerting workflow.
 
 See [docs/operations-monitoring.md](docs/operations-monitoring.md) for local
 service health, backup freshness, off-server backup checks, disk usage, alert
-delivery, and log-snapshot monitoring on the single-server production path.
+delivery, log snapshots, and local log aggregation on the single-server
+production path.
 
 See [docs/production-ingestion.md](docs/production-ingestion.md) for the
 weekly server-side Canada jobs refresh timer, ingestion status file, PostgreSQL
@@ -832,6 +834,9 @@ handling.
 See [docs/external-uptime-monitoring.md](docs/external-uptime-monitoring.md)
 for scheduled public health checks, uptime reports, and webhook alert delivery.
 
+See [docs/log-aggregation.md](docs/log-aggregation.md) for server-local JSONL
+log aggregation, freshness checks, retention, and timer installation.
+
 Run the offline skill extraction evaluation:
 
 ```bash
@@ -896,12 +901,13 @@ Completed:
 - Manual production deployment workflow with SSH, migration ordering, health checks, and rollback
 - Local PostgreSQL backup scripts with retention, restore validation, backup freshness checks, and a daily systemd timer template
 - Optional off-server database backup copies to an existing S3 URI with freshness checks and cost guardrails
-- Local operations monitoring scripts for Compose service health, public health checks, backup freshness, off-server backup checks, disk usage, alert delivery, and log snapshots
+- Local operations monitoring scripts for Compose service health, public health checks, backup freshness, off-server backup checks, disk usage, alert delivery, log snapshots, and central JSONL log aggregation
 - Weekly production ingestion scheduler that refreshes, validates, and publishes the Canada jobs dataset into PostgreSQL
 - Production secret audit script and rotation runbook for `.env.production`, provider keys, Django, PostgreSQL, and deployment SSH keys
 - Read-only Parameter Store `.env.production` rendering with post-render secret auditing
 - Dependency, static Python, and container image security scanning in CI
 - Scheduled external uptime checks for public health, API, and operations routes
+- Server-local central log aggregation with freshness checks and systemd timer templates
 - Production readiness checker and rollout checklist for the single-server deployment path
 - Lightsail deployment plan with cost estimate, resource inventory template, Terraform scaffold, approval gate, and teardown checklist
 - FastAPI can list PostgreSQL datasets and analyze a selected saved dataset
@@ -918,7 +924,6 @@ Not built yet:
 - Authentication or multi-user support
 - Production-grade NLP role classification
 - Applied infrastructure-as-code deployment
-- Central log aggregation
 - Automated provider key rotation
 
 

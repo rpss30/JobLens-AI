@@ -65,6 +65,7 @@ def test_readiness_script_reports_warning_without_local_production_env(tmp_path:
     assert checks_by_name["secret-audit"]["status"] == "skipped"
     assert checks_by_name["backup-status"]["status"] == "skipped"
     assert checks_by_name["operations-status"]["status"] == "skipped"
+    assert checks_by_name["log-aggregation-status"]["status"] == "skipped"
 
 
 def test_readiness_script_strict_mode_fails_on_warnings(tmp_path: Path) -> None:
@@ -97,6 +98,7 @@ def test_readiness_script_tracks_required_files_scripts_and_ignored_outputs() ->
         "docs/security.md",
         "docs/security-scanning.md",
         "docs/external-uptime-monitoring.md",
+        "docs/log-aggregation.md",
         "docs/lightsail-deployment-plan.md",
         "deploy/lightsail/resource-plan.example.json",
         "deploy/lightsail/terraform/README.md",
@@ -108,6 +110,8 @@ def test_readiness_script_tracks_required_files_scripts_and_ignored_outputs() ->
         "docs/production-ingestion.md",
         "deploy/server/systemd/joblens-ingestion-refresh.service",
         "deploy/server/systemd/joblens-ingestion-refresh.timer",
+        "deploy/server/systemd/joblens-log-aggregation.service",
+        "deploy/server/systemd/joblens-log-aggregation.timer",
         "deploy/scripts/deploy_production.sh",
         "deploy/scripts/rollback_production.sh",
         "deploy/scripts/check_production_health.sh",
@@ -123,6 +127,8 @@ def test_readiness_script_tracks_required_files_scripts_and_ignored_outputs() ->
         "deploy/scripts/render_env_from_parameter_store.sh",
         "deploy/scripts/run_security_scans.sh",
         "deploy/scripts/check_external_uptime.sh",
+        "deploy/scripts/aggregate_operations_logs.sh",
+        "deploy/scripts/check_log_aggregation_status.sh",
         "deploy/scripts/run_ingestion_refresh.sh",
         "deploy/scripts/check_ingestion_refresh_status.sh",
     ]
@@ -136,6 +142,7 @@ def test_readiness_script_tracks_required_files_scripts_and_ignored_outputs() ->
     assert "RUN_BACKUP_STATUS_CHECK" in script
     assert "RUN_OFFSITE_BACKUP_STATUS_CHECK" in script
     assert "RUN_OPERATIONS_STATUS_CHECK" in script
+    assert "RUN_LOG_AGGREGATION_STATUS_CHECK" in script
     assert "RUN_TERRAFORM_VALIDATE" in script
     assert "STRICT_READINESS" in script
     assert "check_production_readiness.sh" in script
@@ -146,6 +153,7 @@ def test_readiness_generated_output_is_ignored() -> None:
 
     assert "deploy/readiness/" in gitignore
     assert "deploy/ingestion/" in gitignore
+    assert "deploy/log-aggregation/" in gitignore
     assert "deploy/lightsail/production-inventory.json" in gitignore
     assert "deploy/lightsail/deployment-evidence/" in gitignore
     assert "deploy/lightsail/terraform/.terraform/" in gitignore
@@ -162,6 +170,7 @@ def test_readiness_generated_output_is_ignored() -> None:
             "--no-index",
             "deploy/readiness/latest_readiness.json",
             "deploy/ingestion/latest_ingestion_refresh.json",
+            "deploy/log-aggregation/latest_log_aggregation.json",
             "deploy/security-reports/latest_security_scan.json",
             "deploy/uptime-reports/latest_uptime_check.json",
         ],
@@ -173,6 +182,7 @@ def test_readiness_generated_output_is_ignored() -> None:
 
     assert "deploy/readiness/latest_readiness.json" in ignored.stdout
     assert "deploy/ingestion/latest_ingestion_refresh.json" in ignored.stdout
+    assert "deploy/log-aggregation/latest_log_aggregation.json" in ignored.stdout
     assert "deploy/security-reports/latest_security_scan.json" in ignored.stdout
     assert "deploy/uptime-reports/latest_uptime_check.json" in ignored.stdout
 
@@ -227,6 +237,8 @@ def test_readiness_script_does_not_execute_cloud_provisioning() -> None:
     assert "deploy/scripts/check_database_backup_status.sh" in script
     assert "deploy/scripts/check_offsite_backup_status.sh" in script
     assert "deploy/scripts/check_operations_status.sh" in script
+    assert "deploy/scripts/aggregate_operations_logs.sh" in script
+    assert "deploy/scripts/check_log_aggregation_status.sh" in script
     assert "deploy/scripts/run_ingestion_refresh.sh" in script
     assert "deploy/scripts/check_ingestion_refresh_status.sh" in script
 
@@ -269,6 +281,7 @@ def test_production_readiness_documentation_covers_rollout_gates() -> None:
         "parameter-store-secrets.md",
         "security-scanning.md",
         "external-uptime-monitoring.md",
+        "log-aggregation.md",
     ]
 
     for topic in expected_topics:

@@ -89,7 +89,10 @@ that run through this stack's internal PostgreSQL service.
 See [offsite-backups-alerts.md](offsite-backups-alerts.md) for the opt-in
 off-server backup copy and webhook alert workflow.
 See [operations-monitoring.md](operations-monitoring.md) for local service
-health, disk usage, backup freshness, alert delivery, and log-snapshot checks.
+health, disk usage, backup freshness, alert delivery, log snapshots, and local
+log aggregation checks.
+See [log-aggregation.md](log-aggregation.md) for the server-local JSONL log
+aggregation workflow.
 See [external-uptime-monitoring.md](external-uptime-monitoring.md) for scheduled
 public health checks from outside the server.
 See [production-ingestion.md](production-ingestion.md) for the weekly
@@ -176,6 +179,12 @@ Check the full local operations status:
 MONITOR_STATUS_FILE=/srv/joblens-monitoring/latest_status.json deploy/scripts/check_operations_status.sh
 ```
 
+Aggregate recent service and systemd logs:
+
+```bash
+LOG_AGGREGATION_DIR=/srv/joblens-logs deploy/scripts/aggregate_operations_logs.sh
+```
+
 ## Updates
 
 Pull the latest application code, rebuild, run migrations, then restart:
@@ -199,6 +208,5 @@ rollback.
 This stack intentionally does not include:
 
 - cloud resource provisioning
-- central log aggregation
 
-Those belong in later focused branches.
+Cloud resource provisioning belongs in a later approved deployment step.

@@ -1,0 +1,19 @@
+[Unit]
+Description=Aggregate JobLens production logs
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+User=joblens
+Group=joblens
+WorkingDirectory=/srv/joblens-ai
+Environment=DEPLOY_ENV_FILE=.env.production
+Environment=COMPOSE_FILE=docker-compose.prod.yml
+Environment=LOG_AGGREGATION_DIR=/srv/joblens-logs
+Environment=LOG_AGGREGATION_STATUS_FILE=/srv/joblens-logs/latest_log_aggregation.json
+Environment=LOG_AGGREGATION_SERVICES=caddy dashboard api django-ops db
+Environment=LOG_AGGREGATION_LINES=400
+Environment=LOG_AGGREGATION_RETENTION_DAYS=14
+Environment=INCLUDE_SYSTEMD_LOGS=true
+ExecStart=/srv/joblens-ai/deploy/scripts/aggregate_operations_logs.sh

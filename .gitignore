@@ -30,6 +30,7 @@ data/processed/uploaded_processed_jobs.csv
 
 # Generated production operations artifacts
 deploy/backups/
+deploy/ingestion/
 deploy/lightsail/deployment-evidence/
 deploy/lightsail/production-inventory.json
 deploy/lightsail/terraform/.terraform/

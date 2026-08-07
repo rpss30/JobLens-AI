@@ -1,0 +1,11 @@
+[Unit]
+Description=Refresh the JobLens Canada jobs dataset each week
+
+[Timer]
+OnCalendar=Mon *-*-* 04:30:00
+Persistent=true
+RandomizedDelaySec=1800
+Unit=joblens-ingestion-refresh.service
+
+[Install]
+WantedBy=timers.target

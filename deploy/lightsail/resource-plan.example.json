@@ -3,6 +3,7 @@
   "approval_required_before_create": true,
   "pricing_checked_on": "2026-08-07",
   "target_environment": "production",
+  "terraform_template_path": "deploy/lightsail/terraform",
   "estimated_monthly_usd": {
     "baseline": 12,
     "with_one_small_snapshot": "13-15",

@@ -10,20 +10,23 @@ journald, and local status files. It creates no cloud resources.
 deploy/scripts/check_operations_status.sh
 deploy/scripts/check_disk_usage.sh
 deploy/scripts/collect_operations_logs.sh
+deploy/scripts/check_offsite_backup_status.sh
 deploy/scripts/check_ingestion_refresh_status.sh
+deploy/scripts/send_operations_alert.sh
 deploy/server/systemd/joblens-ops-monitor.service
 deploy/server/systemd/joblens-ops-monitor.timer
 ```
 
 ## What Gets Checked
 
-`check_operations_status.sh` runs five checks:
+`check_operations_status.sh` runs six checks:
 
 | Check | What It Verifies |
 | --- | --- |
 | Compose services | `caddy`, `dashboard`, `api`, `django-ops`, and `db` are running. |
 | Public health | `/healthz`, `/api/health`, and `/ops/login/` respond through the public edge when a domain or base URL is configured. |
 | Database backup | `latest_backup.json` exists, reports success, and is fresh. |
+| Off-server backup | `latest_offsite_backup.json` exists, reports success, and is fresh when the check is enabled. |
 | Ingestion refresh | `latest_ingestion_refresh.json` exists, reports success, and is fresh. |
 | Disk usage | watched filesystem paths are below warning and critical thresholds. |
 
@@ -35,7 +38,7 @@ Each run writes a compact JSON status file:
 
 The status file is intentionally simple so it can be inspected with `cat`,
 served later through an authenticated operations view, or picked up by a future
-alerting script.
+alerting integration.
 
 ## Manual Status Check
 
@@ -44,6 +47,7 @@ Run from the repository checkout on the server:
 ```bash
 JOBLENS_DOMAIN=jobs.example.com \
 BACKUP_STATUS_FILE=/srv/joblens-backups/latest_backup.json \
+OFFSITE_BACKUP_STATUS_FILE=/srv/joblens-backups/latest_offsite_backup.json \
 INGESTION_STATUS_FILE=/srv/joblens-ingestion/latest_ingestion_refresh.json \
 MONITOR_STATUS_FILE=/srv/joblens-monitoring/latest_status.json \
 deploy/scripts/check_operations_status.sh
@@ -61,11 +65,16 @@ Useful defaults:
 | `EXPECTED_SERVICES` | `caddy dashboard api django-ops db` |
 | `BACKUP_STATUS_FILE` | `/srv/joblens-backups/latest_backup.json` |
 | `BACKUP_MAX_AGE_HOURS` | `30` |
+| `OFFSITE_BACKUP_STATUS_FILE` | `/srv/joblens-backups/latest_offsite_backup.json` |
+| `OFFSITE_BACKUP_MAX_AGE_HOURS` | `30` |
+| `SKIP_OFFSITE_BACKUP_CHECK` | `true` |
 | `INGESTION_STATUS_FILE` | `/srv/joblens-ingestion/latest_ingestion_refresh.json` |
 | `INGESTION_MAX_AGE_HOURS` | `192` |
 | `DISK_PATHS` | `/ /srv/joblens-backups` |
 | `DISK_WARN_PERCENT` | `80` |
 | `DISK_CRITICAL_PERCENT` | `90` |
+| `ALERT_ON_FAILURE` | `false` |
+| `ALERT_FAILURES_ARE_FATAL` | `false` |
 
 For maintenance windows, individual checks can be skipped with:
 
@@ -73,6 +82,7 @@ For maintenance windows, individual checks can be skipped with:
 SKIP_COMPOSE_CHECK=true
 SKIP_PUBLIC_HEALTH_CHECK=true
 SKIP_BACKUP_STATUS_CHECK=true
+SKIP_OFFSITE_BACKUP_CHECK=true
 SKIP_INGESTION_REFRESH_CHECK=true
 SKIP_DISK_CHECK=true
 ```
@@ -146,6 +156,7 @@ repository path, backup path, or monitoring path differs from:
 User=joblens
 WorkingDirectory=/srv/joblens-ai
 BACKUP_STATUS_FILE=/srv/joblens-backups/latest_backup.json
+OFFSITE_BACKUP_STATUS_FILE=/srv/joblens-backups/latest_offsite_backup.json
 INGESTION_STATUS_FILE=/srv/joblens-ingestion/latest_ingestion_refresh.json
 MONITOR_STATUS_FILE=/srv/joblens-monitoring/latest_status.json
 ```
@@ -157,6 +168,23 @@ set these in the service:
 Environment=SKIP_PUBLIC_HEALTH_CHECK=false
 Environment=JOBLENS_HEALTH_BASE_URL=https://jobs.example.com
 ```
+
+After an off-server backup destination and cost approval exist, set:
+
+```text
+Environment=SKIP_OFFSITE_BACKUP_CHECK=false
+```
+
+To deliver failure alerts to a generic HTTPS webhook, set:
+
+```text
+Environment=ALERT_ON_FAILURE=true
+Environment=ALERT_WEBHOOK_URL=https://alerts.example.com/joblens
+```
+
+The monitor sends the compact JSON status file as the request body. Keep the
+webhook URL in a root-owned systemd drop-in or another private server-side
+configuration file, not in Git.
 
 Check timer status:
 
@@ -189,6 +217,13 @@ Database backup check fails:
 - run a manual backup and then `verify_database_backup.sh`
 - check disk usage on the backup directory
 
+Off-server backup check fails:
+
+- inspect `/srv/joblens-backups/latest_offsite_backup.json`
+- run `upload_database_backup.sh` in dry-run mode first
+- verify the destination URI, AWS credentials, and network egress
+- confirm the local backup status is fresh before retrying an upload
+
 Ingestion refresh check fails:
 
 - run `systemctl status joblens-ingestion-refresh.service --no-pager`
@@ -206,7 +241,7 @@ Disk check fails:
 ## Current Limits
 
 - no external uptime monitor
-- no email, Slack, SMS, or paging alerts
+- alert delivery uses a generic webhook, not a paging escalation policy
 - no central log aggregation
 - no dashboard page for the local status file
 - no Prometheus or Grafana stack

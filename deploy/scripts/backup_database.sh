@@ -10,6 +10,8 @@ BACKUP_RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-14}"
 BACKUP_RETENTION_COUNT="${BACKUP_RETENTION_COUNT:-14}"
 BACKUP_COMPRESS_LEVEL="${BACKUP_COMPRESS_LEVEL:-6}"
 BACKUP_STATUS_FILE="${BACKUP_STATUS_FILE:-${BACKUP_DIR}/latest_backup.json}"
+OFFSITE_BACKUP_ENABLED="${OFFSITE_BACKUP_ENABLED:-false}"
+OFFSITE_BACKUP_STATUS_FILE="${OFFSITE_BACKUP_STATUS_FILE:-${BACKUP_DIR}/latest_offsite_backup.json}"
 
 require_positive_integer() {
   local name="$1"
@@ -124,6 +126,14 @@ compose exec -T db sh -c \
 
 mv "${temporary_backup}" "${backup_file}"
 write_manifest "succeeded" "${backup_file}" "${manifest_file}"
+
+if [[ "${OFFSITE_BACKUP_ENABLED}" == "true" ]]; then
+  BACKUP_DIR="${BACKUP_DIR}" \
+  BACKUP_STATUS_FILE="${BACKUP_STATUS_FILE}" \
+  OFFSITE_BACKUP_STATUS_FILE="${OFFSITE_BACKUP_STATUS_FILE}" \
+    "$(dirname "${BASH_SOURCE[0]}")/upload_database_backup.sh"
+fi
+
 prune_old_backups
 
 trap - EXIT

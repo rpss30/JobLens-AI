@@ -89,6 +89,7 @@ def test_readiness_script_tracks_required_files_scripts_and_ignored_outputs() ->
         "docs/server-hardening.md",
         "docs/database-backups.md",
         "docs/operations-monitoring.md",
+        "docs/offsite-backups-alerts.md",
         "docs/secret-rotation.md",
         "docs/security.md",
         "docs/lightsail-deployment-plan.md",
@@ -108,6 +109,9 @@ def test_readiness_script_tracks_required_files_scripts_and_ignored_outputs() ->
         "deploy/scripts/backup_database.sh",
         "deploy/scripts/verify_database_backup.sh",
         "deploy/scripts/check_database_backup_status.sh",
+        "deploy/scripts/upload_database_backup.sh",
+        "deploy/scripts/check_offsite_backup_status.sh",
+        "deploy/scripts/send_operations_alert.sh",
         "deploy/scripts/check_operations_status.sh",
         "deploy/scripts/check_disk_usage.sh",
         "deploy/scripts/audit_secret_configuration.sh",
@@ -121,6 +125,7 @@ def test_readiness_script_tracks_required_files_scripts_and_ignored_outputs() ->
     assert "RUN_COMPOSE_CONFIG" in script
     assert "RUN_SECRET_AUDIT" in script
     assert "RUN_BACKUP_STATUS_CHECK" in script
+    assert "RUN_OFFSITE_BACKUP_STATUS_CHECK" in script
     assert "RUN_OPERATIONS_STATUS_CHECK" in script
     assert "RUN_TERRAFORM_VALIDATE" in script
     assert "STRICT_READINESS" in script
@@ -202,6 +207,7 @@ def test_readiness_script_does_not_execute_cloud_provisioning() -> None:
     assert "docker compose --env-file .env.production.example" in script
     assert "deploy/scripts/audit_secret_configuration.sh" in script
     assert "deploy/scripts/check_database_backup_status.sh" in script
+    assert "deploy/scripts/check_offsite_backup_status.sh" in script
     assert "deploy/scripts/check_operations_status.sh" in script
     assert "deploy/scripts/run_ingestion_refresh.sh" in script
     assert "deploy/scripts/check_ingestion_refresh_status.sh" in script
@@ -227,6 +233,8 @@ def test_production_readiness_documentation_covers_rollout_gates() -> None:
         "deployment preconditions",
         "post-deploy verification",
         "ready definition",
+        "off-server backup",
+        "alert delivery",
         "no cloud resource has been provisioned",
         "lightsail-deployment-plan.md",
         "deploy/lightsail/resource-plan.example.json",
@@ -236,6 +244,7 @@ def test_production_readiness_documentation_covers_rollout_gates() -> None:
         "scheduled ingestion",
         "ingestion refresh status",
         "require approval",
+        "offsite-backups-alerts.md",
     ]
 
     for topic in expected_topics:

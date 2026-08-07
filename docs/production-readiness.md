@@ -12,6 +12,7 @@ docs/production-readiness.md
 docs/lightsail-deployment-plan.md
 deploy/lightsail/resource-plan.example.json
 docs/production-ingestion.md
+docs/offsite-backups-alerts.md
 ```
 
 ## Local Repo Readiness
@@ -37,6 +38,7 @@ STRICT_READINESS=true \
 RUN_COMPOSE_CONFIG=true \
 RUN_SECRET_AUDIT=true \
 RUN_BACKUP_STATUS_CHECK=true \
+RUN_OFFSITE_BACKUP_STATUS_CHECK=true \
 RUN_OPERATIONS_STATUS_CHECK=true \
 RUN_TERRAFORM_VALIDATE=true \
 deploy/scripts/check_production_readiness.sh
@@ -95,6 +97,7 @@ deploying:
 - the deployment user has SSH key access
 - the deployment user can run Docker Compose
 - `/srv/joblens-backups` or the chosen backup path exists
+- the off-server backup destination is approved if that check will be enabled
 - `/srv/joblens-monitoring` or the chosen status path exists
 - `/srv/joblens-ingestion` or the chosen ingestion artifact path exists
 - a recovery-console path is known in case SSH is lost
@@ -143,6 +146,7 @@ Before the first deployment:
 - a backup has been created
 - a restore verification has passed
 - the backup status check is fresh
+- off-server backup upload has been dry-run or enabled only after approval
 
 Run:
 
@@ -151,9 +155,12 @@ docker compose --env-file .env.production -f docker-compose.prod.yml config -q
 BACKUP_DIR=/srv/joblens-backups deploy/scripts/backup_database.sh
 BACKUP_FILE=/srv/joblens-backups/<backup-file>.dump deploy/scripts/verify_database_backup.sh
 BACKUP_STATUS_FILE=/srv/joblens-backups/latest_backup.json deploy/scripts/check_database_backup_status.sh
+OFFSITE_BACKUP_STATUS_FILE=/srv/joblens-backups/latest_offsite_backup.json deploy/scripts/check_offsite_backup_status.sh
 ```
 
 See [database-backups.md](database-backups.md).
+See [offsite-backups-alerts.md](offsite-backups-alerts.md) before enabling
+off-server upload or alert delivery.
 
 ## Deployment Preconditions
 
@@ -181,7 +188,9 @@ After deployment:
 - Django operations login works for a staff operations user
 - `check_operations_status.sh` passes
 - backup status remains fresh
+- off-server backup status remains fresh when enabled
 - ingestion refresh status remains fresh
+- alert dry-run or delivery has been tested when alerts are enabled
 - logs show no repeated application startup errors
 
 Collect a log snapshot for any failed release:
@@ -199,6 +208,7 @@ The deployment is ready to share when:
 - production routing works over HTTPS
 - PostgreSQL is private
 - backups exist and restore verification has passed
+- off-server backup copy is enabled or explicitly deferred with approval notes
 - the scheduled ingestion refresh has succeeded at least once
 - monitoring status is fresh
 - secret audit passes
@@ -211,8 +221,7 @@ The deployment is ready to share when:
 - no cloud resource has been provisioned by this repository work
 - no Lightsail instance, static IPv4 address, DNS record, or snapshot has been provisioned
 - no external uptime monitor is configured
-- no alert delivery is configured
-- no off-server backup copy is implemented
+- off-server backup copy and alert delivery are implemented as opt-in scripts but not enabled by default
 - no managed secret store is integrated
 - no declarative infrastructure module is applied
 

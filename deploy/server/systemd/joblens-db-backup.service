@@ -13,4 +13,6 @@ Environment=COMPOSE_FILE=docker-compose.prod.yml
 Environment=BACKUP_DIR=/srv/joblens-backups
 Environment=BACKUP_RETENTION_DAYS=14
 Environment=BACKUP_RETENTION_COUNT=14
+Environment=OFFSITE_BACKUP_ENABLED=false
+Environment=OFFSITE_BACKUP_STATUS_FILE=/srv/joblens-backups/latest_offsite_backup.json
 ExecStart=/srv/joblens-ai/deploy/scripts/backup_database.sh

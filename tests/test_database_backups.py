@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import stat
 import subprocess
 from pathlib import Path
@@ -7,12 +8,15 @@ from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 BACKUP_SCRIPT = ROOT_DIR / "deploy" / "scripts" / "backup_database.sh"
+UPLOAD_SCRIPT = ROOT_DIR / "deploy" / "scripts" / "upload_database_backup.sh"
 VERIFY_SCRIPT = ROOT_DIR / "deploy" / "scripts" / "verify_database_backup.sh"
 RESTORE_SCRIPT = ROOT_DIR / "deploy" / "scripts" / "restore_database.sh"
 STATUS_SCRIPT = ROOT_DIR / "deploy" / "scripts" / "check_database_backup_status.sh"
+OFFSITE_STATUS_SCRIPT = ROOT_DIR / "deploy" / "scripts" / "check_offsite_backup_status.sh"
 SYSTEMD_SERVICE = ROOT_DIR / "deploy" / "server" / "systemd" / "joblens-db-backup.service"
 SYSTEMD_TIMER = ROOT_DIR / "deploy" / "server" / "systemd" / "joblens-db-backup.timer"
 BACKUP_DOC = ROOT_DIR / "docs" / "database-backups.md"
+OFFSITE_DOC = ROOT_DIR / "docs" / "offsite-backups-alerts.md"
 README_PATH = ROOT_DIR / "README.md"
 PRODUCTION_DEPLOYMENT_DOC = ROOT_DIR / "docs" / "production-deployment.md"
 
@@ -22,7 +26,14 @@ def read_file(path: Path) -> str:
 
 
 def test_database_backup_scripts_are_executable_and_valid_bash() -> None:
-    for script_path in [BACKUP_SCRIPT, VERIFY_SCRIPT, RESTORE_SCRIPT, STATUS_SCRIPT]:
+    for script_path in [
+        BACKUP_SCRIPT,
+        UPLOAD_SCRIPT,
+        VERIFY_SCRIPT,
+        RESTORE_SCRIPT,
+        STATUS_SCRIPT,
+        OFFSITE_STATUS_SCRIPT,
+    ]:
         assert script_path.stat().st_mode & stat.S_IXUSR
         subprocess.run(["bash", "-n", str(script_path)], check=True)
 
@@ -43,9 +54,96 @@ def test_backup_script_uses_custom_pg_dump_with_retention_and_status_manifest() 
     assert "shasum -a 256" in script
     assert "BACKUP_RETENTION_DAYS" in script
     assert "BACKUP_RETENTION_COUNT" in script
+    assert "OFFSITE_BACKUP_ENABLED" in script
+    assert "upload_database_backup.sh" in script
     assert "find \"${BACKUP_DIR}\"" in script
     assert "-mtime \"+${BACKUP_RETENTION_DAYS}\"" in script
     assert "tail -n \"+$((BACKUP_RETENTION_COUNT + 1))\"" in script
+
+
+def test_offsite_backup_upload_dry_run_writes_status_without_network(
+    tmp_path: Path,
+) -> None:
+    backup_file = tmp_path / "joblens_20260807T010000Z.dump"
+    backup_file.write_text("backup", encoding="utf-8")
+    manifest_file = tmp_path / "joblens_20260807T010000Z.dump.json"
+    manifest_file.write_text('{"status": "succeeded"}\n', encoding="utf-8")
+    status_file = tmp_path / "latest_backup.json"
+    status_file.write_text(
+        f'{{"status": "succeeded", "backup_file": "{backup_file}"}}\n',
+        encoding="utf-8",
+    )
+    offsite_status_file = tmp_path / "latest_offsite_backup.json"
+
+    result = subprocess.run(
+        [str(UPLOAD_SCRIPT)],
+        check=True,
+        capture_output=True,
+        env={
+            **os.environ,
+            "BACKUP_STATUS_FILE": str(status_file),
+            "OFFSITE_BACKUP_STATUS_FILE": str(offsite_status_file),
+            "OFFSITE_BACKUP_URI": "s3://existing-bucket/joblens/backups",
+            "OFFSITE_BACKUP_DRY_RUN": "true",
+        },
+        text=True,
+    )
+
+    offsite_payload = offsite_status_file.read_text(encoding="utf-8")
+
+    assert "dry run: aws s3 cp" in result.stdout
+    assert '"status": "dry_run"' in offsite_payload
+    assert '"dry_run": true' in offsite_payload
+    assert (
+        "s3://existing-bucket/joblens/backups/joblens_20260807T010000Z.dump"
+        in offsite_payload
+    )
+
+
+def test_offsite_backup_status_requires_successful_fresh_s3_copy(tmp_path: Path) -> None:
+    offsite_status_file = tmp_path / "latest_offsite_backup.json"
+    offsite_status_file.write_text(
+        (
+            '{"status": "succeeded", '
+            '"backup_uri": "s3://existing-bucket/joblens/backups/joblens.dump"}\n'
+        ),
+        encoding="utf-8",
+    )
+
+    healthy = subprocess.run(
+        [str(OFFSITE_STATUS_SCRIPT)],
+        check=True,
+        capture_output=True,
+        env={
+            **os.environ,
+            "OFFSITE_BACKUP_STATUS_FILE": str(offsite_status_file),
+            "OFFSITE_BACKUP_MAX_AGE_HOURS": "30",
+        },
+        text=True,
+    )
+
+    offsite_status_file.write_text(
+        (
+            '{"status": "dry_run", '
+            '"backup_uri": "s3://existing-bucket/joblens/backups/joblens.dump"}\n'
+        ),
+        encoding="utf-8",
+    )
+    dry_run = subprocess.run(
+        [str(OFFSITE_STATUS_SCRIPT)],
+        check=False,
+        capture_output=True,
+        env={
+            **os.environ,
+            "OFFSITE_BACKUP_STATUS_FILE": str(offsite_status_file),
+            "OFFSITE_BACKUP_MAX_AGE_HOURS": "30",
+        },
+        text=True,
+    )
+
+    assert "Latest off-server backup is healthy" in healthy.stdout
+    assert dry_run.returncode == 1
+    assert "Latest off-server backup did not succeed" in dry_run.stderr
 
 
 def test_verify_script_restores_backup_into_temporary_database() -> None:
@@ -102,6 +200,11 @@ def test_systemd_timer_runs_backup_service_daily_with_retention_defaults() -> No
     assert "BACKUP_DIR=/srv/joblens-backups" in service
     assert "BACKUP_RETENTION_DAYS=14" in service
     assert "BACKUP_RETENTION_COUNT=14" in service
+    assert "OFFSITE_BACKUP_ENABLED=false" in service
+    assert (
+        "OFFSITE_BACKUP_STATUS_FILE=/srv/joblens-backups/latest_offsite_backup.json"
+        in service
+    )
     assert "ExecStart=/srv/joblens-ai/deploy/scripts/backup_database.sh" in service
     assert "OnCalendar=*-*-* 03:15:00" in timer
     assert "Persistent=true" in timer
@@ -137,6 +240,7 @@ def test_database_backup_files_do_not_create_cloud_resources() -> None:
 
 def test_database_backup_documentation_covers_restore_and_operational_limits() -> None:
     doc = read_file(BACKUP_DOC).lower()
+    offsite_doc = read_file(OFFSITE_DOC).lower()
     readme = read_file(README_PATH)
     deployment_doc = read_file(PRODUCTION_DEPLOYMENT_DOC)
 
@@ -152,12 +256,24 @@ def test_database_backup_documentation_covers_restore_and_operational_limits() -
         "confirm_restore=yes",
         "dry_run=no",
         "no cloud resources",
-        "no s3 upload",
-        "off-server storage",
+        "off-server backup copy is opt-in",
+        "offsite_backup_enabled",
     ]
 
     for topic in expected_topics:
         assert topic in doc
 
+    for topic in [
+        "offsite_backup_dry_run=true",
+        "s3://existing-bucket/joblens/backups",
+        "check_offsite_backup_status.sh",
+        "send_operations_alert.sh",
+        "no s3 bucket or iam principal is created",
+        "cost and approval",
+    ]:
+        assert topic in offsite_doc
+
     assert "docs/database-backups.md" in readme
+    assert "docs/offsite-backups-alerts.md" in readme
     assert "database-backups.md" in deployment_doc
+    assert "offsite-backups-alerts.md" in deployment_doc

@@ -83,10 +83,14 @@ restore validation, and gated restore procedures. Backup dumps contain
 application data and should be stored outside the repository with permissions
 limited to the deployment user.
 
+See [offsite-backups-alerts.md](offsite-backups-alerts.md) before enabling
+off-server backup upload or webhook alert delivery. Destination credentials and
+webhook URLs should stay in private server-side configuration.
+
 See [operations-monitoring.md](operations-monitoring.md) for local health,
-backup freshness, disk usage, and log snapshot checks. Monitoring status files
-and log snapshots should stay outside Git and remain readable only by the
-deployment user.
+backup freshness, off-server backup checks, disk usage, alert delivery, and log
+snapshot checks. Monitoring status files and log snapshots should stay outside
+Git and remain readable only by the deployment user.
 
 See [secret-rotation.md](secret-rotation.md) for runtime secret inventory,
 `.env.production` auditing, planned rotation order, deployment SSH key

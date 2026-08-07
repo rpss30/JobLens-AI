@@ -148,6 +148,10 @@ Database backup and restore procedures are documented separately in
 [database-backups.md](database-backups.md). Run and verify a fresh backup before
 high-risk deployments or restores.
 
+Off-server backup copy and alert delivery procedures are documented in
+[offsite-backups-alerts.md](offsite-backups-alerts.md). Keep those integrations
+disabled until the destination, credentials, and cost approval are in place.
+
 Local post-deploy status checks and log snapshots are documented in
 [operations-monitoring.md](operations-monitoring.md). Run the operations status
 check after a release when investigating service health, backup freshness, or
@@ -173,4 +177,4 @@ post-deploy verification.
 - no image registry publishing
 - no dependency or container image scanning
 - no scheduled automatic deployment
-- no external uptime monitoring or alert delivery
+- no external uptime monitoring

@@ -8,8 +8,11 @@ MONITOR_STATUS_FILE="${MONITOR_STATUS_FILE:-deploy/monitoring/latest_status.json
 SKIP_COMPOSE_CHECK="${SKIP_COMPOSE_CHECK:-false}"
 SKIP_PUBLIC_HEALTH_CHECK="${SKIP_PUBLIC_HEALTH_CHECK:-false}"
 SKIP_BACKUP_STATUS_CHECK="${SKIP_BACKUP_STATUS_CHECK:-false}"
+SKIP_OFFSITE_BACKUP_CHECK="${SKIP_OFFSITE_BACKUP_CHECK:-true}"
 SKIP_INGESTION_REFRESH_CHECK="${SKIP_INGESTION_REFRESH_CHECK:-false}"
 SKIP_DISK_CHECK="${SKIP_DISK_CHECK:-false}"
+ALERT_ON_FAILURE="${ALERT_ON_FAILURE:-false}"
+ALERT_FAILURES_ARE_FATAL="${ALERT_FAILURES_ARE_FATAL:-false}"
 
 check_names=()
 check_statuses=()
@@ -82,6 +85,12 @@ run_backup_status_check() {
     "$(dirname "${BASH_SOURCE[0]}")/check_database_backup_status.sh"
 }
 
+run_offsite_backup_status_check() {
+  OFFSITE_BACKUP_STATUS_FILE="${OFFSITE_BACKUP_STATUS_FILE:-/srv/joblens-backups/latest_offsite_backup.json}" \
+  OFFSITE_BACKUP_MAX_AGE_HOURS="${OFFSITE_BACKUP_MAX_AGE_HOURS:-30}" \
+    "$(dirname "${BASH_SOURCE[0]}")/check_offsite_backup_status.sh"
+}
+
 run_ingestion_refresh_check() {
   INGESTION_STATUS_FILE="${INGESTION_STATUS_FILE:-/srv/joblens-ingestion/latest_ingestion_refresh.json}" \
   INGESTION_MAX_AGE_HOURS="${INGESTION_MAX_AGE_HOURS:-192}" \
@@ -130,6 +139,25 @@ write_status_file() {
   mv "${MONITOR_STATUS_FILE}.tmp" "${MONITOR_STATUS_FILE}"
 }
 
+send_failure_alert() {
+  if [[ "${overall_status}" == "ok" || "${ALERT_ON_FAILURE}" != "true" ]]; then
+    return
+  fi
+
+  if ALERT_STATUS_FILE="${MONITOR_STATUS_FILE}" \
+    "$(dirname "${BASH_SOURCE[0]}")/send_operations_alert.sh"; then
+    record_check "alert_delivery" "ok" "0"
+    return
+  else
+    local alert_exit_code=$?
+    record_check "alert_delivery" "failed" "${alert_exit_code}"
+  fi
+
+  if [[ "${ALERT_FAILURES_ARE_FATAL}" == "true" ]]; then
+    overall_exit=1
+  fi
+}
+
 if [[ "${SKIP_COMPOSE_CHECK}" == "true" ]]; then
   record_check "compose_services" "skipped" "0"
 else
@@ -148,6 +176,12 @@ else
   run_check "database_backup" run_backup_status_check
 fi
 
+if [[ "${SKIP_OFFSITE_BACKUP_CHECK}" == "true" ]]; then
+  record_check "offsite_backup" "skipped" "0"
+else
+  run_check "offsite_backup" run_offsite_backup_status_check
+fi
+
 if [[ "${SKIP_INGESTION_REFRESH_CHECK}" == "true" ]]; then
   record_check "ingestion_refresh" "skipped" "0"
 else
@@ -160,6 +194,8 @@ else
   run_check "disk_usage" run_disk_check
 fi
 
+write_status_file
+send_failure_alert
 write_status_file
 
 echo "Operations status ${overall_status}; wrote ${MONITOR_STATUS_FILE}."

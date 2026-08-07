@@ -192,6 +192,9 @@ required_files=(
   deploy/lightsail/terraform/terraform.tfvars.example
   deploy/lightsail/terraform/variables.tf
   deploy/lightsail/terraform/versions.tf
+  docs/production-ingestion.md
+  deploy/server/systemd/joblens-ingestion-refresh.service
+  deploy/server/systemd/joblens-ingestion-refresh.timer
 )
 
 required_scripts=(
@@ -204,6 +207,8 @@ required_scripts=(
   deploy/scripts/check_operations_status.sh
   deploy/scripts/check_disk_usage.sh
   deploy/scripts/audit_secret_configuration.sh
+  deploy/scripts/run_ingestion_refresh.sh
+  deploy/scripts/check_ingestion_refresh_status.sh
 )
 
 for path in "${required_files[@]}"; do
@@ -216,6 +221,7 @@ done
 
 require_ignored ".env.production"
 require_ignored "deploy/backups/example.dump"
+require_ignored "deploy/ingestion/latest_ingestion_refresh.json"
 require_ignored "deploy/logs/example.log"
 require_ignored "deploy/monitoring/latest_status.json"
 require_ignored "deploy/readiness/latest_readiness.json"

@@ -85,6 +85,8 @@ See [database-backups.md](database-backups.md) for backup and restore scripts
 that run through this stack's internal PostgreSQL service.
 See [operations-monitoring.md](operations-monitoring.md) for local service
 health, disk usage, backup freshness, and log-snapshot checks.
+See [production-ingestion.md](production-ingestion.md) for the weekly
+server-side Canada jobs refresh and PostgreSQL publishing workflow.
 See [production-readiness.md](production-readiness.md) for the final preflight
 checklist before a real production rollout.
 

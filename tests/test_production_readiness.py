@@ -84,6 +84,7 @@ def test_readiness_script_tracks_required_files_scripts_and_ignored_outputs() ->
         ".env.production.example",
         "deploy/caddy/Caddyfile",
         ".github/workflows/deploy-production.yml",
+        ".github/workflows/security-scan.yml",
         "docs/production-compose.md",
         "docs/production-deployment.md",
         "docs/server-hardening.md",
@@ -93,6 +94,7 @@ def test_readiness_script_tracks_required_files_scripts_and_ignored_outputs() ->
         "docs/parameter-store-secrets.md",
         "docs/secret-rotation.md",
         "docs/security.md",
+        "docs/security-scanning.md",
         "docs/lightsail-deployment-plan.md",
         "deploy/lightsail/resource-plan.example.json",
         "deploy/lightsail/terraform/README.md",
@@ -117,6 +119,7 @@ def test_readiness_script_tracks_required_files_scripts_and_ignored_outputs() ->
         "deploy/scripts/check_disk_usage.sh",
         "deploy/scripts/audit_secret_configuration.sh",
         "deploy/scripts/render_env_from_parameter_store.sh",
+        "deploy/scripts/run_security_scans.sh",
         "deploy/scripts/run_ingestion_refresh.sh",
         "deploy/scripts/check_ingestion_refresh_status.sh",
     ]
@@ -146,6 +149,7 @@ def test_readiness_generated_output_is_ignored() -> None:
     assert "deploy/lightsail/terraform/*.tfplan" in gitignore
     assert "deploy/lightsail/terraform/*.tfstate" in gitignore
     assert "deploy/lightsail/terraform/terraform.tfvars" in gitignore
+    assert "deploy/security-reports/" in gitignore
 
     ignored = subprocess.run(
         [
@@ -154,6 +158,7 @@ def test_readiness_generated_output_is_ignored() -> None:
             "--no-index",
             "deploy/readiness/latest_readiness.json",
             "deploy/ingestion/latest_ingestion_refresh.json",
+            "deploy/security-reports/latest_security_scan.json",
         ],
         check=True,
         capture_output=True,
@@ -163,6 +168,7 @@ def test_readiness_generated_output_is_ignored() -> None:
 
     assert "deploy/readiness/latest_readiness.json" in ignored.stdout
     assert "deploy/ingestion/latest_ingestion_refresh.json" in ignored.stdout
+    assert "deploy/security-reports/latest_security_scan.json" in ignored.stdout
 
     ignored_lightsail = subprocess.run(
         [
@@ -210,6 +216,7 @@ def test_readiness_script_does_not_execute_cloud_provisioning() -> None:
     assert "docker compose --env-file .env.production.example" in script
     assert "deploy/scripts/audit_secret_configuration.sh" in script
     assert "deploy/scripts/render_env_from_parameter_store.sh" in script
+    assert "deploy/scripts/run_security_scans.sh" in script
     assert "deploy/scripts/check_database_backup_status.sh" in script
     assert "deploy/scripts/check_offsite_backup_status.sh" in script
     assert "deploy/scripts/check_operations_status.sh" in script
@@ -234,6 +241,7 @@ def test_production_readiness_documentation_covers_rollout_gates() -> None:
         "network and dns preconditions",
         "secret preconditions",
         "parameter store",
+        "security scans",
         "database preconditions",
         "deployment preconditions",
         "post-deploy verification",
@@ -251,6 +259,7 @@ def test_production_readiness_documentation_covers_rollout_gates() -> None:
         "require approval",
         "offsite-backups-alerts.md",
         "parameter-store-secrets.md",
+        "security-scanning.md",
     ]
 
     for topic in expected_topics:

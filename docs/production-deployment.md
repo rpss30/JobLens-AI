@@ -177,12 +177,15 @@ The full rollout checklist is documented in
 guardrails, server prerequisites, secret audit, backups, monitoring, and
 post-deploy verification.
 
+Security scanning is documented in [security-scanning.md](security-scanning.md).
+Run the dependency, static Python, and container image scans before high-risk
+releases.
+
 ## Current Limits
 
 - no server provisioning
 - no DNS updates
 - no image registry publishing
-- no dependency or container image scanning
 - no scheduled automatic deployment
 - no external uptime monitoring
 - no automatic provider key rotation

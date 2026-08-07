@@ -1,6 +1,7 @@
 # JobLens AI
 
 [![Tests](https://github.com/rpss30/JobLens-AI/actions/workflows/tests.yml/badge.svg)](https://github.com/rpss30/JobLens-AI/actions/workflows/tests.yml)
+[![Security Scan](https://github.com/rpss30/JobLens-AI/actions/workflows/security-scan.yml/badge.svg)](https://github.com/rpss30/JobLens-AI/actions/workflows/security-scan.yml)
 [![Canada Jobs Refresh](https://github.com/rpss30/JobLens-AI/actions/workflows/refresh-canada-jobs.yml/badge.svg)](https://github.com/rpss30/JobLens-AI/actions/workflows/refresh-canada-jobs.yml)
 ![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
 ![AWS](https://img.shields.io/badge/AWS-ECS%20Fargate-FF9900?logo=amazonwebservices&logoColor=white)
@@ -303,6 +304,7 @@ protected.
 | Reports | ReportLab, pypdf |
 | Infrastructure | Docker, Docker Compose, Caddy, Terraform templates, Amazon ECR, ECS Fargate, ALB, RDS, Secrets Manager, CloudWatch |
 | Quality and delivery | pytest, GitHub Actions, deployment scripts, Streamlit Cloud |
+| Security checks | pip-audit, Bandit, Trivy |
 
 
 
@@ -339,6 +341,7 @@ JobLens AI
 │   ├── resume-analysis.md
 │   ├── semantic-search.md
 │   ├── secret-rotation.md
+│   ├── security-scanning.md
 │   ├── server-hardening.md
 │   ├── security.md
 │   ├── testing.md
@@ -821,6 +824,10 @@ pytest --cov=src --cov-report=term-missing --cov-report=xml
 See [docs/testing.md](docs/testing.md) for the test strategy, fixture design,
 reliability regression coverage, and CI behavior.
 
+See [docs/security-scanning.md](docs/security-scanning.md) for dependency,
+static Python, and container image scan commands, CI behavior, and report
+handling.
+
 Run the offline skill extraction evaluation:
 
 ```bash
@@ -889,6 +896,7 @@ Completed:
 - Weekly production ingestion scheduler that refreshes, validates, and publishes the Canada jobs dataset into PostgreSQL
 - Production secret audit script and rotation runbook for `.env.production`, provider keys, Django, PostgreSQL, and deployment SSH keys
 - Read-only Parameter Store `.env.production` rendering with post-render secret auditing
+- Dependency, static Python, and container image security scanning in CI
 - Production readiness checker and rollout checklist for the single-server deployment path
 - Lightsail deployment plan with cost estimate, resource inventory template, Terraform scaffold, approval gate, and teardown checklist
 - FastAPI can list PostgreSQL datasets and analyze a selected saved dataset

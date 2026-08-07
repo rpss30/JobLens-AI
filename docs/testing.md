@@ -53,9 +53,11 @@ pytest --cov=src --cov-report=term-missing --cov-report=xml
 
 The main test workflow installs dependencies, runs pytest with source coverage,
 prints missing-line coverage to the job log, and uploads `coverage.xml` as an
-artifact. The Canada snapshot refresh workflow still runs the full pytest suite
-after rebuilding the candidate snapshot, but it does not upload coverage because
-its primary purpose is data quality gating.
+artifact. The security scan workflow runs dependency, static Python, and
+container image scans and uploads JSON reports for review. The Canada snapshot
+refresh workflow still runs the full pytest suite after rebuilding the
+candidate snapshot, but it does not upload coverage because its primary purpose
+is data quality gating.
 
 ## Reliability Rules
 

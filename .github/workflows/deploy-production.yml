@@ -1,0 +1,85 @@
+name: Deploy Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_ref:
+        description: "Git ref to deploy on the server"
+        required: true
+        default: "origin/main"
+      skip_public_health_check:
+        description: "Skip public HTTPS health checks"
+        required: true
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deployment
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate deployment scripts
+        run: |
+          bash -n deploy/scripts/check_production_health.sh
+          bash -n deploy/scripts/deploy_production.sh
+          bash -n deploy/scripts/rollback_production.sh
+
+      - name: Configure SSH key
+        env:
+          PRODUCTION_SSH_KEY: ${{ secrets.PRODUCTION_SSH_KEY }}
+        run: |
+          test -n "$PRODUCTION_SSH_KEY"
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$PRODUCTION_SSH_KEY" > ~/.ssh/production_deploy_key
+          chmod 600 ~/.ssh/production_deploy_key
+
+      - name: Deploy over SSH
+        id: deploy
+        env:
+          DEPLOY_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
+          DEPLOY_USER: ${{ secrets.PRODUCTION_SSH_USER }}
+          DEPLOY_PATH: ${{ secrets.PRODUCTION_DEPLOY_PATH }}
+          DEPLOY_SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
+          DEPLOY_SSH_KEY_PATH: /home/runner/.ssh/production_deploy_key
+          DEPLOY_REF: ${{ inputs.deploy_ref }}
+          JOBLENS_DOMAIN: ${{ secrets.PRODUCTION_DOMAIN }}
+          JOBLENS_HEALTH_BASE_URL: ${{ secrets.PRODUCTION_HEALTH_BASE_URL }}
+          SKIP_PUBLIC_HEALTH_CHECK: ${{ inputs.skip_public_health_check }}
+        run: |
+          if [ -z "$DEPLOY_SSH_PORT" ]; then
+            export DEPLOY_SSH_PORT=22
+          fi
+
+          deploy/scripts/deploy_production.sh
+
+      - name: Roll back on deployment failure
+        if: failure() && steps.deploy.outcome == 'failure'
+        env:
+          DEPLOY_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
+          DEPLOY_USER: ${{ secrets.PRODUCTION_SSH_USER }}
+          DEPLOY_PATH: ${{ secrets.PRODUCTION_DEPLOY_PATH }}
+          DEPLOY_SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
+          DEPLOY_SSH_KEY_PATH: /home/runner/.ssh/production_deploy_key
+          JOBLENS_DOMAIN: ${{ secrets.PRODUCTION_DOMAIN }}
+          JOBLENS_HEALTH_BASE_URL: ${{ secrets.PRODUCTION_HEALTH_BASE_URL }}
+          SKIP_PUBLIC_HEALTH_CHECK: ${{ inputs.skip_public_health_check }}
+        run: |
+          if [ -z "$DEPLOY_SSH_PORT" ]; then
+            export DEPLOY_SSH_PORT=22
+          fi
+
+          deploy/scripts/rollback_production.sh

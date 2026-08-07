@@ -1,0 +1,20 @@
+[Unit]
+Description=Check JobLens production operations status
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+User=joblens
+Group=joblens
+WorkingDirectory=/srv/joblens-ai
+Environment=DEPLOY_ENV_FILE=.env.production
+Environment=COMPOSE_FILE=docker-compose.prod.yml
+Environment=BACKUP_STATUS_FILE=/srv/joblens-backups/latest_backup.json
+Environment=BACKUP_MAX_AGE_HOURS=30
+Environment=DISK_PATHS=/ /srv/joblens-backups
+Environment=DISK_WARN_PERCENT=80
+Environment=DISK_CRITICAL_PERCENT=90
+Environment=SKIP_PUBLIC_HEALTH_CHECK=true
+Environment=MONITOR_STATUS_FILE=/srv/joblens-monitoring/latest_status.json
+ExecStart=/srv/joblens-ai/deploy/scripts/check_operations_status.sh

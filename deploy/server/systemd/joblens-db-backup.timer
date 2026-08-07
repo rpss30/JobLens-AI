@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the JobLens PostgreSQL backup each day
+
+[Timer]
+OnCalendar=*-*-* 03:15:00
+Persistent=true
+RandomizedDelaySec=900
+Unit=joblens-db-backup.service
+
+[Install]
+WantedBy=timers.target

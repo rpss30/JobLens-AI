@@ -10,6 +10,10 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parents[1]
 AUDIT_SCRIPT = ROOT_DIR / "deploy" / "scripts" / "audit_secret_configuration.sh"
 GITIGNORE = ROOT_DIR / ".gitignore"
+SECRET_ROTATION_DOC = ROOT_DIR / "docs" / "secret-rotation.md"
+README_PATH = ROOT_DIR / "README.md"
+SECURITY_DOC = ROOT_DIR / "docs" / "security.md"
+PRODUCTION_DEPLOYMENT_DOC = ROOT_DIR / "docs" / "production-deployment.md"
 
 
 def write_fake_production_env(path: Path) -> None:
@@ -139,3 +143,35 @@ def test_secret_audit_script_does_not_provision_cloud_resources() -> None:
 
     for command in forbidden_commands:
         assert command not in script
+
+
+def test_secret_rotation_documentation_covers_inventory_rotation_and_emergency_steps() -> None:
+    doc = SECRET_ROTATION_DOC.read_text(encoding="utf-8").lower()
+    readme = README_PATH.read_text(encoding="utf-8")
+    security_doc = SECURITY_DOC.read_text(encoding="utf-8")
+    deployment_doc = PRODUCTION_DEPLOYMENT_DOC.read_text(encoding="utf-8")
+
+    expected_topics = [
+        "postgres_password",
+        "database_url",
+        "django_secret_key",
+        "groq_api_key",
+        "gemini_api_key",
+        "production_ssh_key",
+        "audit_secret_configuration.sh",
+        "no secret values",
+        "postgresql password rotation",
+        "django secret key rotation",
+        "provider api key rotation",
+        "deployment ssh key rotation",
+        "emergency replacement",
+        "no secret manager integration",
+        "explicit approval before any paid resource is created",
+    ]
+
+    for topic in expected_topics:
+        assert topic in doc
+
+    assert "docs/secret-rotation.md" in readme
+    assert "secret-rotation.md" in security_doc
+    assert "secret-rotation.md" in deployment_doc

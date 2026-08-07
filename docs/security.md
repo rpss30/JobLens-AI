@@ -61,6 +61,8 @@ development URLs.
 For the single-server production Compose path, copy
 `.env.production.example` to `.env.production`, replace every placeholder
 secret, and keep the file readable only by the deployment user.
+The `.gitignore` rules ignore `.env.*` files while keeping committed example
+templates available.
 
 The production deployment workflow uses GitHub Actions encrypted secrets only
 for SSH and routing values such as `PRODUCTION_SSH_HOST`,
@@ -85,6 +87,10 @@ See [operations-monitoring.md](operations-monitoring.md) for local health,
 backup freshness, disk usage, and log snapshot checks. Monitoring status files
 and log snapshots should stay outside Git and remain readable only by the
 deployment user.
+
+See [secret-rotation.md](secret-rotation.md) for runtime secret inventory,
+`.env.production` auditing, planned rotation order, deployment SSH key
+rotation, and emergency replacement steps.
 
 ## Resume Privacy
 

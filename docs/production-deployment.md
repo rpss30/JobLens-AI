@@ -22,6 +22,7 @@ Before running the deployment pipeline, confirm:
 - the deployment user has SSH key access and can run Docker Compose
 - the repository is checked out on the server at `DEPLOY_PATH`
 - `.env.production` exists on the server and is readable only by the deployment user
+- `deploy/scripts/audit_secret_configuration.sh` passes against `.env.production`
 - `docker-compose.prod.yml` validates with the production environment file
 - DNS points the production domain at the server
 - Caddy can obtain certificates after ports 80 and 443 are reachable
@@ -149,6 +150,10 @@ Local post-deploy status checks and log snapshots are documented in
 [operations-monitoring.md](operations-monitoring.md). Run the operations status
 check after a release when investigating service health, backup freshness, or
 disk pressure.
+
+Runtime secret audit and rotation steps are documented in
+[secret-rotation.md](secret-rotation.md). Run the audit after changing
+`.env.production` and before starting a deployment window.
 
 ## Current Limits
 

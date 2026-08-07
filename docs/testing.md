@@ -17,6 +17,22 @@ mocks or isolates that dependency.
 - Reliability regression tests focus on failure paths such as malformed CSVs,
   invalid API inputs, duplicate postings, empty result sets, and resume privacy.
 
+The suite is moving toward explicit pytest markers for the long-term layers:
+
+```text
+unit
+contract
+integration
+db
+e2e
+slow
+```
+
+Those markers are intentionally registered before the whole suite is
+reorganized. New tests should use them when the layer is clear, but existing
+files should not be mass-marked mechanically. The current test-suite audit is
+documented in [testing-strategy-audit.md](testing-strategy-audit.md).
+
 ## Fixtures
 
 Shared fixtures live in:
@@ -41,6 +57,17 @@ Run a focused slice:
 
 ```bash
 pytest tests/test_reliability_regressions.py tests/test_api.py -q
+```
+
+Run a marker slice once tests in that layer are marked:
+
+```bash
+pytest -m unit
+pytest -m contract
+pytest -m integration
+pytest -m db
+pytest -m e2e
+pytest -m slow
 ```
 
 Run coverage locally after installing dependencies:

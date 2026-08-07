@@ -24,6 +24,9 @@ avoid leaking private inputs, and make deployment assumptions explicit.
   cookies are enabled by default when `DJANGO_DEBUG=false`.
 - The production Docker Compose stack keeps PostgreSQL on an internal Docker
   network and publishes no app or database ports directly.
+- Caddy is the only public production Compose service. It publishes ports 80 and
+  443, redirects HTTP to HTTPS, adds security headers, and routes `/api/*`,
+  `/ops/*`, and dashboard traffic to internal services.
 
 ## Environment Variables
 
@@ -35,6 +38,7 @@ DATABASE_URL=postgresql+psycopg://localhost:5432/joblens_ai
 GROQ_API_KEY=
 GROQ_MODEL=llama-3.3-70b-versatile
 JOBLENS_CORS_ORIGINS=http://localhost:8501,http://localhost:8502,http://127.0.0.1:8501,http://127.0.0.1:8502
+JOBLENS_API_ROOT_PATH=
 JOBLENS_RATE_LIMIT_ENABLED=true
 JOBLENS_ANALYZE_RATE_LIMIT=60
 JOBLENS_RATE_LIMIT_WINDOW_SECONDS=60

@@ -1,4 +1,5 @@
 import logging
+import os
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,11 +10,16 @@ from src.api.routers import analysis_runs, analyze, datasets, health
 from src.api.security import get_cors_origins
 
 
+def get_api_root_path() -> str:
+    return os.getenv("JOBLENS_API_ROOT_PATH", "").strip().rstrip("/")
+
+
 def create_app() -> FastAPI:
     app = FastAPI(
         title="JobLens AI API",
         description="Backend API for JobLens AI role-fit and skill-gap analysis.",
         version="0.4.0",
+        root_path=get_api_root_path(),
         openapi_tags=[
             {
                 "name": "health",

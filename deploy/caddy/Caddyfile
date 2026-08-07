@@ -1,0 +1,40 @@
+{
+    email {$CADDY_ACME_EMAIL}
+}
+
+{$JOBLENS_DOMAIN} {
+    encode zstd gzip
+
+    request_body {
+        max_size 5MB
+    }
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        -Server
+    }
+
+    redir /api /api/docs 308
+
+    handle_path /api/* {
+        reverse_proxy api:8000 {
+            header_up X-Forwarded-Prefix /api
+        }
+    }
+
+    handle /ops* {
+        reverse_proxy django-ops:8001
+    }
+
+    handle /healthz {
+        respond "ok" 200
+    }
+
+    handle {
+        reverse_proxy dashboard:8501
+    }
+}

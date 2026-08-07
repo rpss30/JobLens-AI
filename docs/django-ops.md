@@ -223,6 +223,5 @@ Implemented:
 Not implemented yet:
 
 - Background worker or command for executing requested extraction retries.
-- Production reverse proxy routing.
 
 No cloud resources are created by the Django operations service.

@@ -11,6 +11,9 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 DISK_SCRIPT = ROOT_DIR / "deploy" / "scripts" / "check_disk_usage.sh"
 STATUS_SCRIPT = ROOT_DIR / "deploy" / "scripts" / "check_operations_status.sh"
 LOG_SCRIPT = ROOT_DIR / "deploy" / "scripts" / "collect_operations_logs.sh"
+INGESTION_STATUS_SCRIPT = (
+    ROOT_DIR / "deploy" / "scripts" / "check_ingestion_refresh_status.sh"
+)
 MONITOR_SERVICE = ROOT_DIR / "deploy" / "server" / "systemd" / "joblens-ops-monitor.service"
 MONITOR_TIMER = ROOT_DIR / "deploy" / "server" / "systemd" / "joblens-ops-monitor.timer"
 GITIGNORE = ROOT_DIR / ".gitignore"
@@ -24,7 +27,12 @@ def read_file(path: Path) -> str:
 
 
 def test_operations_monitoring_scripts_are_executable_and_valid_bash() -> None:
-    for script_path in [DISK_SCRIPT, STATUS_SCRIPT, LOG_SCRIPT]:
+    for script_path in [
+        DISK_SCRIPT,
+        STATUS_SCRIPT,
+        LOG_SCRIPT,
+        INGESTION_STATUS_SCRIPT,
+    ]:
         assert script_path.stat().st_mode & stat.S_IXUSR
         subprocess.run(["bash", "-n", str(script_path)], check=True)
 
@@ -59,6 +67,7 @@ def test_operations_status_writes_json_when_checks_are_skipped(tmp_path: Path) -
             "SKIP_COMPOSE_CHECK": "true",
             "SKIP_PUBLIC_HEALTH_CHECK": "true",
             "SKIP_BACKUP_STATUS_CHECK": "true",
+            "SKIP_INGESTION_REFRESH_CHECK": "true",
             "SKIP_DISK_CHECK": "true",
         },
         text=True,
@@ -72,6 +81,7 @@ def test_operations_status_writes_json_when_checks_are_skipped(tmp_path: Path) -
         "compose_services",
         "public_health",
         "database_backup",
+        "ingestion_refresh",
         "disk_usage",
     ]
     assert {check["status"] for check in payload["checks"]} == {"skipped"}
@@ -85,10 +95,12 @@ def test_operations_status_checks_compose_health_backup_and_disk_state() -> None
     assert "compose ps --status running --services" in script
     assert "check_production_health.sh" in script
     assert "check_database_backup_status.sh" in script
+    assert "check_ingestion_refresh_status.sh" in script
     assert "check_disk_usage.sh" in script
     assert "MONITOR_STATUS_FILE" in script
     assert '"checks": [' in script
     assert "SKIP_PUBLIC_HEALTH_CHECK" in script
+    assert "SKIP_INGESTION_REFRESH_CHECK" in script
 
 
 def test_log_collection_captures_compose_logs_and_optional_systemd_context() -> None:
@@ -114,6 +126,8 @@ def test_monitoring_timer_runs_every_five_minutes_with_server_defaults() -> None
     assert "WorkingDirectory=/srv/joblens-ai" in service
     assert "BACKUP_STATUS_FILE=/srv/joblens-backups/latest_backup.json" in service
     assert "BACKUP_MAX_AGE_HOURS=30" in service
+    assert "INGESTION_STATUS_FILE=/srv/joblens-ingestion/latest_ingestion_refresh.json" in service
+    assert "INGESTION_MAX_AGE_HOURS=192" in service
     assert "DISK_WARN_PERCENT=80" in service
     assert "DISK_CRITICAL_PERCENT=90" in service
     assert "SKIP_PUBLIC_HEALTH_CHECK=true" in service
@@ -139,6 +153,7 @@ def test_operations_monitoring_files_do_not_create_cloud_resources() -> None:
             DISK_SCRIPT,
             STATUS_SCRIPT,
             LOG_SCRIPT,
+            INGESTION_STATUS_SCRIPT,
             MONITOR_SERVICE,
             MONITOR_TIMER,
         ]
@@ -167,11 +182,14 @@ def test_operations_monitoring_documentation_covers_checks_and_limits() -> None:
         "compose services",
         "public health",
         "database backup",
+        "ingestion refresh",
+        "latest_ingestion_refresh.json",
         "disk usage",
         "latest_status.json",
         "check_operations_status.sh",
         "check_disk_usage.sh",
         "collect_operations_logs.sh",
+        "check_ingestion_refresh_status.sh",
         "systemd",
         "failure triage",
         "no cloud resources",

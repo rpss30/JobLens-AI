@@ -99,6 +99,9 @@ def test_readiness_script_tracks_required_files_scripts_and_ignored_outputs() ->
         "deploy/lightsail/terraform/terraform.tfvars.example",
         "deploy/lightsail/terraform/variables.tf",
         "deploy/lightsail/terraform/versions.tf",
+        "docs/production-ingestion.md",
+        "deploy/server/systemd/joblens-ingestion-refresh.service",
+        "deploy/server/systemd/joblens-ingestion-refresh.timer",
         "deploy/scripts/deploy_production.sh",
         "deploy/scripts/rollback_production.sh",
         "deploy/scripts/check_production_health.sh",
@@ -108,6 +111,8 @@ def test_readiness_script_tracks_required_files_scripts_and_ignored_outputs() ->
         "deploy/scripts/check_operations_status.sh",
         "deploy/scripts/check_disk_usage.sh",
         "deploy/scripts/audit_secret_configuration.sh",
+        "deploy/scripts/run_ingestion_refresh.sh",
+        "deploy/scripts/check_ingestion_refresh_status.sh",
     ]
 
     for path in required_paths:
@@ -126,6 +131,7 @@ def test_readiness_generated_output_is_ignored() -> None:
     gitignore = read_file(GITIGNORE)
 
     assert "deploy/readiness/" in gitignore
+    assert "deploy/ingestion/" in gitignore
     assert "deploy/lightsail/production-inventory.json" in gitignore
     assert "deploy/lightsail/deployment-evidence/" in gitignore
     assert "deploy/lightsail/terraform/.terraform/" in gitignore
@@ -134,7 +140,13 @@ def test_readiness_generated_output_is_ignored() -> None:
     assert "deploy/lightsail/terraform/terraform.tfvars" in gitignore
 
     ignored = subprocess.run(
-        ["git", "check-ignore", "--no-index", "deploy/readiness/latest_readiness.json"],
+        [
+            "git",
+            "check-ignore",
+            "--no-index",
+            "deploy/readiness/latest_readiness.json",
+            "deploy/ingestion/latest_ingestion_refresh.json",
+        ],
         check=True,
         capture_output=True,
         cwd=ROOT_DIR,
@@ -142,6 +154,7 @@ def test_readiness_generated_output_is_ignored() -> None:
     )
 
     assert "deploy/readiness/latest_readiness.json" in ignored.stdout
+    assert "deploy/ingestion/latest_ingestion_refresh.json" in ignored.stdout
 
     ignored_lightsail = subprocess.run(
         [
@@ -190,6 +203,8 @@ def test_readiness_script_does_not_execute_cloud_provisioning() -> None:
     assert "deploy/scripts/audit_secret_configuration.sh" in script
     assert "deploy/scripts/check_database_backup_status.sh" in script
     assert "deploy/scripts/check_operations_status.sh" in script
+    assert "deploy/scripts/run_ingestion_refresh.sh" in script
+    assert "deploy/scripts/check_ingestion_refresh_status.sh" in script
 
 
 def test_production_readiness_documentation_covers_rollout_gates() -> None:
@@ -218,6 +233,8 @@ def test_production_readiness_documentation_covers_rollout_gates() -> None:
         "terraform template",
         "no terraform state",
         "private inventory",
+        "scheduled ingestion",
+        "ingestion refresh status",
         "require approval",
     ]
 
@@ -226,6 +243,7 @@ def test_production_readiness_documentation_covers_rollout_gates() -> None:
 
     assert "docs/production-readiness.md" in readme
     assert "docs/lightsail-deployment-plan.md" in readme
+    assert "docs/production-ingestion.md" in readme
     assert "production-readiness.md" in deployment_doc
     assert "production-readiness.md" in compose_doc
     assert "production-readiness.md" in security_doc

@@ -8,6 +8,7 @@ MONITOR_STATUS_FILE="${MONITOR_STATUS_FILE:-deploy/monitoring/latest_status.json
 SKIP_COMPOSE_CHECK="${SKIP_COMPOSE_CHECK:-false}"
 SKIP_PUBLIC_HEALTH_CHECK="${SKIP_PUBLIC_HEALTH_CHECK:-false}"
 SKIP_BACKUP_STATUS_CHECK="${SKIP_BACKUP_STATUS_CHECK:-false}"
+SKIP_INGESTION_REFRESH_CHECK="${SKIP_INGESTION_REFRESH_CHECK:-false}"
 SKIP_DISK_CHECK="${SKIP_DISK_CHECK:-false}"
 
 check_names=()
@@ -81,6 +82,12 @@ run_backup_status_check() {
     "$(dirname "${BASH_SOURCE[0]}")/check_database_backup_status.sh"
 }
 
+run_ingestion_refresh_check() {
+  INGESTION_STATUS_FILE="${INGESTION_STATUS_FILE:-/srv/joblens-ingestion/latest_ingestion_refresh.json}" \
+  INGESTION_MAX_AGE_HOURS="${INGESTION_MAX_AGE_HOURS:-192}" \
+    "$(dirname "${BASH_SOURCE[0]}")/check_ingestion_refresh_status.sh"
+}
+
 run_disk_check() {
   DISK_PATHS="${DISK_PATHS:-/ /srv/joblens-backups}" \
   DISK_WARN_PERCENT="${DISK_WARN_PERCENT:-80}" \
@@ -139,6 +146,12 @@ if [[ "${SKIP_BACKUP_STATUS_CHECK}" == "true" ]]; then
   record_check "database_backup" "skipped" "0"
 else
   run_check "database_backup" run_backup_status_check
+fi
+
+if [[ "${SKIP_INGESTION_REFRESH_CHECK}" == "true" ]]; then
+  record_check "ingestion_refresh" "skipped" "0"
+else
+  run_check "ingestion_refresh" run_ingestion_refresh_check
 fi
 
 if [[ "${SKIP_DISK_CHECK}" == "true" ]]; then

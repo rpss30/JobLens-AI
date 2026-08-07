@@ -169,6 +169,8 @@ manually before enabling the weekly production timer.
 Runtime secret audit and rotation steps are documented in
 [secret-rotation.md](secret-rotation.md). Run the audit after changing
 `.env.production` and before starting a deployment window.
+Staged provider keys can be promoted with `rotate_provider_keys.sh` after a
+dry run and an explicit confirmation flag.
 
 Rendering `.env.production` from an existing Parameter Store path is documented
 in [parameter-store-secrets.md](parameter-store-secrets.md). The renderer reads
@@ -193,4 +195,4 @@ the production domain and HTTPS routing are stable.
 - no DNS updates
 - no image registry publishing
 - no scheduled automatic deployment
-- no automatic provider key rotation
+- no provider-side key creation or revocation

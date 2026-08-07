@@ -615,7 +615,7 @@ dataset publishing flow, and failure triage.
 
 See [docs/secret-rotation.md](docs/secret-rotation.md) for production runtime
 secret inventory, `.env.production` auditing, planned rotation, deployment SSH
-key rotation, and emergency replacement steps.
+key rotation, staged provider key promotion, and emergency replacement steps.
 
 See [docs/parameter-store-secrets.md](docs/parameter-store-secrets.md) for
 rendering `.env.production` from an existing Parameter Store path with key-name
@@ -904,6 +904,7 @@ Completed:
 - Local operations monitoring scripts for Compose service health, public health checks, backup freshness, off-server backup checks, disk usage, alert delivery, log snapshots, and central JSONL log aggregation
 - Weekly production ingestion scheduler that refreshes, validates, and publishes the Canada jobs dataset into PostgreSQL
 - Production secret audit script and rotation runbook for `.env.production`, provider keys, Django, PostgreSQL, and deployment SSH keys
+- Staged provider key rotation helper with dry-run, backup, promotion, and audit status output
 - Read-only Parameter Store `.env.production` rendering with post-render secret auditing
 - Dependency, static Python, and container image security scanning in CI
 - Scheduled external uptime checks for public health, API, and operations routes
@@ -924,7 +925,6 @@ Not built yet:
 - Authentication or multi-user support
 - Production-grade NLP role classification
 - Applied infrastructure-as-code deployment
-- Automated provider key rotation
 
 
 

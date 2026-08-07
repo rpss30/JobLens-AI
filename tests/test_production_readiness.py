@@ -63,6 +63,7 @@ def test_readiness_script_reports_warning_without_local_production_env(tmp_path:
     assert checks_by_name["cloud-provisioning"]["status"] == "ok"
     assert checks_by_name["compose-config"]["status"] == "skipped"
     assert checks_by_name["secret-audit"]["status"] == "skipped"
+    assert checks_by_name["provider-key-rotation-dry-run"]["status"] == "skipped"
     assert checks_by_name["backup-status"]["status"] == "skipped"
     assert checks_by_name["operations-status"]["status"] == "skipped"
     assert checks_by_name["log-aggregation-status"]["status"] == "skipped"
@@ -124,6 +125,7 @@ def test_readiness_script_tracks_required_files_scripts_and_ignored_outputs() ->
         "deploy/scripts/check_operations_status.sh",
         "deploy/scripts/check_disk_usage.sh",
         "deploy/scripts/audit_secret_configuration.sh",
+        "deploy/scripts/rotate_provider_keys.sh",
         "deploy/scripts/render_env_from_parameter_store.sh",
         "deploy/scripts/run_security_scans.sh",
         "deploy/scripts/check_external_uptime.sh",
@@ -138,6 +140,7 @@ def test_readiness_script_tracks_required_files_scripts_and_ignored_outputs() ->
 
     assert "RUN_COMPOSE_CONFIG" in script
     assert "RUN_SECRET_AUDIT" in script
+    assert "RUN_PROVIDER_KEY_ROTATION_DRY_RUN" in script
     assert "RUN_PARAMETER_STORE_RENDER_CHECK" in script
     assert "RUN_BACKUP_STATUS_CHECK" in script
     assert "RUN_OFFSITE_BACKUP_STATUS_CHECK" in script
@@ -231,6 +234,7 @@ def test_readiness_script_does_not_execute_cloud_provisioning() -> None:
     assert "! -name \"check_production_readiness.sh\"" in script
     assert "docker compose --env-file .env.production.example" in script
     assert "deploy/scripts/audit_secret_configuration.sh" in script
+    assert "deploy/scripts/rotate_provider_keys.sh" in script
     assert "deploy/scripts/render_env_from_parameter_store.sh" in script
     assert "deploy/scripts/run_security_scans.sh" in script
     assert "deploy/scripts/check_external_uptime.sh" in script
@@ -259,6 +263,7 @@ def test_production_readiness_documentation_covers_rollout_gates() -> None:
         "server preconditions",
         "network and dns preconditions",
         "secret preconditions",
+        "provider key rotation dry-run",
         "parameter store",
         "security scans",
         "external uptime",
@@ -282,6 +287,7 @@ def test_production_readiness_documentation_covers_rollout_gates() -> None:
         "security-scanning.md",
         "external-uptime-monitoring.md",
         "log-aggregation.md",
+        "provider-side key creation and revocation remain manual",
     ]
 
     for topic in expected_topics:

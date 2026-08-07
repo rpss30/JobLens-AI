@@ -98,7 +98,7 @@ timer, retention, and operational limits.
 
 See [secret-rotation.md](secret-rotation.md) for runtime secret inventory,
 `.env.production` auditing, planned rotation order, deployment SSH key
-rotation, and emergency replacement steps.
+rotation, staged provider key promotion, and emergency replacement steps.
 
 See [parameter-store-secrets.md](parameter-store-secrets.md) for rendering
 `.env.production` from an existing Parameter Store path without printing secret

@@ -133,6 +133,7 @@ Before deployment:
 - `.env.production` is not tracked by Git
 - Parameter Store env rendering has been dry-run when an approved path is used
 - placeholders in `.env.production` have been replaced
+- provider key rotation dry-run has passed when `*_NEXT` values are staged
 - `POSTGRES_PASSWORD` and `DATABASE_URL` agree
 - `DJANGO_SECRET_KEY` is unique and non-placeholder
 - GitHub Actions deployment secrets are configured in the protected production environment
@@ -142,6 +143,7 @@ Run:
 ```bash
 ENV_FILE=.env.production deploy/scripts/audit_secret_configuration.sh
 PARAMETER_STORE_PATH=/joblens/production PARAMETER_STORE_DRY_RUN=true deploy/scripts/render_env_from_parameter_store.sh
+ENV_FILE=.env.production PROVIDER_KEY_ROTATION_DRY_RUN=true deploy/scripts/rotate_provider_keys.sh
 ```
 
 See [secret-rotation.md](secret-rotation.md).
@@ -246,6 +248,7 @@ The deployment is ready to share when:
 - external uptime monitoring is implemented through GitHub Actions but is skipped until a URL is configured
 - off-server backup copy and alert delivery are implemented as opt-in scripts but not enabled by default
 - Parameter Store env rendering is implemented for existing parameters but no parameters are created
+- provider key promotion is automated locally, but provider-side key creation and revocation remain manual
 - no declarative infrastructure module is applied
 
 Those remain separate branches or manual deployment steps and require approval

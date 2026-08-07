@@ -299,8 +299,8 @@ protected.
 | Persistence | PostgreSQL, SQLAlchemy, Alembic, psycopg |
 | AI enrichment | Groq, Google Gemini, deterministic fallback |
 | Reports | ReportLab, pypdf |
-| Infrastructure | Docker, Docker Compose, Amazon ECR, ECS Fargate, ALB, RDS, Secrets Manager, CloudWatch |
-| Quality and delivery | pytest, GitHub Actions, Streamlit Cloud |
+| Infrastructure | Docker, Docker Compose, Caddy, Amazon ECR, ECS Fargate, ALB, RDS, Secrets Manager, CloudWatch |
+| Quality and delivery | pytest, GitHub Actions, deployment scripts, Streamlit Cloud |
 
 
 
@@ -324,11 +324,19 @@ JobLens AI
 ├── docs
 │   ├── ai-extraction.md
 │   ├── database.md
+│   ├── django-ops.md
+│   ├── production-compose.md
+│   ├── production-deployment.md
 │   ├── resume-analysis.md
 │   ├── semantic-search.md
+│   ├── server-hardening.md
 │   ├── security.md
 │   ├── testing.md
 │   └── aws-deployment.md
+├── deploy
+│   ├── caddy
+│   ├── scripts
+│   └── server
 ├── scripts
 │   ├── fetch_greenhouse_jobs.py
 │   ├── fetch_canada_jobs.py
@@ -565,6 +573,11 @@ cloud resources.
 
 See [docs/server-hardening.md](docs/server-hardening.md) for the host firewall,
 SSH, deployment-user, unattended-update, and Docker log-rotation runbook.
+
+See [docs/production-deployment.md](docs/production-deployment.md) for the
+manual GitHub Actions deployment workflow, SSH-based server update script,
+ordered Alembic and Django migrations, public health checks, and rollback
+procedure.
 
 ## Django Operations Service
 
@@ -824,6 +837,7 @@ Completed:
 - Docker Compose setup for Streamlit, FastAPI, and PostgreSQL
 - Production Compose stack with Caddy HTTPS routing and internal PostgreSQL networking
 - Server hardening runbook for host firewall, SSH, deployment user, and Docker log rotation
+- Manual production deployment workflow with SSH, migration ordering, health checks, and rollback
 - FastAPI can list PostgreSQL datasets and analyze a selected saved dataset
 - AWS deployment helpers for ECR, RDS PostgreSQL, ALB, and ECS Fargate
 - Multi-employer Canadian ingestion and a curated Groq-enriched snapshot

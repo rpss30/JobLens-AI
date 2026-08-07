@@ -1,8 +1,8 @@
 # Server Hardening Runbook
 
 This runbook covers host-level hardening for the low-cost single-server
-production path. It does not create cloud resources, change DNS, or start the
-application stack.
+production path. It does not create cloud resources, change DNS, deploy new
+application releases, or start the application stack.
 
 Use it after the server exists, Docker is installed, and you have confirmed SSH
 key access.
@@ -104,6 +104,6 @@ Keep recovery access procedures documented before applying host changes.
 
 ## Current Limits
 
-This branch does not provision the server, install Docker, configure DNS,
-deploy the application, or create backups. Those remain separate reviewed
-changes.
+This runbook does not provision the server, install Docker, configure DNS, or
+create backups. Application deployment is covered separately in
+[production-deployment.md](production-deployment.md).

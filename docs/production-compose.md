@@ -78,6 +78,9 @@ Before starting Caddy with a real domain:
 For initial server work, SSH should be restricted separately to a trusted source
 address where possible. See [server-hardening.md](server-hardening.md) for the
 host firewall, SSH, deployment-user, and Docker log-rotation runbook.
+See [production-deployment.md](production-deployment.md) for the manual
+GitHub Actions deployment workflow and rollback procedure that run this Compose
+sequence on an already-provisioned server.
 
 ## Startup
 
@@ -160,12 +163,14 @@ docker compose --env-file .env.production -f docker-compose.prod.yml up -d
 
 Rollback should reverse the application release first. Only downgrade database
 migrations after checking whether the target migration is explicitly reversible.
+The deployment scripts in [production-deployment.md](production-deployment.md)
+automate this order and retain the previous server revision for application
+rollback.
 
 ## Current Limits
 
-This branch intentionally does not include:
+This stack intentionally does not include:
 
-- automated deploys
 - database backups
 - cloud resource provisioning
 

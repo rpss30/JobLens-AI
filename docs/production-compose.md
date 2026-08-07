@@ -76,7 +76,8 @@ Before starting Caddy with a real domain:
 - do not expose PostgreSQL, FastAPI, Django, or Docker daemon ports publicly
 
 For initial server work, SSH should be restricted separately to a trusted source
-address where possible.
+address where possible. See [server-hardening.md](server-hardening.md) for the
+host firewall, SSH, deployment-user, and Docker log-rotation runbook.
 
 ## Startup
 
@@ -164,7 +165,6 @@ migrations after checking whether the target migration is explicitly reversible.
 
 This branch intentionally does not include:
 
-- host firewall rules
 - automated deploys
 - database backups
 - cloud resource provisioning

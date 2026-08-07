@@ -16,6 +16,7 @@ docs/offsite-backups-alerts.md
 docs/parameter-store-secrets.md
 docs/security-scanning.md
 docs/external-uptime-monitoring.md
+docs/log-aggregation.md
 ```
 
 ## Local Repo Readiness
@@ -30,8 +31,8 @@ The default mode checks that the repo contains the production Compose stack,
 Caddy config, deployment workflow, deployment scripts, backup scripts,
 monitoring scripts, scheduled ingestion scripts, secret audit script, Parameter
 Store renderer, security scan workflow, external uptime workflow, security
-docs, and required ignore rules. It also scans deployment automation for
-forbidden cloud provisioning commands.
+docs, log aggregation scripts, and required ignore rules. It also scans
+deployment automation for forbidden cloud provisioning commands.
 
 On a development machine, the script usually reports a warning because
 `.env.production` is intentionally not present. On the server, after
@@ -105,6 +106,7 @@ deploying:
 - the off-server backup destination is approved if that check will be enabled
 - `/srv/joblens-monitoring` or the chosen status path exists
 - `/srv/joblens-ingestion` or the chosen ingestion artifact path exists
+- `/srv/joblens-logs` or the chosen log aggregation path exists
 - a recovery-console path is known in case SSH is lost
 
 ## Network and DNS Preconditions
@@ -199,6 +201,7 @@ After deployment:
 - backup status remains fresh
 - off-server backup status remains fresh when enabled
 - ingestion refresh status remains fresh
+- log aggregation status remains fresh
 - alert dry-run or delivery has been tested when alerts are enabled
 - logs show no repeated application startup errors
 
@@ -206,6 +209,13 @@ Collect a log snapshot for any failed release:
 
 ```bash
 LOG_DIR=/srv/joblens-log-snapshots INCLUDE_SYSTEMD_LOGS=true deploy/scripts/collect_operations_logs.sh
+```
+
+Aggregate current logs for routine investigation:
+
+```bash
+LOG_AGGREGATION_DIR=/srv/joblens-logs deploy/scripts/aggregate_operations_logs.sh
+LOG_AGGREGATION_STATUS_FILE=/srv/joblens-logs/latest_log_aggregation.json deploy/scripts/check_log_aggregation_status.sh
 ```
 
 See [operations-monitoring.md](operations-monitoring.md).
@@ -220,6 +230,7 @@ The deployment is ready to share when:
 - off-server backup copy is enabled or explicitly deferred with approval notes
 - the scheduled ingestion refresh has succeeded at least once
 - monitoring status is fresh
+- log aggregation status is fresh
 - secret audit passes
 - Parameter Store render status is fresh when that workflow is used
 - dependency, static Python, and container image scans have passed

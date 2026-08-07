@@ -141,5 +141,5 @@ when both the monitored system and alert transport fail.
 - no S3 bucket or IAM principal is created by this repository
 - no lifecycle policy is installed
 - no automated restore drill is scheduled from the off-server copy
-- no external uptime monitor is configured
-- no central log aggregation is configured
+- external uptime checks and local log aggregation are configured separately
+  from the off-server backup copy

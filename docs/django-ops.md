@@ -1,10 +1,9 @@
 # Django Operations Service
 
 JobLens includes a Django operations service alongside the existing FastAPI API,
-Streamlit dashboard, PostgreSQL database, and legacy Flask ops console. The
-service authenticates staff users, connects to the shared PostgreSQL database,
-and reads existing pipeline metadata without taking ownership of
-Alembic-managed application tables.
+Streamlit dashboard, and PostgreSQL database. The service authenticates staff
+users, connects to the shared PostgreSQL database, and reads existing pipeline
+metadata without taking ownership of Alembic-managed application tables.
 
 ## Local Docker Startup
 
@@ -221,6 +220,5 @@ Not implemented yet:
 
 - Background worker or command for executing requested extraction retries.
 - Production reverse proxy routing.
-- Removal of the Flask ops console.
 
 No cloud resources are created by the Django operations service.

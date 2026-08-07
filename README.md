@@ -295,7 +295,7 @@ protected.
 | Data and matching | Python, Pandas, scikit-learn |
 | Dashboard | Streamlit, Altair, Plotly |
 | API | FastAPI, Pydantic, Uvicorn |
-| Ops tooling | Flask, Django, Jinja, SCSS |
+| Ops tooling | Django, Django templates, Gunicorn |
 | Persistence | PostgreSQL, SQLAlchemy, Alembic, psycopg |
 | AI enrichment | Groq, Google Gemini, deterministic fallback |
 | Reports | ReportLab, pypdf |
@@ -488,8 +488,8 @@ List endpoints support bounded pagination with `limit` and `offset`, plus
 
 JobLens AI can also be run with Docker Compose.
 
-Build and start the Streamlit dashboard, FastAPI backend, Flask ops console,
-Django operations service, and PostgreSQL database:
+Build and start the Streamlit dashboard, FastAPI backend, Django operations
+service, and PostgreSQL database:
 
 ```bash
 docker compose up --build
@@ -500,7 +500,6 @@ Once the services are running:
 - Streamlit dashboard: `http://localhost:8501`
 - FastAPI docs: `http://localhost:8000/docs`
 - FastAPI health check: `http://localhost:8000/health`
-- Flask internal ops console: `http://localhost:5001`
 - Django operations service: `http://localhost:8001/ops/`
 - Django health check: `http://localhost:8001/health/`
 
@@ -549,53 +548,13 @@ To stop the services and remove the PostgreSQL volume:
 docker compose down -v
 ```
 
-## Internal Ops Console
-
-JobLens AI includes a small read-only Flask ops console for pipeline visibility.
-It is intentionally separate from the FastAPI app: FastAPI remains the typed
-candidate-analysis API, while Flask serves internal Jinja pages for checking
-pipeline health without opening `psql` or adding mutation routes.
-
-Run the console locally:
-
-```bash
-python -m ops.app
-```
-
-The console runs on:
-
-```text
-http://localhost:5001
-```
-
-It shows postings per source, total persisted postings, the latest ingestion
-timestamp, deduplication rejects from persisted run metadata, recent ingestion
-runs with per-source breakdowns, frequent extracted skills, and queryable empty
-skill-extraction results.
-
-The templates are styled with SCSS. Edit files under:
-
-```text
-ops/static/scss
-```
-
-Compile SCSS to the served CSS file:
-
-```bash
-python -m ops.compile_scss
-```
-
-Run the ops console tests:
-
-```bash
-pytest tests/test_ops_console.py
-```
-
 ## Django Operations Service
 
-JobLens also includes a Django operations service. This service is the
-replacement path for the Flask console, but the Flask console remains in place
-until Django reaches feature parity in later pull requests.
+JobLens includes a Django operations service for authenticated internal
+pipeline visibility and reviewed operations workflows. FastAPI remains the
+typed candidate-analysis API, while Django owns staff authentication,
+role-based operations access, investigation pages, and audited state-changing
+operations.
 
 The Django service currently provides:
 

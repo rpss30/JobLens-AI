@@ -15,6 +15,8 @@ README_PATH = ROOT_DIR / "README.md"
 PRODUCTION_DEPLOYMENT_DOC = ROOT_DIR / "docs" / "production-deployment.md"
 PRODUCTION_COMPOSE_DOC = ROOT_DIR / "docs" / "production-compose.md"
 SECURITY_DOC = ROOT_DIR / "docs" / "security.md"
+LIGHTSAIL_DOC = ROOT_DIR / "docs" / "lightsail-deployment-plan.md"
+LIGHTSAIL_PLAN = ROOT_DIR / "deploy" / "lightsail" / "resource-plan.example.json"
 
 
 def read_file(path: Path) -> str:
@@ -89,6 +91,8 @@ def test_readiness_script_tracks_required_files_scripts_and_ignored_outputs() ->
         "docs/operations-monitoring.md",
         "docs/secret-rotation.md",
         "docs/security.md",
+        "docs/lightsail-deployment-plan.md",
+        "deploy/lightsail/resource-plan.example.json",
         "deploy/scripts/deploy_production.sh",
         "deploy/scripts/rollback_production.sh",
         "deploy/scripts/check_production_health.sh",
@@ -115,6 +119,8 @@ def test_readiness_generated_output_is_ignored() -> None:
     gitignore = read_file(GITIGNORE)
 
     assert "deploy/readiness/" in gitignore
+    assert "deploy/lightsail/production-inventory.json" in gitignore
+    assert "deploy/lightsail/deployment-evidence/" in gitignore
 
     ignored = subprocess.run(
         ["git", "check-ignore", "--no-index", "deploy/readiness/latest_readiness.json"],
@@ -125,6 +131,23 @@ def test_readiness_generated_output_is_ignored() -> None:
     )
 
     assert "deploy/readiness/latest_readiness.json" in ignored.stdout
+
+    ignored_lightsail = subprocess.run(
+        [
+            "git",
+            "check-ignore",
+            "--no-index",
+            "deploy/lightsail/production-inventory.json",
+            "deploy/lightsail/deployment-evidence/example.json",
+        ],
+        check=True,
+        capture_output=True,
+        cwd=ROOT_DIR,
+        text=True,
+    )
+
+    assert "deploy/lightsail/production-inventory.json" in ignored_lightsail.stdout
+    assert "deploy/lightsail/deployment-evidence/example.json" in ignored_lightsail.stdout
 
 
 def test_readiness_script_does_not_execute_cloud_provisioning() -> None:
@@ -171,6 +194,9 @@ def test_production_readiness_documentation_covers_rollout_gates() -> None:
         "post-deploy verification",
         "ready definition",
         "no cloud resource has been provisioned",
+        "lightsail-deployment-plan.md",
+        "deploy/lightsail/resource-plan.example.json",
+        "private inventory",
         "require approval",
     ]
 
@@ -178,6 +204,9 @@ def test_production_readiness_documentation_covers_rollout_gates() -> None:
         assert topic in doc
 
     assert "docs/production-readiness.md" in readme
+    assert "docs/lightsail-deployment-plan.md" in readme
     assert "production-readiness.md" in deployment_doc
     assert "production-readiness.md" in compose_doc
     assert "production-readiness.md" in security_doc
+    assert LIGHTSAIL_DOC.exists()
+    assert LIGHTSAIL_PLAN.exists()

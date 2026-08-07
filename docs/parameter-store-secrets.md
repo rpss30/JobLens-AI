@@ -60,7 +60,10 @@ PARAMETER_STORE_STATUS_FILE=/srv/joblens-monitoring/latest_parameter_store_env.j
 deploy/scripts/render_env_from_parameter_store.sh
 ```
 
-The dry run writes a status file with key names only:
+The script calls `aws ssm get-parameters-by-path --with-decryption` and relies
+on the AWS CLI's normal pagination behavior.
+
+The dry run writes a key-name only status file:
 
 ```text
 /srv/joblens-monitoring/latest_parameter_store_env.json

@@ -11,6 +11,7 @@ PARAMETER_STORE_DRY_RUN="${PARAMETER_STORE_DRY_RUN:-false}"
 RUN_SECRET_AUDIT="${RUN_SECRET_AUDIT:-true}"
 AWS_CLI="${AWS_CLI:-aws}"
 AWS_REGION="${AWS_REGION:-}"
+PYTHON_BIN="${PYTHON_BIN:-python3}"
 
 if [[ "${PARAMETER_STORE_PATH}" != /* ]]; then
   echo "PARAMETER_STORE_PATH must be an absolute Parameter Store path." >&2
@@ -67,7 +68,12 @@ if [[ "${PARAMETER_STORE_DRY_RUN}" != "true" ]]; then
   chmod 600 "${rendered_env}"
 fi
 
-python - "${parameters_json}" "${ENV_TEMPLATE}" "${rendered_env}" "${render_status_tmp}" <<'PY'
+render_exit=0
+
+PARAMETER_STORE_PATH="${PARAMETER_STORE_PATH}" \
+ENV_FILE="${ENV_FILE}" \
+PARAMETER_STORE_DRY_RUN="${PARAMETER_STORE_DRY_RUN}" \
+  "${PYTHON_BIN}" - "${parameters_json}" "${ENV_TEMPLATE}" "${rendered_env}" "${render_status_tmp}" <<'PY' || render_exit=$?
 from __future__ import annotations
 
 import json
@@ -206,6 +212,10 @@ write_status(
 PY
 
 mv "${render_status_tmp}" "${PARAMETER_STORE_STATUS_FILE}"
+
+if [[ "${render_exit}" -ne 0 ]]; then
+  exit "${render_exit}"
+fi
 
 if [[ "${PARAMETER_STORE_DRY_RUN}" == "true" ]]; then
   echo "Parameter Store env render dry run succeeded for ${PARAMETER_STORE_PATH}; no secret values were printed."

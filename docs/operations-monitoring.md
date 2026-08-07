@@ -186,6 +186,9 @@ The monitor sends the compact JSON status file as the request body. Keep the
 webhook URL in a root-owned systemd drop-in or another private server-side
 configuration file, not in Git.
 
+External uptime checks from outside the server are covered separately in
+[external-uptime-monitoring.md](external-uptime-monitoring.md).
+
 Check timer status:
 
 ```bash
@@ -240,7 +243,7 @@ Disk check fails:
 
 ## Current Limits
 
-- no external uptime monitor
+- external uptime monitoring runs through GitHub Actions rather than a paging-grade monitor
 - alert delivery uses a generic webhook, not a paging escalation policy
 - no central log aggregation
 - no dashboard page for the local status file

@@ -190,6 +190,7 @@ required_files=(
   deploy/caddy/Caddyfile
   .github/workflows/deploy-production.yml
   .github/workflows/security-scan.yml
+  .github/workflows/uptime-check.yml
   docs/production-compose.md
   docs/production-deployment.md
   docs/server-hardening.md
@@ -200,6 +201,7 @@ required_files=(
   docs/secret-rotation.md
   docs/security.md
   docs/security-scanning.md
+  docs/external-uptime-monitoring.md
   docs/lightsail-deployment-plan.md
   deploy/lightsail/resource-plan.example.json
   deploy/lightsail/terraform/README.md
@@ -228,6 +230,7 @@ required_scripts=(
   deploy/scripts/audit_secret_configuration.sh
   deploy/scripts/render_env_from_parameter_store.sh
   deploy/scripts/run_security_scans.sh
+  deploy/scripts/check_external_uptime.sh
   deploy/scripts/run_ingestion_refresh.sh
   deploy/scripts/check_ingestion_refresh_status.sh
 )
@@ -248,6 +251,7 @@ require_ignored "deploy/monitoring/latest_status.json"
 require_ignored "deploy/readiness/latest_readiness.json"
 require_ignored "deploy/secret-audits/latest_secret_audit.json"
 require_ignored "deploy/security-reports/latest_security_scan.json"
+require_ignored "deploy/uptime-reports/latest_uptime_check.json"
 require_ignored "deploy/lightsail/production-inventory.json"
 require_ignored "deploy/lightsail/deployment-evidence/example.json"
 require_ignored "deploy/lightsail/terraform/.terraform/example"

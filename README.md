@@ -330,6 +330,7 @@ JobLens AI
 │   ├── database.md
 │   ├── database-backups.md
 │   ├── django-ops.md
+│   ├── external-uptime-monitoring.md
 │   ├── lightsail-deployment-plan.md
 │   ├── offsite-backups-alerts.md
 │   ├── operations-monitoring.md
@@ -828,6 +829,9 @@ See [docs/security-scanning.md](docs/security-scanning.md) for dependency,
 static Python, and container image scan commands, CI behavior, and report
 handling.
 
+See [docs/external-uptime-monitoring.md](docs/external-uptime-monitoring.md)
+for scheduled public health checks, uptime reports, and webhook alert delivery.
+
 Run the offline skill extraction evaluation:
 
 ```bash
@@ -897,6 +901,7 @@ Completed:
 - Production secret audit script and rotation runbook for `.env.production`, provider keys, Django, PostgreSQL, and deployment SSH keys
 - Read-only Parameter Store `.env.production` rendering with post-render secret auditing
 - Dependency, static Python, and container image security scanning in CI
+- Scheduled external uptime checks for public health, API, and operations routes
 - Production readiness checker and rollout checklist for the single-server deployment path
 - Lightsail deployment plan with cost estimate, resource inventory template, Terraform scaffold, approval gate, and teardown checklist
 - FastAPI can list PostgreSQL datasets and analyze a selected saved dataset
@@ -913,7 +918,7 @@ Not built yet:
 - Authentication or multi-user support
 - Production-grade NLP role classification
 - Applied infrastructure-as-code deployment
-- External uptime monitoring or central log aggregation
+- Central log aggregation
 - Automated provider key rotation
 
 

@@ -114,4 +114,4 @@ Container finding:
 - no SARIF upload to repository security dashboards is configured
 - no automatic dependency update pull requests are created
 - no image is pushed to a registry by the scan workflow
-- no runtime penetration testing or external uptime monitoring is performed
+- no runtime penetration testing is performed by the security scan workflow

@@ -90,6 +90,8 @@ See [offsite-backups-alerts.md](offsite-backups-alerts.md) for the opt-in
 off-server backup copy and webhook alert workflow.
 See [operations-monitoring.md](operations-monitoring.md) for local service
 health, disk usage, backup freshness, alert delivery, and log-snapshot checks.
+See [external-uptime-monitoring.md](external-uptime-monitoring.md) for scheduled
+public health checks from outside the server.
 See [production-ingestion.md](production-ingestion.md) for the weekly
 server-side Canada jobs refresh and PostgreSQL publishing workflow.
 See [production-readiness.md](production-readiness.md) for the final preflight
@@ -197,7 +199,6 @@ rollback.
 This stack intentionally does not include:
 
 - cloud resource provisioning
-- off-server backup storage
-- external uptime monitoring or central log aggregation
+- central log aggregation
 
 Those belong in later focused branches.

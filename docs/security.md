@@ -62,9 +62,19 @@ For the single-server production Compose path, copy
 `.env.production.example` to `.env.production`, replace every placeholder
 secret, and keep the file readable only by the deployment user.
 
+The production deployment workflow uses GitHub Actions encrypted secrets only
+for SSH and routing values such as `PRODUCTION_SSH_HOST`,
+`PRODUCTION_SSH_USER`, `PRODUCTION_SSH_KEY`, `PRODUCTION_DEPLOY_PATH`, and
+`PRODUCTION_DOMAIN`. Application runtime secrets remain on the server unless a
+separately approved secret store is added.
+
 See [server-hardening.md](server-hardening.md) before applying host firewall or
 SSH changes. Keep an active SSH session and a recovery-console path available
 until a new key-based login has been verified.
+
+See [production-deployment.md](production-deployment.md) for the manual
+deployment and rollback workflow. The deployment automation updates an existing
+server and creates no cloud resources.
 
 ## Resume Privacy
 

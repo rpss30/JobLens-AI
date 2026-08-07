@@ -6,6 +6,7 @@ STRICT_READINESS="${STRICT_READINESS:-false}"
 RUN_COMPOSE_CONFIG="${RUN_COMPOSE_CONFIG:-false}"
 RUN_SECRET_AUDIT="${RUN_SECRET_AUDIT:-false}"
 RUN_BACKUP_STATUS_CHECK="${RUN_BACKUP_STATUS_CHECK:-false}"
+RUN_OFFSITE_BACKUP_STATUS_CHECK="${RUN_OFFSITE_BACKUP_STATUS_CHECK:-false}"
 RUN_OPERATIONS_STATUS_CHECK="${RUN_OPERATIONS_STATUS_CHECK:-false}"
 RUN_TERRAFORM_VALIDATE="${RUN_TERRAFORM_VALIDATE:-false}"
 ENV_FILE="${ENV_FILE:-.env.production}"
@@ -95,6 +96,10 @@ check_backup_status() {
   deploy/scripts/check_database_backup_status.sh
 }
 
+check_offsite_backup_status() {
+  deploy/scripts/check_offsite_backup_status.sh
+}
+
 check_operations_status() {
   deploy/scripts/check_operations_status.sh
 }
@@ -182,6 +187,7 @@ required_files=(
   docs/server-hardening.md
   docs/database-backups.md
   docs/operations-monitoring.md
+  docs/offsite-backups-alerts.md
   docs/secret-rotation.md
   docs/security.md
   docs/lightsail-deployment-plan.md
@@ -204,6 +210,9 @@ required_scripts=(
   deploy/scripts/backup_database.sh
   deploy/scripts/verify_database_backup.sh
   deploy/scripts/check_database_backup_status.sh
+  deploy/scripts/upload_database_backup.sh
+  deploy/scripts/check_offsite_backup_status.sh
+  deploy/scripts/send_operations_alert.sh
   deploy/scripts/check_operations_status.sh
   deploy/scripts/check_disk_usage.sh
   deploy/scripts/audit_secret_configuration.sh
@@ -243,6 +252,7 @@ fi
 run_optional_check "compose-config" "${RUN_COMPOSE_CONFIG}" check_compose_config
 run_optional_check "secret-audit" "${RUN_SECRET_AUDIT}" check_secret_audit
 run_optional_check "backup-status" "${RUN_BACKUP_STATUS_CHECK}" check_backup_status
+run_optional_check "offsite-backup-status" "${RUN_OFFSITE_BACKUP_STATUS_CHECK}" check_offsite_backup_status
 run_optional_check "operations-status" "${RUN_OPERATIONS_STATUS_CHECK}" check_operations_status
 run_optional_check "lightsail-terraform-validate" "${RUN_TERRAFORM_VALIDATE}" check_lightsail_terraform_validate
 

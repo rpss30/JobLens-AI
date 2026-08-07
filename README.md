@@ -607,13 +607,13 @@ The Django service currently provides:
 - `/ops/runs/` with filters and pagination for persisted pipeline runs
 - `/ops/runs/<run_id>/` run details with metadata, source results, and linked extraction issues
 - `/ops/extractions/issues/` for empty or failed skill extraction attempts joined to postings
+- manager-only extraction review notes, reviewed status, retry requests, and audit events
 - Docker Compose support through Gunicorn
 
-Alembic owns the existing JobLens application tables. Django currently owns
-only its framework tables for auth, admin, sessions, content types, and
-migration bookkeeping. See [docs/django-ops.md](docs/django-ops.md) for local
-startup, route coverage, migration ownership, deployment ordering, and current
-limitations.
+Alembic owns the existing JobLens application tables. Django owns its framework
+tables plus operations-only review and audit tables. See
+[docs/django-ops.md](docs/django-ops.md) for local startup, route coverage,
+migration ownership, deployment ordering, and current limitations.
 
 ## AWS Deployment Path
 

@@ -64,6 +64,12 @@ http://localhost:8001/ops/runs/<run_id>/
 http://localhost:8001/ops/extractions/issues/
 ```
 
+Manager-only POST route:
+
+```text
+http://localhost:8001/ops/extractions/<result_id>/actions/
+```
+
 Dedicated login and logout routes:
 
 ```text
@@ -117,13 +123,18 @@ Django maps the pipeline tables it needs as unmanaged models. These models have
 `managed = False`, so Django migrations do not create, alter, or drop those
 tables.
 
-Django migrations own only Django framework tables in this foundation:
+Django migrations own Django framework tables:
 
 - `auth_*`
 - `django_admin_log`
 - `django_content_type`
 - `django_migrations`
 - `django_session`
+
+They also own operations-only tables:
+
+- `ops_extraction_reviews`
+- `ops_audit_events`
 
 Deployment order:
 
@@ -160,6 +171,33 @@ the run dataset because the application schema does not yet store a direct
 `extraction_results.ingestion_run_id`. That keeps this branch read-only and
 schema-light while still making failures visible from the operations console.
 
+## Audited Operations Actions
+
+Managers can now act on failed or empty extraction results from the extraction
+issue list or a run detail page:
+
+- save or update an internal review note
+- mark the extraction as reviewed
+- request one retry for an eligible extraction issue
+
+Every successful manager action writes an `ops_audit_events` row with the actor,
+timestamp, target extraction result, action name, and posting/provider metadata.
+The current review state lives in `ops_extraction_reviews`, keyed by
+`extraction_result_id`, without copying posting fields from the application
+tables.
+
+Retry safety:
+
+- retry requests are manager-only POST actions protected by CSRF
+- duplicate retry requests for the same extraction result are rejected
+- the web request records the retry request but does not call external
+  extraction providers inline
+
+That last boundary is intentional. It gives operations users an audited retry
+workflow without making a page load depend on provider credentials, rate limits,
+or a long-running extraction call. A later worker or management command can
+process requested retries.
+
 ## Current Scope
 
 Implemented:
@@ -175,12 +213,14 @@ Implemented:
 - Pipeline run list with filters and pagination.
 - Pipeline run detail pages with run-scoped metadata and source results.
 - Failed and empty extraction issue list with posting links.
+- Manager-only review notes, reviewed status, and retry requests for extraction
+  issues.
+- Append-only audit events for operations actions.
 
 Not implemented yet:
 
-- Failed-extraction review notes or retry actions.
-- Audit records for state-changing operations.
+- Background worker or command for executing requested extraction retries.
 - Production reverse proxy routing.
 - Removal of the Flask ops console.
 
-No cloud resources are created by this foundation.
+No cloud resources are created by the Django operations service.

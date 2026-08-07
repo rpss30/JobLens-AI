@@ -9,12 +9,16 @@ without creating cloud resources.
 ```text
 .env.production.example
 deploy/scripts/audit_secret_configuration.sh
+deploy/scripts/render_env_from_parameter_store.sh
 docs/secret-rotation.md
 ```
 
 Production runtime secrets live in the server-side `.env.production` file. That
 file must stay outside Git, have private permissions, and be readable only by
 the deployment user.
+The file can be edited directly during early operations or rendered from an
+existing Parameter Store path with
+[parameter-store-secrets.md](parameter-store-secrets.md).
 
 ## Secret Inventory
 
@@ -68,6 +72,17 @@ stdout, stderr, or the audit status file.
 The audit does not validate whether a secret is live at the provider or whether
 a GitHub Actions encrypted secret exists. Validate those through the provider
 or GitHub UI before a planned rotation.
+
+When using Parameter Store, run the renderer before the audit:
+
+```bash
+PARAMETER_STORE_PATH=/joblens/production \
+PARAMETER_STORE_OVERWRITE=true \
+deploy/scripts/render_env_from_parameter_store.sh
+```
+
+The renderer writes key-name only status output and then runs the same secret
+audit by default.
 
 ## Runtime Secret Rotation Order
 
@@ -189,9 +204,10 @@ Git history. Treat it as exposed and rotate it.
 
 - no automatic GitHub secret validation
 - no provider API key validity check
-- no secret manager integration
 - no automatic password rotation
 - no historical secret scanning beyond local Git checks
+- no automatic provider-side key rotation
 
-A managed secret store can be considered later, but only with cost notes and
+Parameter Store integration is read-only from this repository. Creating or
+changing parameters, IAM permissions, or KMS keys still requires cost notes and
 explicit approval before any paid resource is created.

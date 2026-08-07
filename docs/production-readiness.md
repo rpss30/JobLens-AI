@@ -13,6 +13,7 @@ docs/lightsail-deployment-plan.md
 deploy/lightsail/resource-plan.example.json
 docs/production-ingestion.md
 docs/offsite-backups-alerts.md
+docs/parameter-store-secrets.md
 ```
 
 ## Local Repo Readiness
@@ -25,9 +26,9 @@ deploy/scripts/check_production_readiness.sh
 
 The default mode checks that the repo contains the production Compose stack,
 Caddy config, deployment workflow, deployment scripts, backup scripts,
-monitoring scripts, scheduled ingestion scripts, secret audit script, security
-docs, and required ignore rules. It also scans deployment automation for
-forbidden cloud provisioning commands.
+monitoring scripts, scheduled ingestion scripts, secret audit script, Parameter
+Store renderer, security docs, and required ignore rules. It also scans
+deployment automation for forbidden cloud provisioning commands.
 
 On a development machine, the script usually reports a warning because
 `.env.production` is intentionally not present. On the server, after
@@ -37,6 +38,7 @@ On a development machine, the script usually reports a warning because
 STRICT_READINESS=true \
 RUN_COMPOSE_CONFIG=true \
 RUN_SECRET_AUDIT=true \
+RUN_PARAMETER_STORE_RENDER_CHECK=true \
 RUN_BACKUP_STATUS_CHECK=true \
 RUN_OFFSITE_BACKUP_STATUS_CHECK=true \
 RUN_OPERATIONS_STATUS_CHECK=true \
@@ -124,6 +126,7 @@ Before deployment:
 - `.env.production` exists on the server only
 - `.env.production` has mode `0600`
 - `.env.production` is not tracked by Git
+- Parameter Store env rendering has been dry-run when an approved path is used
 - placeholders in `.env.production` have been replaced
 - `POSTGRES_PASSWORD` and `DATABASE_URL` agree
 - `DJANGO_SECRET_KEY` is unique and non-placeholder
@@ -133,9 +136,11 @@ Run:
 
 ```bash
 ENV_FILE=.env.production deploy/scripts/audit_secret_configuration.sh
+PARAMETER_STORE_PATH=/joblens/production PARAMETER_STORE_DRY_RUN=true deploy/scripts/render_env_from_parameter_store.sh
 ```
 
 See [secret-rotation.md](secret-rotation.md).
+See [parameter-store-secrets.md](parameter-store-secrets.md).
 
 ## Database Preconditions
 
@@ -212,6 +217,7 @@ The deployment is ready to share when:
 - the scheduled ingestion refresh has succeeded at least once
 - monitoring status is fresh
 - secret audit passes
+- Parameter Store render status is fresh when that workflow is used
 - rollback steps are documented
 - cost guardrails are in place
 - all production URLs and resource identifiers are recorded privately
@@ -222,7 +228,7 @@ The deployment is ready to share when:
 - no Lightsail instance, static IPv4 address, DNS record, or snapshot has been provisioned
 - no external uptime monitor is configured
 - off-server backup copy and alert delivery are implemented as opt-in scripts but not enabled by default
-- no managed secret store is integrated
+- Parameter Store env rendering is implemented for existing parameters but no parameters are created
 - no declarative infrastructure module is applied
 
 Those remain separate branches or manual deployment steps and require approval

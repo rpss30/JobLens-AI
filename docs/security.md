@@ -96,6 +96,10 @@ See [secret-rotation.md](secret-rotation.md) for runtime secret inventory,
 `.env.production` auditing, planned rotation order, deployment SSH key
 rotation, and emergency replacement steps.
 
+See [parameter-store-secrets.md](parameter-store-secrets.md) for rendering
+`.env.production` from an existing Parameter Store path without printing secret
+values.
+
 See [production-readiness.md](production-readiness.md) for the pre-deployment
 checklist covering cost guardrails, server prerequisites, secret audit,
 database backups, monitoring, and post-deploy verification.
@@ -121,8 +125,10 @@ available.
 
 ## AWS Recommendations
 
-- Store `DATABASE_URL` and optional API keys in AWS Secrets Manager or SSM
-  Parameter Store.
+- Store `DATABASE_URL` and optional API keys in AWS Secrets Manager or AWS
+  Systems Manager Parameter Store. See
+  [parameter-store-secrets.md](parameter-store-secrets.md) for the read-only
+  Parameter Store env render workflow.
 - Use least-privilege ECS task roles scoped to only the AWS APIs the task
   actually needs.
 - Keep RDS in private subnets and allow inbound traffic only from the ECS

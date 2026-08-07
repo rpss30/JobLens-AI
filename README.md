@@ -117,6 +117,7 @@ The dashboard also shows market-level insights such as top required skills, role
 - Weekly Canada snapshot refreshes with automated quality gates and reviewable pull requests
 - AWS deployment automation for Amazon ECR, ECS Fargate, ALB, Secrets Manager, and RDS PostgreSQL
 - Opt-in off-server database backup upload checks and webhook alert delivery for production monitoring
+- Read-only Parameter Store env rendering for production secrets with local audit integration
 
 
 
@@ -330,6 +331,7 @@ JobLens AI
 │   ├── lightsail-deployment-plan.md
 │   ├── offsite-backups-alerts.md
 │   ├── operations-monitoring.md
+│   ├── parameter-store-secrets.md
 │   ├── production-ingestion.md
 │   ├── production-compose.md
 │   ├── production-deployment.md
@@ -609,6 +611,10 @@ See [docs/secret-rotation.md](docs/secret-rotation.md) for production runtime
 secret inventory, `.env.production` auditing, planned rotation, deployment SSH
 key rotation, and emergency replacement steps.
 
+See [docs/parameter-store-secrets.md](docs/parameter-store-secrets.md) for
+rendering `.env.production` from an existing Parameter Store path with key-name
+only status output.
+
 See [docs/production-readiness.md](docs/production-readiness.md) for the
 preflight checklist that ties together cost guardrails, server readiness,
 secret audit, backups, deployment, monitoring, and post-deploy verification.
@@ -882,6 +888,7 @@ Completed:
 - Local operations monitoring scripts for Compose service health, public health checks, backup freshness, off-server backup checks, disk usage, alert delivery, and log snapshots
 - Weekly production ingestion scheduler that refreshes, validates, and publishes the Canada jobs dataset into PostgreSQL
 - Production secret audit script and rotation runbook for `.env.production`, provider keys, Django, PostgreSQL, and deployment SSH keys
+- Read-only Parameter Store `.env.production` rendering with post-render secret auditing
 - Production readiness checker and rollout checklist for the single-server deployment path
 - Lightsail deployment plan with cost estimate, resource inventory template, Terraform scaffold, approval gate, and teardown checklist
 - FastAPI can list PostgreSQL datasets and analyze a selected saved dataset
@@ -899,7 +906,7 @@ Not built yet:
 - Production-grade NLP role classification
 - Applied infrastructure-as-code deployment
 - External uptime monitoring or central log aggregation
-- Managed secret store integration or automated provider key rotation
+- Automated provider key rotation
 
 
 

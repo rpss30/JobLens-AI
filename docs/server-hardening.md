@@ -105,5 +105,6 @@ Keep recovery access procedures documented before applying host changes.
 ## Current Limits
 
 This runbook does not provision the server, install Docker, configure DNS, or
-create backups. Application deployment is covered separately in
-[production-deployment.md](production-deployment.md).
+install the database backup timer. Application deployment is covered separately
+in [production-deployment.md](production-deployment.md), and backup operations
+are covered in [database-backups.md](database-backups.md).

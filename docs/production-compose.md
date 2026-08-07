@@ -81,6 +81,8 @@ host firewall, SSH, deployment-user, and Docker log-rotation runbook.
 See [production-deployment.md](production-deployment.md) for the manual
 GitHub Actions deployment workflow and rollback procedure that run this Compose
 sequence on an already-provisioned server.
+See [database-backups.md](database-backups.md) for backup and restore scripts
+that run through this stack's internal PostgreSQL service.
 
 ## Startup
 
@@ -149,6 +151,12 @@ curl -fsS https://$JOBLENS_DOMAIN/healthz
 curl -fsS https://$JOBLENS_DOMAIN/api/health
 ```
 
+Check the latest local database backup status:
+
+```bash
+BACKUP_STATUS_FILE=/srv/joblens-backups/latest_backup.json deploy/scripts/check_database_backup_status.sh
+```
+
 ## Updates
 
 Pull the latest application code, rebuild, run migrations, then restart:
@@ -171,7 +179,7 @@ rollback.
 
 This stack intentionally does not include:
 
-- database backups
 - cloud resource provisioning
+- off-server backup storage
 
 Those belong in later focused branches.

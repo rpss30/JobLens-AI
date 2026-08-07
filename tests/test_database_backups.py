@@ -12,6 +12,9 @@ RESTORE_SCRIPT = ROOT_DIR / "deploy" / "scripts" / "restore_database.sh"
 STATUS_SCRIPT = ROOT_DIR / "deploy" / "scripts" / "check_database_backup_status.sh"
 SYSTEMD_SERVICE = ROOT_DIR / "deploy" / "server" / "systemd" / "joblens-db-backup.service"
 SYSTEMD_TIMER = ROOT_DIR / "deploy" / "server" / "systemd" / "joblens-db-backup.timer"
+BACKUP_DOC = ROOT_DIR / "docs" / "database-backups.md"
+README_PATH = ROOT_DIR / "README.md"
+PRODUCTION_DEPLOYMENT_DOC = ROOT_DIR / "docs" / "production-deployment.md"
 
 
 def read_file(path: Path) -> str:
@@ -130,3 +133,31 @@ def test_database_backup_files_do_not_create_cloud_resources() -> None:
 
     for command in forbidden_commands:
         assert command not in combined
+
+
+def test_database_backup_documentation_covers_restore_and_operational_limits() -> None:
+    doc = read_file(BACKUP_DOC).lower()
+    readme = read_file(README_PATH)
+    deployment_doc = read_file(PRODUCTION_DEPLOYMENT_DOC)
+
+    expected_topics = [
+        "pg_dump",
+        "custom-format",
+        "latest_backup.json",
+        "sha-256",
+        "retention",
+        "systemd",
+        "restore test",
+        "temporary database",
+        "confirm_restore=yes",
+        "dry_run=no",
+        "no cloud resources",
+        "no s3 upload",
+        "off-server storage",
+    ]
+
+    for topic in expected_topics:
+        assert topic in doc
+
+    assert "docs/database-backups.md" in readme
+    assert "database-backups.md" in deployment_doc

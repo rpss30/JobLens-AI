@@ -15,6 +15,7 @@ docs/production-ingestion.md
 docs/offsite-backups-alerts.md
 docs/parameter-store-secrets.md
 docs/security-scanning.md
+docs/external-uptime-monitoring.md
 ```
 
 ## Local Repo Readiness
@@ -28,9 +29,9 @@ deploy/scripts/check_production_readiness.sh
 The default mode checks that the repo contains the production Compose stack,
 Caddy config, deployment workflow, deployment scripts, backup scripts,
 monitoring scripts, scheduled ingestion scripts, secret audit script, Parameter
-Store renderer, security scan workflow, security docs, and required ignore
-rules. It also scans deployment automation for forbidden cloud provisioning
-commands.
+Store renderer, security scan workflow, external uptime workflow, security
+docs, and required ignore rules. It also scans deployment automation for
+forbidden cloud provisioning commands.
 
 On a development machine, the script usually reports a warning because
 `.env.production` is intentionally not present. On the server, after
@@ -222,6 +223,7 @@ The deployment is ready to share when:
 - secret audit passes
 - Parameter Store render status is fresh when that workflow is used
 - dependency, static Python, and container image scans have passed
+- external uptime check is configured after the production URL is stable
 - rollback steps are documented
 - cost guardrails are in place
 - all production URLs and resource identifiers are recorded privately
@@ -230,7 +232,7 @@ The deployment is ready to share when:
 
 - no cloud resource has been provisioned by this repository work
 - no Lightsail instance, static IPv4 address, DNS record, or snapshot has been provisioned
-- no external uptime monitor is configured
+- external uptime monitoring is implemented through GitHub Actions but is skipped until a URL is configured
 - off-server backup copy and alert delivery are implemented as opt-in scripts but not enabled by default
 - Parameter Store env rendering is implemented for existing parameters but no parameters are created
 - no declarative infrastructure module is applied

@@ -181,11 +181,15 @@ Security scanning is documented in [security-scanning.md](security-scanning.md).
 Run the dependency, static Python, and container image scans before high-risk
 releases.
 
+External uptime monitoring is documented in
+[external-uptime-monitoring.md](external-uptime-monitoring.md). Enable it after
+the production domain and HTTPS routing are stable.
+
 ## Current Limits
 
 - no server provisioning
 - no DNS updates
 - no image registry publishing
 - no scheduled automatic deployment
-- no external uptime monitoring
+- no central log aggregation
 - no automatic provider key rotation

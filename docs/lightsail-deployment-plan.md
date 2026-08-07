@@ -159,7 +159,7 @@ the filled inventory in a private note or ignored local file.
 - no Lightsail resources are provisioned by this repository work
 - no production URL exists for this plan
 - no off-server backup storage is included
-- no external uptime alerting is included
+- external uptime alerting is configured separately from the Lightsail template
 - no managed secret store is included
 - no Terraform state, backend, or apply approval is included
 

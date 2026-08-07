@@ -103,6 +103,9 @@ values.
 See [security-scanning.md](security-scanning.md) for dependency, static Python,
 and container image scans used before production releases.
 
+See [external-uptime-monitoring.md](external-uptime-monitoring.md) for public
+edge health checks that run outside the production server.
+
 See [production-readiness.md](production-readiness.md) for the pre-deployment
 checklist covering cost guardrails, server prerequisites, secret audit,
 database backups, monitoring, and post-deploy verification.

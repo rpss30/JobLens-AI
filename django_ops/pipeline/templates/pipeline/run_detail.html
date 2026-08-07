@@ -94,6 +94,7 @@
             <th>Provider</th>
             <th>Model</th>
             <th>Error</th>
+            <th>Review</th>
           </tr>
         </thead>
         <tbody>
@@ -109,6 +110,7 @@
               <td>{{ issue.provider }}</td>
               <td>{{ issue.model|default:"unknown" }}</td>
               <td>{{ issue.error|default:"Empty extraction" }}</td>
+              <td>{% include "pipeline/_extraction_issue_actions.html" %}</td>
             </tr>
           {% endfor %}
         </tbody>

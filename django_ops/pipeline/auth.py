@@ -67,3 +67,26 @@ def operations_view_required(
         return view_func(request, *args, **kwargs)
 
     return wrapper
+
+
+def operations_manager_required(
+    view_func: Callable[..., HttpResponse],
+) -> Callable[..., HttpResponse]:
+    @wraps(view_func)
+    def wrapper(request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        if not request.user.is_authenticated:
+            return redirect_to_login(
+                request.get_full_path(),
+                login_url=reverse("operations-login"),
+            )
+
+        if not can_manage_operations(request.user):
+            return render(
+                request,
+                "pipeline/forbidden.html",
+                status=403,
+            )
+
+        return view_func(request, *args, **kwargs)
+
+    return wrapper

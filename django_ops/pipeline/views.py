@@ -1,19 +1,29 @@
 from __future__ import annotations
 
+from django.contrib import messages
 from django.contrib.auth.views import LoginView, LogoutView
 from django.db import DatabaseError
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
-from django.urls import reverse_lazy
-from django.views.decorators.http import require_GET
+from django.urls import reverse, reverse_lazy
+from django.utils.http import url_has_allowed_host_and_scheme
+from django.views.decorators.http import require_GET, require_POST
 
-from django_ops.pipeline.auth import can_manage_operations, operations_view_required
+from django_ops.pipeline.auth import (
+    can_manage_operations,
+    operations_manager_required,
+    operations_view_required,
+)
 from django_ops.pipeline.services import (
+    OperationsActionError,
     check_database_connection,
     load_extraction_issues_context,
     load_foundation_context,
     load_pipeline_run_detail_context,
     load_pipeline_runs_context,
+    mark_extraction_reviewed,
+    request_extraction_retry,
+    save_extraction_review_note,
 )
 
 
@@ -101,3 +111,50 @@ def extraction_issue_list(request: HttpRequest) -> HttpResponse:
         **load_extraction_issues_context(request.GET),
     }
     return render(request, "pipeline/extraction_issue_list.html", context)
+
+
+def safe_operations_redirect(request: HttpRequest) -> str:
+    next_url = request.POST.get("next") or reverse("extraction-issue-list")
+
+    if url_has_allowed_host_and_scheme(
+        next_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return next_url
+
+    return reverse("extraction-issue-list")
+
+
+@require_POST
+@operations_manager_required
+def extraction_issue_action(
+    request: HttpRequest,
+    result_id: int,
+) -> HttpResponse:
+    operation = request.POST.get("operation")
+
+    try:
+        if operation == "save_note":
+            save_extraction_review_note(
+                result_id=result_id,
+                actor=request.user,
+                note=request.POST.get("note", ""),
+            )
+            messages.success(request, "Review note saved.")
+        elif operation == "mark_reviewed":
+            mark_extraction_reviewed(
+                result_id=result_id,
+                actor=request.user,
+                note=request.POST.get("note", ""),
+            )
+            messages.success(request, "Extraction marked as reviewed.")
+        elif operation == "request_retry":
+            request_extraction_retry(result_id=result_id, actor=request.user)
+            messages.success(request, "Retry request recorded.")
+        else:
+            messages.error(request, "Unknown operation.")
+    except OperationsActionError as error:
+        messages.error(request, str(error))
+
+    return redirect(safe_operations_redirect(request))

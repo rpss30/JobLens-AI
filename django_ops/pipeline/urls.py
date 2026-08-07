@@ -22,4 +22,9 @@ urlpatterns = [
         views.extraction_issue_list,
         name="extraction-issue-list",
     ),
+    path(
+        "ops/extractions/<int:result_id>/actions/",
+        views.extraction_issue_action,
+        name="extraction-issue-action",
+    ),
 ]

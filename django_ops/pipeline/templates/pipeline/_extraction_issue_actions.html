@@ -1,0 +1,55 @@
+<div class="action-panel">
+  {% if issue.ops_review %}
+    <div>
+      <span class="badge">{{ issue.ops_review.status }}</span>
+      {% if issue.ops_review.retry_requested_at %}
+        <span class="badge">retry {{ issue.ops_review.retry_status }}</span>
+      {% endif %}
+    </div>
+    {% if issue.ops_review.note %}
+      <p class="muted">{{ issue.ops_review.note }}</p>
+    {% endif %}
+    {% if issue.ops_review.reviewed_at %}
+      <p class="muted">Reviewed by {{ issue.ops_review.reviewed_by_username }} at {{ issue.ops_review.reviewed_at }}</p>
+    {% endif %}
+    {% if issue.ops_review.retry_requested_at %}
+      <p class="muted">Retry requested by {{ issue.ops_review.retry_requested_by_username }} at {{ issue.ops_review.retry_requested_at }}</p>
+    {% endif %}
+  {% else %}
+    <span class="badge">open</span>
+  {% endif %}
+
+  {% if can_manage_operations %}
+    <form method="post" action="{% url 'extraction-issue-action' issue.id %}">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+      <label>
+        Review note
+        <textarea name="note" maxlength="2000">{{ issue.ops_review.note }}</textarea>
+      </label>
+      <div class="button-row">
+        <button type="submit" name="operation" value="save_note">Save note</button>
+        <button type="submit" name="operation" value="mark_reviewed">Mark reviewed</button>
+        <button
+          type="submit"
+          name="operation"
+          value="request_retry"
+          {% if issue.ops_review.retry_requested_at %}disabled{% endif %}
+        >
+          Request retry
+        </button>
+      </div>
+    </form>
+  {% endif %}
+
+  {% if issue.ops_audit_events %}
+    <details>
+      <summary>Audit trail</summary>
+      <ul class="audit-list">
+        {% for event in issue.ops_audit_events %}
+          <li>{{ event.action }} by {{ event.actor_username }} at {{ event.created_at }}</li>
+        {% endfor %}
+      </ul>
+    </details>
+  {% endif %}
+</div>

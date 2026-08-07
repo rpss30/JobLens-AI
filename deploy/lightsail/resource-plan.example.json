@@ -1,0 +1,92 @@
+{
+  "status": "plan_only",
+  "approval_required_before_create": true,
+  "pricing_checked_on": "2026-08-07",
+  "target_environment": "production",
+  "estimated_monthly_usd": {
+    "baseline": 12,
+    "with_one_small_snapshot": "13-15",
+    "fallback_4gb_instance": 24
+  },
+  "resources": [
+    {
+      "id": "lightsail-instance",
+      "planned_name": "joblens-production",
+      "provider": "aws-lightsail",
+      "resource_type": "linux-unix-instance",
+      "status": "not_created",
+      "planned_bundle": {
+        "name": "small-2gb",
+        "memory_gb": 2,
+        "vcpu": 2,
+        "disk_gb": 60,
+        "transfer_tb": 3,
+        "monthly_usd": 12
+      },
+      "fallback_bundle": {
+        "name": "medium-4gb",
+        "memory_gb": 4,
+        "vcpu": 2,
+        "disk_gb": 80,
+        "transfer_tb": 4,
+        "monthly_usd": 24
+      },
+      "reason": "Runs the single-server Docker Compose stack with Caddy, Streamlit, FastAPI, Django operations, and PostgreSQL.",
+      "ongoing_charge": true,
+      "teardown": "Stop and delete the instance after backing up any data that must be retained."
+    },
+    {
+      "id": "static-ipv4",
+      "planned_name": "joblens-production-ip",
+      "provider": "aws-lightsail",
+      "resource_type": "static-ipv4-address",
+      "status": "not_created",
+      "monthly_usd_when_attached": 0,
+      "unattached_rate_usd_per_hour": 0.005,
+      "reason": "Keeps the DNS A record stable across instance restarts.",
+      "ongoing_charge": false,
+      "teardown": "Detach and delete the static IPv4 address when the instance is deleted."
+    },
+    {
+      "id": "dns-record",
+      "planned_name": "jobs.example.com",
+      "provider": "existing-dns-provider",
+      "resource_type": "a-record",
+      "status": "not_created",
+      "monthly_usd": 0,
+      "reason": "Routes the production subdomain to the attached static IPv4 address.",
+      "ongoing_charge": false,
+      "teardown": "Remove the A record or point it at the replacement service."
+    },
+    {
+      "id": "local-docker-volumes",
+      "planned_name": "postgres_data,caddy_data",
+      "provider": "instance-local-disk",
+      "resource_type": "docker-volume",
+      "status": "not_created",
+      "monthly_usd": 0,
+      "reason": "Persists PostgreSQL and Caddy data on the included Lightsail SSD disk.",
+      "ongoing_charge": false,
+      "teardown": "Delete the instance or remove the volumes after a verified backup."
+    },
+    {
+      "id": "snapshot",
+      "planned_name": "joblens-production-manual-snapshot",
+      "provider": "aws-lightsail",
+      "resource_type": "manual-instance-snapshot",
+      "status": "optional_not_created",
+      "monthly_usd_per_gb": 0.05,
+      "reason": "Optional point-in-time recovery before major changes.",
+      "ongoing_charge": true,
+      "teardown": "Delete stale snapshots after confirming newer recovery points exist."
+    }
+  ],
+  "not_in_scope_without_explicit_approval": [
+    "managed database",
+    "load balancer",
+    "object storage backup bucket",
+    "content delivery network",
+    "new hosted zone",
+    "container service"
+  ]
+}

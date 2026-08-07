@@ -30,6 +30,8 @@ data/processed/uploaded_processed_jobs.csv
 
 # Generated production operations artifacts
 deploy/backups/
+deploy/lightsail/deployment-evidence/
+deploy/lightsail/production-inventory.json
 deploy/logs/
 deploy/monitoring/
 deploy/readiness/

@@ -3,7 +3,7 @@ from __future__ import annotations
 from django_ops.config.settings import *  # noqa: F403
 
 
-SECRET_KEY = "joblens-django-ops-test-secret"
+SECRET_KEY = "joblens-django-ops-test-secret"  # nosec
 DEBUG = True
 ALLOWED_HOSTS = ["testserver", "localhost", "127.0.0.1"]
 DATABASES = {

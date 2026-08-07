@@ -23,7 +23,7 @@ def normalize_skill(skill: str) -> str:
     normalized = re.sub(r"\s+", " ", normalized).strip()
 
     tokens = [
-        "api" if token == "apis" else token
+        "api" if token == "apis" else token  # nosec
         for token in normalized.split()
     ]
 

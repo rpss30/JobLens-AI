@@ -22,6 +22,8 @@ avoid leaking private inputs, and make deployment assumptions explicit.
 - Django operations logout is POST-only and protected by CSRF middleware.
 - Django operations sessions use HTTP-only cookies with `SameSite=Lax`; secure
   cookies are enabled by default when `DJANGO_DEBUG=false`.
+- The production Docker Compose stack keeps PostgreSQL on an internal Docker
+  network and publishes no app or database ports directly.
 
 ## Environment Variables
 
@@ -48,6 +50,10 @@ DJANGO_SESSION_COOKIE_AGE=28800
 `JOBLENS_CORS_ORIGINS` should be set to the dashboard origins that are allowed
 to call the API. In AWS, use the ALB or custom-domain origin instead of local
 development URLs.
+
+For the single-server production Compose path, copy
+`.env.production.example` to `.env.production`, replace every placeholder
+secret, and keep the file readable only by the deployment user.
 
 ## Resume Privacy
 

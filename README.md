@@ -107,7 +107,7 @@ The dashboard also shows market-level insights such as top required skills, role
 - Uploaded CSV datasets can be named, renamed, and deleted through focused management overlays
 - Saved PostgreSQL datasets can be selected and reloaded from the dashboard
 - FastAPI backend with health check, candidate analysis, CORS allowlist, safe errors, and rate limiting
-- Docker Compose support for running the dashboard, API, and PostgreSQL together
+- Docker Compose support for local development and a production-style single-server stack
 - FastAPI dataset, analysis run, and PostgreSQL-backed analysis support
 - First-party Greenhouse, Lever, Ashby, and JSON-LD ingestion support
 - Canada-only location normalization, deduplication, and balanced snapshots
@@ -486,7 +486,7 @@ List endpoints support bounded pagination with `limit` and `offset`, plus
 
 ## Running with Docker
 
-JobLens AI can also be run with Docker Compose.
+JobLens AI can also be run locally with Docker Compose.
 
 Build and start the Streamlit dashboard, FastAPI backend, Django operations
 service, and PostgreSQL database:
@@ -547,6 +547,21 @@ To stop the services and remove the PostgreSQL volume:
 ```bash
 docker compose down -v
 ```
+
+For the production-style single-server Compose stack, use
+[`docker-compose.prod.yml`](docker-compose.prod.yml) with a private PostgreSQL
+network, app health checks, persistent database storage, and no public database
+port:
+
+```bash
+cp .env.production.example .env.production
+docker compose --env-file .env.production -f docker-compose.prod.yml config -q
+```
+
+See [docs/production-compose.md](docs/production-compose.md) for startup,
+migration order, health checks, and current limits. The production Compose file
+does not provision cloud resources or publish public HTTP/HTTPS ports; reverse
+proxy routing is intentionally left for a separate branch.
 
 ## Django Operations Service
 

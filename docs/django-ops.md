@@ -146,6 +146,10 @@ Django-managed operations tables, rollbacks must document whether those Django
 migrations are reversible and whether any associated Alembic migration also
 needs to be downgraded.
 
+The production Compose runbook in
+[production-compose.md](production-compose.md) uses the same migration order for
+the single-server deployment path.
+
 ## Pipeline Investigation
 
 The operations service now provides read-only pages for investigating ingestion

@@ -331,6 +331,7 @@ JobLens AI
 │   ├── production-deployment.md
 │   ├── resume-analysis.md
 │   ├── semantic-search.md
+│   ├── secret-rotation.md
 │   ├── server-hardening.md
 │   ├── security.md
 │   ├── testing.md
@@ -588,6 +589,10 @@ and gated restore procedures.
 See [docs/operations-monitoring.md](docs/operations-monitoring.md) for local
 service health, backup freshness, disk usage, and log-snapshot monitoring on
 the single-server production path.
+
+See [docs/secret-rotation.md](docs/secret-rotation.md) for production runtime
+secret inventory, `.env.production` auditing, planned rotation, deployment SSH
+key rotation, and emergency replacement steps.
 
 ## Django Operations Service
 
@@ -850,6 +855,7 @@ Completed:
 - Manual production deployment workflow with SSH, migration ordering, health checks, and rollback
 - Local PostgreSQL backup scripts with retention, restore validation, backup freshness checks, and a daily systemd timer template
 - Local operations monitoring scripts for Compose service health, public health checks, backup freshness, disk usage, and log snapshots
+- Production secret audit script and rotation runbook for `.env.production`, provider keys, Django, PostgreSQL, and deployment SSH keys
 - FastAPI can list PostgreSQL datasets and analyze a selected saved dataset
 - AWS deployment helpers for ECR, RDS PostgreSQL, ALB, and ECS Fargate
 - Multi-employer Canadian ingestion and a curated Groq-enriched snapshot
@@ -867,6 +873,7 @@ Not built yet:
 - Infrastructure-as-code deployment automation
 - Off-server database backup storage and alert delivery
 - External uptime monitoring or central log aggregation
+- Managed secret store integration or automated provider key rotation
 
 
 

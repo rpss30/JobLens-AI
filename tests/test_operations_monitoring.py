@@ -269,7 +269,7 @@ def test_operations_monitoring_documentation_covers_checks_and_limits() -> None:
         "systemd",
         "failure triage",
         "no cloud resources",
-        "no external uptime monitor",
+        "external uptime monitoring runs through github actions",
         "generic webhook",
         "not a paging escalation policy",
         "no central log aggregation",

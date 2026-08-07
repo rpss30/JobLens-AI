@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 
 from src.api.application import create_app
+from src.api.application import get_api_root_path
 from src.api.security import analyze_rate_limiter, get_cors_origins
 
 
@@ -39,6 +40,26 @@ def test_api_allows_configured_cors_preflight(monkeypatch) -> None:
     assert response.headers["access-control-allow-origin"] == (
         "https://joblens.example.com"
     )
+
+
+def test_api_root_path_defaults_to_empty(monkeypatch) -> None:
+    monkeypatch.delenv("JOBLENS_API_ROOT_PATH", raising=False)
+
+    assert get_api_root_path() == ""
+    assert create_app().root_path == ""
+
+
+def test_api_root_path_can_be_configured_for_proxy_prefix(monkeypatch) -> None:
+    monkeypatch.setenv("JOBLENS_API_ROOT_PATH", "/api/")
+
+    app = create_app()
+    client = TestClient(app)
+    response = client.get("/docs")
+
+    assert get_api_root_path() == "/api"
+    assert app.root_path == "/api"
+    assert response.status_code == 200
+    assert "/api/openapi.json" in response.content.decode()
 
 
 def test_analyze_endpoint_rate_limits_expensive_requests(monkeypatch) -> None:

@@ -10,6 +10,11 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parents[1]
 READINESS_SCRIPT = ROOT_DIR / "deploy" / "scripts" / "check_production_readiness.sh"
 GITIGNORE = ROOT_DIR / ".gitignore"
+READINESS_DOC = ROOT_DIR / "docs" / "production-readiness.md"
+README_PATH = ROOT_DIR / "README.md"
+PRODUCTION_DEPLOYMENT_DOC = ROOT_DIR / "docs" / "production-deployment.md"
+PRODUCTION_COMPOSE_DOC = ROOT_DIR / "docs" / "production-compose.md"
+SECURITY_DOC = ROOT_DIR / "docs" / "security.md"
 
 
 def read_file(path: Path) -> str:
@@ -143,3 +148,36 @@ def test_readiness_script_does_not_execute_cloud_provisioning() -> None:
     assert "deploy/scripts/audit_secret_configuration.sh" in script
     assert "deploy/scripts/check_database_backup_status.sh" in script
     assert "deploy/scripts/check_operations_status.sh" in script
+
+
+def test_production_readiness_documentation_covers_rollout_gates() -> None:
+    doc = read_file(READINESS_DOC).lower()
+    readme = read_file(README_PATH)
+    deployment_doc = read_file(PRODUCTION_DEPLOYMENT_DOC)
+    compose_doc = read_file(PRODUCTION_COMPOSE_DOC)
+    security_doc = read_file(SECURITY_DOC)
+
+    expected_topics = [
+        "check_production_readiness.sh",
+        "strict_readiness=true",
+        "cost and approval gate",
+        "aws budget",
+        "billing alerts",
+        "server preconditions",
+        "network and dns preconditions",
+        "secret preconditions",
+        "database preconditions",
+        "deployment preconditions",
+        "post-deploy verification",
+        "ready definition",
+        "no cloud resource has been provisioned",
+        "require approval",
+    ]
+
+    for topic in expected_topics:
+        assert topic in doc
+
+    assert "docs/production-readiness.md" in readme
+    assert "production-readiness.md" in deployment_doc
+    assert "production-readiness.md" in compose_doc
+    assert "production-readiness.md" in security_doc

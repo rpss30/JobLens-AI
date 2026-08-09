@@ -3,11 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 
 from src.api.query_params import ListQueryParams, pagination_params
-from src.api.schemas import (
-    AnalysisRunResponse,
-    CreateAnalysisRunRequest,
-    ErrorResponse,
-)
+from src.api.schemas import AnalysisRunResponse, ErrorResponse
 from src.api.services import analysis_run_service
 from src.api.services.analysis_run_service import AnalysisRunSortBy
 
@@ -45,20 +41,6 @@ def get_analysis_runs(
         limit=query.limit,
         offset=query.offset,
     )
-
-
-@router.post(
-    "",
-    response_model=AnalysisRunResponse,
-    status_code=201,
-    summary="Save an analysis run",
-    responses={
-        500: {"model": ErrorResponse},
-        503: {"model": ErrorResponse},
-    },
-)
-def create_analysis_run(request: CreateAnalysisRunRequest) -> dict:
-    return analysis_run_service.create_analysis_run(request)
 
 
 @router.get(

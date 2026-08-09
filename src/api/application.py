@@ -6,16 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from src.api.errors import ApiError, api_error_handler
-from src.api.routers import (
-    analysis_runs,
-    analyze,
-    datasets,
-    filter_options,
-    health,
-    jobs,
-    market_insights,
-    reports,
-)
+from src.api.routers import analysis_runs, analyze, datasets, health
 from src.api.security import get_cors_origins
 
 
@@ -43,24 +34,8 @@ def create_app() -> FastAPI:
                 "description": "Saved role-fit analysis history.",
             },
             {
-                "name": "filter-options",
-                "description": "Selectable analysis filters for a dataset.",
-            },
-            {
-                "name": "jobs",
-                "description": "Job posting browse and search.",
-            },
-            {
-                "name": "market-insights",
-                "description": "Market-level skill, location, and employer demand.",
-            },
-            {
                 "name": "analysis",
                 "description": "Candidate role-fit and skill-gap analysis.",
-            },
-            {
-                "name": "reports",
-                "description": "Downloadable candidate skill-gap reports.",
             },
         ],
     )
@@ -91,10 +66,6 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(datasets.router)
     app.include_router(analysis_runs.router)
-    app.include_router(filter_options.router)
-    app.include_router(jobs.router)
-    app.include_router(market_insights.router)
-    app.include_router(reports.router)
     app.include_router(analyze.router)
 
     return app

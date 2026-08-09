@@ -13,18 +13,6 @@ build/
 tmp/
 django_ops.sqlite3
 
-# Agent tooling scratch files
-.claude/
-CLAUDE.md
-AGENTS.md
-
-# Next.js frontend build artifacts
-frontend/.next/
-frontend/out/
-frontend/.turbo/
-frontend/next-env.d.ts
-*.tsbuildinfo
-
 # Test and coverage artifacts
 .coverage
 .coverage.*

@@ -1,13 +1,10 @@
-from dataclasses import dataclass
 from functools import lru_cache
-from pathlib import Path
 
 import pandas as pd
 
 from src.api.errors import ApiError
 from src.api.schemas import AnalyzeRequest, AnalyzeResponse
 from src.dashboard.services import (
-    CANADA_JOBS_SNAPSHOT_PATH,
     filter_jobs,
     get_job_match_details,
     get_positive_job_matches,
@@ -27,23 +24,6 @@ from src.resume.resume_analyzer import analyze_resume_against_jobs
 RAW_DATA_PATH = "data/raw/sample_jobs.csv"
 PROCESSED_DATA_PATH = "data/processed/processed_jobs.csv"
 LOCAL_SAMPLE_DATASET_NAME = "local_sample"
-CANADA_SNAPSHOT_DATASET_NAME = "canada_snapshot"
-
-
-def clean_optional_text(value: object) -> str:
-    """Return a trimmed string for optional posting metadata, or an empty string."""
-    if value is None:
-        return ""
-
-    try:
-        if pd.isna(value):
-            return ""
-    except (TypeError, ValueError):
-        pass
-
-    cleaned_value = str(value).strip()
-
-    return "" if cleaned_value.lower() == "nan" else cleaned_value
 
 
 @lru_cache(maxsize=1)
@@ -57,41 +37,9 @@ def load_api_jobs() -> pd.DataFrame:
     return prepare_processed_jobs_for_dashboard(jobs_df)
 
 
-@lru_cache(maxsize=1)
-def load_canada_snapshot_jobs() -> pd.DataFrame:
-    """Load the bundled Canada jobs snapshot for API analysis."""
-    snapshot_path = Path(CANADA_JOBS_SNAPSHOT_PATH)
-
-    if not snapshot_path.exists():
-        return pd.DataFrame()
-
-    return prepare_processed_jobs_for_dashboard(pd.read_csv(snapshot_path))
-
-
-LOCAL_DATASET_LOADERS = {
-    LOCAL_SAMPLE_DATASET_NAME: load_api_jobs,
-    CANADA_SNAPSHOT_DATASET_NAME: load_canada_snapshot_jobs,
-}
-
-
 def load_jobs_for_analysis(dataset_name: str | None) -> tuple[str, pd.DataFrame]:
     if not dataset_name:
         return LOCAL_SAMPLE_DATASET_NAME, load_api_jobs()
-
-    local_dataset_loader = LOCAL_DATASET_LOADERS.get(dataset_name)
-
-    if local_dataset_loader is not None:
-        local_jobs_df = local_dataset_loader()
-
-        if local_jobs_df.empty:
-            raise ApiError(
-                status_code=404,
-                detail=(
-                    f"Dataset '{dataset_name}' is not available on this deployment."
-                ),
-            )
-
-        return dataset_name, local_jobs_df
 
     if not database_repository.check_database_connection():
         raise ApiError(
@@ -153,80 +101,40 @@ def get_top_insights(
     return best_role, best_score, top_missing_skill, jobs_analyzed
 
 
-@dataclass
-class AnalysisFrames:
-    """Computed analysis results shared by the analyze and report endpoints."""
-
-    dataset_name: str
-    filtered_jobs: pd.DataFrame
-    analysis_skills: list[str]
-    role_scores_df: pd.DataFrame
-    recommended_skills_df: pd.DataFrame
-    resume_analysis: dict | None
-
-
-def compute_analysis_frames(request: AnalyzeRequest) -> AnalysisFrames:
-    """Load, filter, and score a dataset for one candidate analysis request."""
-    dataset_name, jobs_df = load_jobs_for_analysis(request.dataset_name)
-
-    filtered_jobs = filter_jobs(
-        df=jobs_df,
-        target_roles=request.target_roles,
-        location=request.location,
-        experience_level=request.experience_level,
-        search_query=request.search_query,
-        search_mode=request.search_mode,
-    )
-
-    if filtered_jobs.empty:
-        raise ApiError(
-            status_code=404,
-            detail=(
-                "No matching jobs found for the search query and selected "
-                "role, location, or experience filters."
-            ),
-        )
-
+def build_analyze_response(
+    *,
+    dataset_name: str,
+    filtered_jobs: pd.DataFrame,
+    current_skills: list[str],
+    resume_text: str = "",
+    target_roles: list[str] | None = None,
+    top_n: int,
+) -> AnalyzeResponse:
     resume_analysis = None
-    analysis_skills = list(request.current_skills)
+    analysis_skills = current_skills
 
-    if request.resume_text.strip():
+    if resume_text.strip():
         resume_analysis = analyze_resume_against_jobs(
             jobs_df=filtered_jobs,
-            resume_text=request.resume_text,
-            current_skills=request.current_skills,
-            target_roles=request.target_roles,
+            resume_text=resume_text,
+            current_skills=current_skills,
+            target_roles=target_roles or [],
         )
         analysis_skills = list(resume_analysis["combined_skills"])
 
     role_skill_weights = build_role_skill_weights(filtered_jobs)
 
-    return AnalysisFrames(
-        dataset_name=dataset_name,
-        filtered_jobs=filtered_jobs,
-        analysis_skills=analysis_skills,
-        role_scores_df=score_roles(filtered_jobs, analysis_skills),
-        recommended_skills_df=get_recommended_skills(
-            jobs_df=filtered_jobs,
-            user_skills=analysis_skills,
-            role_skill_weights=role_skill_weights,
-            top_n=request.top_n,
-        ),
-        resume_analysis=resume_analysis,
+    role_scores_df = score_roles(
+        filtered_jobs,
+        analysis_skills,
     )
 
-
-def build_analyze_response(
-    *,
-    frames: AnalysisFrames,
-    top_n: int,
-) -> AnalyzeResponse:
-    dataset_name = frames.dataset_name
-    filtered_jobs = frames.filtered_jobs
-    analysis_skills = frames.analysis_skills
-    role_scores_df = frames.role_scores_df
-    recommended_skills_df = frames.recommended_skills_df
-    resume_analysis = frames.resume_analysis
+    recommended_skills_df = get_recommended_skills(
+        jobs_df=filtered_jobs,
+        user_skills=analysis_skills,
+        role_skill_weights=role_skill_weights,
+        top_n=top_n,
+    )
 
     job_match_details_df = get_job_match_details(
         filtered_jobs=filtered_jobs,
@@ -275,8 +183,6 @@ def build_analyze_response(
             "location": str(row["location"]),
             "experience_level": str(row["experience_level"]),
             "role_category": str(row["role_category"]),
-            "source": clean_optional_text(row.get("source", "")),
-            "source_url": clean_optional_text(row.get("source_url", "")),
             "search_relevance": float(row["search_relevance"]),
             "semantic_relevance": float(row.get("semantic_relevance", 0.0)),
             "tfidf_relevance": float(row.get("tfidf_relevance", 0.0)),
@@ -306,7 +212,31 @@ def build_analyze_response(
 
 
 def analyze_jobs(request: AnalyzeRequest) -> AnalyzeResponse:
+    dataset_name, jobs_df = load_jobs_for_analysis(request.dataset_name)
+
+    filtered_jobs = filter_jobs(
+        df=jobs_df,
+        target_roles=request.target_roles,
+        location=request.location,
+        experience_level=request.experience_level,
+        search_query=request.search_query,
+        search_mode=request.search_mode,
+    )
+
+    if filtered_jobs.empty:
+        raise ApiError(
+            status_code=404,
+            detail=(
+                "No matching jobs found for the search query and selected "
+                "role, location, or experience filters."
+            ),
+        )
+
     return build_analyze_response(
-        frames=compute_analysis_frames(request),
+        dataset_name=dataset_name,
+        filtered_jobs=filtered_jobs,
+        current_skills=request.current_skills,
+        resume_text=request.resume_text,
+        target_roles=request.target_roles,
         top_n=request.top_n,
     )

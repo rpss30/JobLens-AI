@@ -24,6 +24,11 @@
   --color-warning-soft: transparent;
   --color-danger: #000000;
   --color-danger-soft: #eceaea;
+
+  /* Status colours sit outside the brand palette on purpose: online and
+     offline must be told apart at a glance, which shape alone does not do. */
+  --color-status-online: #1a7f4b;
+  --color-status-offline: #b3261e;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -45,6 +50,8 @@
     --color-warning-soft: transparent;
     --color-danger: #d1d0d0;
     --color-danger-soft: #241f1f;
+    --color-status-online: #4ade80;
+    --color-status-offline: #f28b82;
   }
 }
 
@@ -66,6 +73,8 @@
   --color-warning-soft: var(--color-warning-soft);
   --color-danger: var(--color-danger);
   --color-danger-soft: var(--color-danger-soft);
+  --color-status-online: var(--color-status-online);
+  --color-status-offline: var(--color-status-offline);
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 

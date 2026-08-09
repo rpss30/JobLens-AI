@@ -1,16 +1,19 @@
-import { apiFetch, buildQueryString } from "@/lib/api/client";
+import { apiFetch, apiUpload, buildQueryString } from "@/lib/api/client";
 import type {
   AnalysisRun,
   AnalyzeRequest,
   AnalyzeResponse,
   CreateAnalysisRunRequest,
   DatasetSummary,
+  DeleteDatasetResult,
   FilterOptions,
   HealthResponse,
   JobListResponse,
   MarketInsights,
+  RenameDatasetResult,
   SearchMode,
   SortOrder,
+  UploadDatasetResult,
 } from "@/lib/api/types";
 
 export function getHealth(): Promise<HealthResponse> {
@@ -27,6 +30,33 @@ export function getFilterOptions(
 
 export function getDatasets(): Promise<DatasetSummary[]> {
   return apiFetch<DatasetSummary[]>("/datasets");
+}
+
+export function uploadDataset(formData: FormData): Promise<UploadDatasetResult> {
+  // Multipart bodies must set their own boundary, so apiFetch is bypassed here.
+  return apiUpload<UploadDatasetResult>("/datasets", formData);
+}
+
+export function renameDataset(
+  datasetName: string,
+  newName: string,
+): Promise<RenameDatasetResult> {
+  return apiFetch<RenameDatasetResult>(
+    `/datasets/${encodeURIComponent(datasetName)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ new_name: newName }),
+    },
+  );
+}
+
+export function deleteDataset(
+  datasetName: string,
+): Promise<DeleteDatasetResult> {
+  return apiFetch<DeleteDatasetResult>(
+    `/datasets/${encodeURIComponent(datasetName)}`,
+    { method: "DELETE" },
+  );
 }
 
 export interface JobQuery {

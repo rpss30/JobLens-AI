@@ -81,6 +81,13 @@ export function AppShell({ datasets, statusSlot, children }: AppShellProps) {
             >
               <DatasetSwitcher datasets={datasets} />
             </Suspense>
+            <Link
+              href="/datasets"
+              className="hidden text-sm font-medium text-text-muted hover:text-text sm:block"
+            >
+              Manage
+              <span className="sr-only"> datasets</span>
+            </Link>
             {statusSlot}
           </div>
         </div>

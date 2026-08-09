@@ -62,13 +62,13 @@ export function AppShell({ datasets, statusSlot, children }: AppShellProps) {
             </svg>
           </button>
 
-          <Link href="/" className="flex items-center">
-            <span className="text-xl font-semibold tracking-tight text-text sm:text-2xl">
+          <Link href="/" className="flex min-w-0 items-center">
+            <span className="truncate text-xl font-semibold tracking-tight text-text sm:text-2xl">
               JobLens
             </span>
           </Link>
 
-          <div className="ml-auto flex items-center gap-3">
+          <div className="ml-auto flex min-w-0 items-center gap-2 sm:gap-3">
             {/* The switcher reads the dataset from the URL, so it needs a
                 boundary while search params resolve. */}
             <Suspense

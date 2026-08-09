@@ -45,14 +45,21 @@ cp .env.example .env.local
 ## Architecture
 
 The browser never calls FastAPI directly. Server Components fetch through
-`src/lib/api`, and the two client mutations post to thin route handlers that
-forward the body unchanged:
+`src/lib/api`, dataset mutations run as Server Actions, and the remaining client
+calls post to thin route handlers that forward the body unchanged:
 
 ```
 Server Component  ──►  src/lib/api/endpoints.ts  ──►  FastAPI
+Server Action     ──►  src/app/datasets/actions  ──►  FastAPI
 Client component  ──►  /api/analyze              ──►  FastAPI
                   ──►  /api/analysis-runs        ──►  FastAPI
+                  ──►  /api/reports/candidate    ──►  FastAPI
 ```
+
+Dataset upload, rename, and delete are Server Actions so they can call
+`refresh()` and update the rendered list without a manual reload. The report
+route stays a route handler because it streams a file response, which a Server
+Action cannot return.
 
 This keeps the API base URL on the server and avoids a CORS allowlist change.
 One consequence worth knowing: FastAPI's per-client rate limiter sees the Next.js
@@ -68,6 +75,10 @@ server address rather than each visitor.
 | `/skills` | Skill demand, role importance, location and employer concentration | `POST /market-insights` |
 | `/history` | Saved analysis runs | `GET /analysis-runs` |
 | `/history/[id]` | One saved run | `GET /analysis-runs/{id}` |
+| `/datasets` | Upload a jobs CSV, rename or delete saved datasets | `GET`, `POST`, `PATCH`, `DELETE /datasets` |
+
+Markdown and PDF skill-gap reports download from the overview via
+`POST /reports/candidate`.
 
 The active dataset lives in the `dataset` search param so Server Components can
 read it and filtered views stay shareable.

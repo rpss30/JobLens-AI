@@ -60,6 +60,169 @@ def test_analyze_returns_candidate_fit_summary() -> None:
     assert "related_skills_count" in first_job_match
     assert "related_skills_preview" in first_job_match
     assert "search_relevance" in first_job_match
+    assert "source" in first_job_match
+    assert "source_url" in first_job_match
+
+
+def test_filter_options_expose_canada_snapshot_selections() -> None:
+    response = client.get(
+        "/filter-options",
+        params={"dataset_name": "canada_snapshot"},
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["dataset_name"] == "canada_snapshot"
+    assert data["target_roles"]
+    assert data["role_categories"]
+    assert data["skills"]
+    assert data["locations"]
+
+    # Derived from the dataset so filters always match stored values.
+    assert "Senior" in data["experience_levels"]
+
+    assert data["summary"]["job_count"] > 0
+    assert data["summary"]["company_count"] > 0
+
+
+def test_filter_options_return_404_for_unavailable_local_dataset(monkeypatch) -> None:
+    monkeypatch.setattr(
+        analysis_service,
+        "load_canada_snapshot_jobs",
+        lambda: pd.DataFrame(),
+    )
+    monkeypatch.setitem(
+        analysis_service.LOCAL_DATASET_LOADERS,
+        analysis_service.CANADA_SNAPSHOT_DATASET_NAME,
+        analysis_service.load_canada_snapshot_jobs,
+    )
+
+    response = client.get(
+        "/filter-options",
+        params={"dataset_name": "canada_snapshot"},
+    )
+
+    assert response.status_code == 404
+    assert "canada_snapshot" in response.json()["detail"]
+
+
+def test_candidate_report_downloads_markdown_and_pdf() -> None:
+    request_body = {
+        "current_skills": ["Python", "SQL", "Docker"],
+        "search_query": "backend engineer",
+        "dataset_name": "canada_snapshot",
+        "top_n": 5,
+    }
+
+    markdown_response = client.post(
+        "/reports/candidate",
+        params={"format": "markdown"},
+        json=request_body,
+    )
+
+    assert markdown_response.status_code == 200
+    assert markdown_response.headers["content-type"].startswith("text/markdown")
+    assert ".md" in markdown_response.headers["content-disposition"]
+    assert "JobLens AI Candidate Skill-Gap Report" in markdown_response.text
+
+    pdf_response = client.post(
+        "/reports/candidate",
+        params={"format": "pdf"},
+        json=request_body,
+    )
+
+    assert pdf_response.status_code == 200
+    assert pdf_response.headers["content-type"] == "application/pdf"
+    assert pdf_response.content.startswith(b"%PDF-")
+
+    unsupported_response = client.post(
+        "/reports/candidate",
+        params={"format": "docx"},
+        json=request_body,
+    )
+
+    assert unsupported_response.status_code == 422
+
+
+def test_jobs_support_search_sorting_and_pagination() -> None:
+    response = client.get(
+        "/jobs",
+        params={"dataset_name": "canada_snapshot", "limit": 3},
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["dataset_name"] == "canada_snapshot"
+    assert data["total"] > 3
+    assert len(data["jobs"]) == 3
+    assert data["jobs"][0]["title"]
+    assert data["jobs"][0]["source_url"]
+
+    search_response = client.get(
+        "/jobs",
+        params={
+            "dataset_name": "canada_snapshot",
+            "search_query": "machine learning platform",
+            "limit": 3,
+        },
+    )
+
+    search_data = search_response.json()
+
+    # A free-text query narrows the slice and ranks by relevance.
+    assert search_data["total"] < data["total"]
+    assert search_data["jobs"][0]["search_relevance"] > 0
+
+    sorted_response = client.get(
+        "/jobs",
+        params={
+            "dataset_name": "canada_snapshot",
+            "sort_by": "company",
+            "sort_order": "asc",
+            "limit": 5,
+        },
+    )
+
+    companies = [job["company"] for job in sorted_response.json()["jobs"]]
+
+    assert companies == sorted(companies)
+
+    assert client.get("/jobs", params={"sort_by": "unsupported"}).status_code == 422
+
+
+def test_market_insights_summarize_demand_without_a_candidate_profile() -> None:
+    response = client.post(
+        "/market-insights",
+        json={"dataset_name": "canada_snapshot", "top_n": 5},
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["dataset_name"] == "canada_snapshot"
+    assert data["jobs_analyzed"] > 0
+    assert 0 < len(data["skill_demand"]) <= 5
+    assert data["skill_demand"][0]["job_count"] > 0
+    assert data["role_skill_importance"]
+    assert data["jobs_by_location"]
+    assert data["top_companies"]
+    assert data["role_distribution"]
+
+    no_match_response = client.post(
+        "/market-insights",
+        json={
+            "dataset_name": "canada_snapshot",
+            "search_query": "underwater basket weaving",
+            "location": "Antarctica",
+        },
+    )
+
+    assert no_match_response.status_code == 404
 
 
 def test_analyze_supports_free_text_search_without_target_roles() -> None:
@@ -446,6 +609,62 @@ def test_analyze_database_dataset_returns_404_when_dataset_missing(monkeypatch) 
     assert response.status_code == 404
     assert "missing_dataset" in response.json()["detail"]
 
+def test_create_analysis_run_saves_and_returns_the_run(monkeypatch) -> None:
+    saved_calls = []
+
+    monkeypatch.setattr(
+        analysis_run_service.database_repository,
+        "check_database_connection",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        analysis_run_service.database_repository,
+        "save_analysis_run",
+        lambda **kwargs: saved_calls.append(kwargs) or 1,
+    )
+    monkeypatch.setattr(
+        analysis_run_service.database_repository,
+        "load_analysis_run",
+        lambda analysis_run_id: make_saved_analysis_run(),
+    )
+
+    response = client.post(
+        "/analysis-runs",
+        json={
+            "dataset_name": "sample_jobs",
+            "target_roles": ["Data Scientist"],
+            "current_skills": ["Python", "SQL"],
+            "best_role": "Data Science",
+            "weighted_match_score": 75.5,
+            "top_missing_skill": "spark",
+            "jobs_analyzed": 20,
+            "recommended_skills": ["spark"],
+            "role_scores": [{"role_category": "Data Science"}],
+        },
+    )
+
+    assert response.status_code == 201
+    assert response.json()["id"] == 1
+
+    # An omitted name falls back to a generated dated name.
+    assert saved_calls[0]["name"].endswith("sample_jobs")
+
+
+def test_create_analysis_run_returns_503_when_database_unavailable(monkeypatch) -> None:
+    monkeypatch.setattr(
+        analysis_run_service.database_repository,
+        "check_database_connection",
+        lambda: False,
+    )
+
+    response = client.post(
+        "/analysis-runs",
+        json={"dataset_name": "sample_jobs"},
+    )
+
+    assert response.status_code == 503
+
+
 def test_list_analysis_runs_returns_saved_runs(monkeypatch) -> None:
     monkeypatch.setattr(
         analysis_run_service.database_repository,
@@ -615,6 +834,61 @@ def test_get_analysis_run_returns_503_when_database_unavailable(monkeypatch) -> 
 
     assert response.status_code == 503
     assert "PostgreSQL is unavailable" in response.json()["detail"]
+
+def test_upload_dataset_saves_processed_jobs(monkeypatch) -> None:
+    saved_datasets = []
+
+    monkeypatch.setattr(
+        dataset_service.database_repository,
+        "check_database_connection",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        dataset_service.database_repository,
+        "save_uploaded_dataset_from_dataframe",
+        lambda **kwargs: saved_datasets.append(kwargs) or "uploaded_sample",
+    )
+
+    with open("data/examples/sample_upload_jobs.csv", "rb") as upload_file:
+        response = client.post(
+            "/datasets",
+            files={"file": ("sample_upload_jobs.csv", upload_file.read(), "text/csv")},
+            data={"dataset_name": "uploaded sample"},
+        )
+
+    assert response.status_code == 201
+    assert response.json()["dataset_name"] == "uploaded_sample"
+    assert response.json()["job_count"] > 0
+
+    # The CSV is processed before saving, so extracted skills are present.
+    assert "extracted_skills" in saved_datasets[0]["df"].columns
+
+
+def test_upload_dataset_rejects_invalid_uploads(monkeypatch) -> None:
+    monkeypatch.setattr(
+        dataset_service.database_repository,
+        "check_database_connection",
+        lambda: True,
+    )
+
+    non_csv_response = client.post(
+        "/datasets",
+        files={"file": ("jobs.txt", b"title,company\n", "text/plain")},
+        data={"dataset_name": "invalid"},
+    )
+
+    assert non_csv_response.status_code == 400
+    assert "CSV file" in non_csv_response.json()["detail"]
+
+    missing_columns_response = client.post(
+        "/datasets",
+        files={"file": ("jobs.csv", b"title,company\nEngineer,Acme\n", "text/csv")},
+        data={"dataset_name": "invalid"},
+    )
+
+    assert missing_columns_response.status_code == 400
+    assert "missing required columns" in missing_columns_response.json()["detail"]
+
 
 def test_delete_dataset_deletes_uploaded_dataset(monkeypatch) -> None:
     monkeypatch.setattr(

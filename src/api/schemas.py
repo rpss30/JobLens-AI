@@ -179,6 +179,8 @@ class JobMatch(BaseModel):
     location: str
     experience_level: str
     role_category: str
+    source: str = ""
+    source_url: str = ""
     search_relevance: float
     semantic_relevance: float = 0.0
     tfidf_relevance: float = 0.0

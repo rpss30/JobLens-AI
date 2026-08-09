@@ -13,8 +13,11 @@ export async function ApiStatus() {
 
   return (
     <span className="flex items-center gap-1.5">
+      {/* Filled versus hollow, since the palette has no red or green. */}
       <span
-        className={`h-2 w-2 rounded-full ${isOnline ? "bg-positive" : "bg-danger"}`}
+        className={`h-2 w-2 rounded-full ${
+          isOnline ? "bg-text" : "border border-border-strong bg-transparent"
+        }`}
         aria-hidden="true"
       />
       <span className="hidden text-xs text-text-muted sm:inline">

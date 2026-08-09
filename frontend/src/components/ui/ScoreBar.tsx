@@ -11,8 +11,8 @@ interface ScoreBarProps {
 
 const toneStyles = {
   accent: "bg-accent",
-  positive: "bg-positive",
-  warning: "bg-warning",
+  positive: "bg-text",
+  warning: "bg-border-strong",
 };
 
 export function ScoreBar({

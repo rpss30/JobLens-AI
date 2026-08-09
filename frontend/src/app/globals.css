@@ -1,44 +1,50 @@
 @import "tailwindcss";
 
+/*
+ * Warm neutral palette anchored on #000000, #D1D0D0, #988686, and #5C4E4E.
+ * Intermediate tints are derived from those four so text keeps a WCAG AA
+ * contrast ratio: #988686 clears 3:1 and is reserved for borders and large
+ * text, while small text uses #5C4E4E or darker.
+ */
 :root {
-  --color-canvas: #f6f7f9;
+  --color-canvas: #f4f2f2;
   --color-surface: #ffffff;
-  --color-surface-muted: #f1f3f6;
-  --color-border: #e2e5ea;
-  --color-border-strong: #cbd1da;
-  --color-text: #10151f;
-  --color-text-muted: #5a6478;
-  --color-text-subtle: #808a9c;
-  --color-accent: #3d5afe;
-  --color-accent-hover: #2f49e0;
-  --color-accent-soft: #eef1ff;
-  --color-positive: #0f7a5a;
-  --color-positive-soft: #e6f5ef;
-  --color-warning: #9a6200;
-  --color-warning-soft: #fdf3e2;
-  --color-danger: #b3261e;
-  --color-danger-soft: #fdecea;
+  --color-surface-muted: #eceaea;
+  --color-border: #d1d0d0;
+  --color-border-strong: #988686;
+  --color-text: #000000;
+  --color-text-muted: #5c4e4e;
+  --color-text-subtle: #7a6a6a;
+  --color-accent: #5c4e4e;
+  --color-accent-hover: #000000;
+  --color-accent-soft: #e9e5e5;
+  --color-positive: #5c4e4e;
+  --color-positive-soft: #5c4e4e;
+  --color-warning: #7a6a6a;
+  --color-warning-soft: transparent;
+  --color-danger: #000000;
+  --color-danger-soft: #eceaea;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-canvas: #0d1017;
-    --color-surface: #141922;
-    --color-surface-muted: #1b212c;
-    --color-border: #262d3a;
-    --color-border-strong: #38404f;
-    --color-text: #eef1f6;
-    --color-text-muted: #a2acbd;
-    --color-text-subtle: #7d879a;
-    --color-accent: #8b9dff;
-    --color-accent-hover: #a3b1ff;
-    --color-accent-soft: #1c2440;
-    --color-positive: #5ed3a8;
-    --color-positive-soft: #12291f;
-    --color-warning: #e8b263;
-    --color-warning-soft: #2c2113;
-    --color-danger: #f28b82;
-    --color-danger-soft: #2e1715;
+    --color-canvas: #000000;
+    --color-surface: #171414;
+    --color-surface-muted: #241f1f;
+    --color-border: #363030;
+    --color-border-strong: #5c4e4e;
+    --color-text: #d1d0d0;
+    --color-text-muted: #988686;
+    --color-text-subtle: #8a7a7a;
+    --color-accent: #988686;
+    --color-accent-hover: #d1d0d0;
+    --color-accent-soft: #2a2323;
+    --color-positive: #988686;
+    --color-positive-soft: #988686;
+    --color-warning: #988686;
+    --color-warning-soft: transparent;
+    --color-danger: #d1d0d0;
+    --color-danger-soft: #241f1f;
   }
 }
 

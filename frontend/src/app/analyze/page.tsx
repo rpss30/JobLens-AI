@@ -3,7 +3,7 @@ import { AnalyzeForm } from "@/components/domain/AnalyzeForm";
 import { Badge } from "@/components/ui/Badge";
 import { getFilterOptions } from "@/lib/api/endpoints";
 import { resolveDataset } from "@/lib/datasets";
-import { formatCount, formatDatasetLabel } from "@/lib/format";
+import { formatCount } from "@/lib/format";
 
 export default async function AnalyzePage({ searchParams }: PageProps<"/analyze">) {
   const params = await searchParams;
@@ -15,11 +15,10 @@ export default async function AnalyzePage({ searchParams }: PageProps<"/analyze"
     <>
       <PageHeader
         title="Analyze"
-        description="Score your skills against real postings to see role fit, skill gaps, and the jobs that match."
+        description="Tell us what you can do, and we will show you which jobs you fit and what you are missing."
         action={
           <Badge tone="neutral">
-            {formatDatasetLabel(filterOptions.dataset_name)} ·{" "}
-            {formatCount(summary.job_count)} postings
+            Comparing against {formatCount(summary.job_count)} jobs
           </Badge>
         }
       />

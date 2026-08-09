@@ -7,11 +7,12 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Field, controlClassName } from "@/components/ui/Field";
 import { ErrorState } from "@/components/ui/States";
+import { useToast } from "@/context/ToastContext";
 
 export function DatasetUploadForm() {
+  const { showToast } = useToast();
   const [isUploading, setIsUploading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -21,15 +22,16 @@ export function DatasetUploadForm() {
 
     setIsUploading(true);
     setErrorMessage("");
-    setSuccessMessage("");
 
     const result = await uploadDatasetAction(formData);
 
     if (result.ok) {
-      setSuccessMessage(result.message);
+      showToast(result.message);
       form.reset();
     } else {
+      // Upload errors are also shown inline, since they explain how to fix the file.
       setErrorMessage(result.message);
+      showToast("That file could not be uploaded.", "error");
     }
 
     setIsUploading(false);
@@ -78,14 +80,9 @@ export function DatasetUploadForm() {
             <ErrorState title="Upload failed" description={errorMessage} />
           ) : null}
 
-          <div className="flex flex-wrap items-center gap-3">
-            <Button type="submit" disabled={isUploading}>
-              {isUploading ? "Uploading…" : "Upload dataset"}
-            </Button>
-            <p role="status" className="text-sm text-text-muted">
-              {successMessage}
-            </p>
-          </div>
+          <Button type="submit" disabled={isUploading}>
+            {isUploading ? "Uploading…" : "Upload dataset"}
+          </Button>
         </form>
       </CardBody>
     </Card>

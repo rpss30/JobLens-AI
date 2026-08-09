@@ -9,7 +9,9 @@ import {
 } from "@/app/datasets/actions";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { controlClassName } from "@/components/ui/Field";
+import { useToast } from "@/context/ToastContext";
 import type { DatasetSummary } from "@/lib/api/types";
 import { formatDate } from "@/lib/format";
 
@@ -28,23 +30,25 @@ function formatSourceType(sourceType: string): string {
 }
 
 export function DatasetRow({ dataset }: { dataset: DatasetSummary }) {
+  const { showToast } = useToast();
   const [isRenaming, setIsRenaming] = useState(false);
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [newName, setNewName] = useState(dataset.name);
   const [isBusy, setIsBusy] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
 
   const isUserManaged = dataset.source_type === USER_MANAGED_SOURCE;
 
   async function runAction(action: () => Promise<DatasetActionResult>) {
     setIsBusy(true);
-    setErrorMessage("");
 
     const result = await action();
 
     if (result.ok) {
       setIsRenaming(false);
+      setIsConfirmingDelete(false);
+      showToast(result.message);
     } else {
-      setErrorMessage(result.message);
+      showToast(result.message, "error");
     }
 
     setIsBusy(false);
@@ -81,7 +85,7 @@ export function DatasetRow({ dataset }: { dataset: DatasetSummary }) {
                 variant="secondary"
                 size="sm"
                 disabled={isBusy}
-                onClick={() => runAction(() => deleteDatasetAction(dataset.name))}
+                onClick={() => setIsConfirmingDelete(true)}
               >
                 Delete
               </Button>
@@ -121,11 +125,15 @@ export function DatasetRow({ dataset }: { dataset: DatasetSummary }) {
         </form>
       ) : null}
 
-      {errorMessage ? (
-        <p role="alert" className="mt-2 text-sm text-danger">
-          {errorMessage}
-        </p>
-      ) : null}
+      <ConfirmDialog
+        open={isConfirmingDelete}
+        title={`Delete ${dataset.name}?`}
+        description="This permanently removes the dataset and its job postings. Saved analyses that used it will keep their results, but you will not be able to re-run them against this data."
+        confirmLabel="Delete dataset"
+        isBusy={isBusy}
+        onCancel={() => setIsConfirmingDelete(false)}
+        onConfirm={() => runAction(() => deleteDatasetAction(dataset.name))}
+      />
     </li>
   );
 }

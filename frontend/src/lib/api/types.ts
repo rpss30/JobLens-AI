@@ -19,6 +19,22 @@ export interface DatasetSummary {
   created_at: string;
 }
 
+export interface UploadDatasetResult {
+  dataset_name: string;
+  job_count: number;
+}
+
+export interface RenameDatasetResult {
+  old_name: string;
+  new_name: string;
+  renamed: boolean;
+}
+
+export interface DeleteDatasetResult {
+  dataset_name: string;
+  deleted: boolean;
+}
+
 export interface DatasetSnapshotSummary {
   job_count: number;
   company_count: number;

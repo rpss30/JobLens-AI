@@ -36,6 +36,7 @@ flowchart LR
     D --> E["Weighted matching engine"]
     E --> F["Streamlit dashboard"]
     E --> G["FastAPI backend"]
+    G --> I["Next.js frontend"]
     F --> H["PostgreSQL datasets and saved analyses"]
     G --> H
 ```
@@ -98,6 +99,8 @@ The dashboard also shows market-level insights such as top required skills, role
 - Top matching job cards with job-level evidence
 - Jobs-by-location market insight
 - Role distribution and top hiring companies
+- Next.js frontend with overview, analysis, job browsing, market insights, and history
+- Server-rendered pages that consume the FastAPI backend without duplicating business logic
 - Interactive Streamlit dashboard with controlled search presets and profile presets
 - Free-text TF-IDF job search across titles, skills, employers, locations, and descriptions
 - Optional semantic and hybrid search modes using local deterministic SVD embeddings
@@ -296,6 +299,7 @@ protected.
 | Layer | Technologies |
 | --- | --- |
 | Data and matching | Python, Pandas, scikit-learn |
+| Frontend | Next.js, TypeScript, Tailwind CSS, Recharts |
 | Dashboard | Streamlit, Altair, Plotly |
 | API | FastAPI, Pydantic, Uvicorn |
 | Ops tooling | Django, Django templates, Gunicorn |
@@ -355,6 +359,13 @@ JobLens AI
 │   ├── scripts
 │   └── server
 │       └── systemd
+├── frontend
+│   ├── src
+│   │   ├── app
+│   │   ├── components
+│   │   ├── context
+│   │   └── lib
+│   └── README.md
 ├── scripts
 │   ├── fetch_greenhouse_jobs.py
 │   ├── fetch_canada_jobs.py
@@ -451,6 +462,16 @@ Run the FastAPI backend:
 uvicorn src.api.main:app --reload
 ```
 
+Run the Next.js frontend, which needs the FastAPI backend running:
+
+```bash
+cd frontend && npm install && npm run dev
+```
+
+The frontend is served at `http://localhost:3000`. See
+[frontend/README.md](frontend/README.md) for its architecture, routes, and
+environment variables.
+
 Health check:
 
 ```bash
@@ -503,7 +524,11 @@ curl -X POST http://127.0.0.1:8000/analyze \
 | `PATCH` | `/datasets/{dataset_name}` | Rename an uploaded dataset |
 | `DELETE` | `/datasets/{dataset_name}` | Delete an uploaded dataset |
 | `GET` | `/analysis-runs` | List saved analysis runs |
+| `POST` | `/analysis-runs` | Save an analysis run |
 | `GET` | `/analysis-runs/{analysis_run_id}` | Load one saved analysis run |
+| `GET` | `/filter-options` | List selectable analysis filters and dataset summary |
+| `GET` | `/jobs` | Browse job postings with search, sorting, and pagination |
+| `POST` | `/market-insights` | Summarize skill, location, and employer demand |
 | `POST` | `/analyze` | Search jobs and run role-fit and skill-gap analysis |
 
 List endpoints support bounded pagination with `limit` and `offset`, plus
@@ -514,8 +539,8 @@ List endpoints support bounded pagination with `limit` and `offset`, plus
 
 JobLens AI can also be run locally with Docker Compose.
 
-Build and start the Streamlit dashboard, FastAPI backend, Django operations
-service, and PostgreSQL database:
+Build and start the Next.js frontend, Streamlit dashboard, FastAPI backend,
+Django operations service, and PostgreSQL database:
 
 ```bash
 docker compose up --build
@@ -523,6 +548,7 @@ docker compose up --build
 
 Once the services are running:
 
+- Next.js frontend: `http://localhost:3000`
 - Streamlit dashboard: `http://localhost:8501`
 - FastAPI docs: `http://localhost:8000/docs`
 - FastAPI health check: `http://localhost:8000/health`

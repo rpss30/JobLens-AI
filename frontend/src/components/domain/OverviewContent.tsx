@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { JobMatchCard } from "@/components/domain/JobMatchCard";
 import { RoleFitPanel } from "@/components/domain/RoleFitPanel";
+import { SaveAnalysisButton } from "@/components/domain/SaveAnalysisButton";
 import { SkillGapPanel } from "@/components/domain/SkillGapPanel";
 import { Section } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/Badge";
@@ -70,7 +71,9 @@ export function OverviewContent({
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <SaveAnalysisButton />
+
+      <div className="grid items-start gap-6 lg:grid-cols-2">
         <RoleFitPanel roleScores={response.role_scores} />
         <SkillGapPanel skills={response.recommended_skills} />
       </div>

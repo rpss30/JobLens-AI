@@ -108,6 +108,37 @@ def test_filter_options_return_404_for_unavailable_local_dataset(monkeypatch) ->
     assert "canada_snapshot" in response.json()["detail"]
 
 
+def test_market_insights_summarize_demand_without_a_candidate_profile() -> None:
+    response = client.post(
+        "/market-insights",
+        json={"dataset_name": "canada_snapshot", "top_n": 5},
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["dataset_name"] == "canada_snapshot"
+    assert data["jobs_analyzed"] > 0
+    assert 0 < len(data["skill_demand"]) <= 5
+    assert data["skill_demand"][0]["job_count"] > 0
+    assert data["role_skill_importance"]
+    assert data["jobs_by_location"]
+    assert data["top_companies"]
+    assert data["role_distribution"]
+
+    no_match_response = client.post(
+        "/market-insights",
+        json={
+            "dataset_name": "canada_snapshot",
+            "search_query": "underwater basket weaving",
+            "location": "Antarctica",
+        },
+    )
+
+    assert no_match_response.status_code == 404
+
+
 def test_analyze_supports_free_text_search_without_target_roles() -> None:
     response = client.post(
         "/analyze",

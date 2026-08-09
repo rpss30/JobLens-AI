@@ -23,21 +23,6 @@ services:
     depends_on:
       - db
 
-  frontend:
-    image: node:24-alpine
-    container_name: joblens-frontend
-    working_dir: /app
-    command: sh -c "npm install && npm run dev -- --hostname 0.0.0.0"
-    ports:
-      - "3000:3000"
-    environment:
-      - JOBLENS_API_URL=http://api:8000
-    volumes:
-      - ./frontend:/app
-      - joblens_frontend_node_modules:/app/node_modules
-    depends_on:
-      - api
-
   django-ops:
     build: .
     container_name: joblens-django-ops
@@ -67,4 +52,3 @@ services:
 
 volumes:
   joblens_postgres_data:
-  joblens_frontend_node_modules:

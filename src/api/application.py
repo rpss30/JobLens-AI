@@ -12,6 +12,7 @@ from src.api.routers import (
     datasets,
     filter_options,
     health,
+    jobs,
     market_insights,
 )
 from src.api.security import get_cors_origins
@@ -43,6 +44,10 @@ def create_app() -> FastAPI:
             {
                 "name": "filter-options",
                 "description": "Selectable analysis filters for a dataset.",
+            },
+            {
+                "name": "jobs",
+                "description": "Job posting browse and search.",
             },
             {
                 "name": "market-insights",
@@ -82,6 +87,7 @@ def create_app() -> FastAPI:
     app.include_router(datasets.router)
     app.include_router(analysis_runs.router)
     app.include_router(filter_options.router)
+    app.include_router(jobs.router)
     app.include_router(market_insights.router)
     app.include_router(analyze.router)
 

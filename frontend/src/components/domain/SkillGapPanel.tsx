@@ -13,15 +13,9 @@ const columns: Column<RecommendedSkill>[] = [
   },
   {
     key: "job_count",
-    header: "Postings",
+    header: "Jobs asking for it",
     align: "right",
     render: (row) => formatCount(row.job_count),
-  },
-  {
-    key: "avg_weight",
-    header: "Avg weight",
-    align: "right",
-    render: (row) => row.avg_weight.toFixed(1),
   },
 ];
 
@@ -29,16 +23,16 @@ export function SkillGapPanel({ skills }: { skills: RecommendedSkill[] }) {
   return (
     <Card>
       <CardHeader
-        title="Highest-impact skill gaps"
-        description="Missing skills ranked by how often they appear and how much each role weights them."
+        title="Skills worth learning next"
+        description="Skills you are missing, with the ones employers ask for most at the top."
       />
       <CardBody className="px-0 py-0">
         <DataTable
           columns={columns}
           rows={skills}
           getRowKey={(row) => row.skill}
-          caption="Recommended skills to learn"
-          emptyMessage="No major skill gaps were found for this search."
+          caption="Skills to learn next"
+          emptyMessage="Nothing major is missing for this search."
         />
       </CardBody>
     </Card>

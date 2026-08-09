@@ -40,15 +40,15 @@ export function DatasetUploadForm() {
   return (
     <Card>
       <CardHeader
-        title="Upload a dataset"
-        description="A jobs CSV with title, company, location, description, and experience_level columns."
+        title="Add your own jobs"
+        description="A spreadsheet (CSV) with a column for title, company, location, description, and experience level."
       />
       <CardBody>
         <form onSubmit={handleSubmit} className="space-y-5">
           <Field
-            label="Jobs CSV"
+            label="Choose your file"
             htmlFor="dataset-file"
-            hint="Up to 2 MB and 5,000 rows. Skills are extracted during processing."
+            hint="Up to 2 MB and 5,000 jobs. We read each description to find the skills."
           >
             <input
               id="dataset-file"
@@ -61,9 +61,9 @@ export function DatasetUploadForm() {
           </Field>
 
           <Field
-            label="Dataset name"
+            label="Give it a name"
             htmlFor="dataset-name"
-            hint="Saved as a lowercase, underscore-separated slug."
+            hint="Anything you like. Spaces become underscores."
           >
             <input
               id="dataset-name"
@@ -71,7 +71,7 @@ export function DatasetUploadForm() {
               type="text"
               required
               maxLength={120}
-              placeholder="my_custom_dataset"
+              placeholder="my job list"
               className={controlClassName}
             />
           </Field>
@@ -81,7 +81,7 @@ export function DatasetUploadForm() {
           ) : null}
 
           <Button type="submit" disabled={isUploading}>
-            {isUploading ? "Uploading…" : "Upload dataset"}
+            {isUploading ? "Uploading…" : "Add these jobs"}
           </Button>
         </form>
       </CardBody>

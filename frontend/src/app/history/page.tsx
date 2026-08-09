@@ -22,7 +22,7 @@ function AnalysisRunRow({ run }: { run: AnalysisRun }) {
           <p className="truncate text-sm font-medium text-text">{run.name}</p>
           <p className="mt-0.5 text-xs text-text-muted">
             {run.dataset_name} · {formatDate(run.created_at)} ·{" "}
-            {formatCount(run.jobs_analyzed)} postings
+            {formatCount(run.jobs_analyzed)} jobs
           </p>
         </div>
 
@@ -66,7 +66,7 @@ export default async function HistoryPage({
     <>
       <PageHeader
         title="History"
-        description="Analysis runs saved to PostgreSQL, newest first."
+        description="Results you have saved, newest first."
         action={
           <Link href={`/analyze?dataset=${encodeURIComponent(datasetName)}`}>
             <Button>New analysis</Button>
@@ -76,16 +76,16 @@ export default async function HistoryPage({
 
       {loadError ? (
         <ErrorState
-          title="History is unavailable"
-          description={`${loadError} Saved analysis runs need PostgreSQL, which is optional for local development.`}
+          title="Saved results are unavailable"
+          description={`${loadError} Saving results needs the database, which is not switched on right now.`}
         />
       ) : runs.length === 0 ? (
         <EmptyState
-          title="No saved analysis runs"
-          description="Run an analysis, then save it from the overview to keep a record of how your role fit changes over time."
+          title="Nothing saved yet"
+          description="Check your skills, then save the result to track how your match improves as you learn."
           action={
             <Link href={`/analyze?dataset=${encodeURIComponent(datasetName)}`}>
-              <Button>Run an analysis</Button>
+              <Button>Check my skills</Button>
             </Link>
           }
         />

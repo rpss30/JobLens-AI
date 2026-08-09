@@ -27,24 +27,24 @@ export default async function DatasetsPage() {
     <>
       <PageHeader
         title="Datasets"
-        description="Upload your own job postings and manage the datasets saved to PostgreSQL."
+        description="Bring your own job postings, or manage the ones you have already added."
       />
 
       <DatasetUploadForm />
 
       <Section
         title="Saved datasets"
-        description="Uploaded CSV datasets can be renamed or deleted. Bundled samples are locked."
+        description="Sets you upload can be renamed or deleted. The ones that ship with JobLens are read-only."
       >
         {loadError ? (
           <ErrorState
-            title="Datasets are unavailable"
-            description={`${loadError} Saved datasets need PostgreSQL, which is optional for local development.`}
+            title="Your uploads are unavailable"
+            description={`${loadError} Uploading needs the database, which is not switched on right now.`}
           />
         ) : datasets.length === 0 ? (
           <EmptyState
-            title="No saved datasets"
-            description="Upload a jobs CSV above to analyze your own postings alongside the bundled datasets."
+            title="Nothing uploaded yet"
+            description="Upload a spreadsheet of jobs above to check your skills against your own list."
           />
         ) : (
           <Card>

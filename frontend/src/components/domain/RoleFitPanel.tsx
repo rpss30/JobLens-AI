@@ -11,10 +11,18 @@ const confidenceTones: Record<string, BadgeTone> = {
   Insufficient: "danger",
 };
 
+// Plain-language stand-ins for the matching engine's confidence labels.
+const confidenceLabels: Record<string, string> = {
+  Strong: "Based on plenty of jobs",
+  Moderate: "Based on a fair number of jobs",
+  Limited: "Based on only a few jobs",
+  Insufficient: "Not enough jobs to judge",
+};
+
 export function ConfidenceBadge({ confidence }: { confidence: string }) {
   return (
     <Badge tone={confidenceTones[confidence] ?? "neutral"}>
-      {confidence} confidence
+      {confidenceLabels[confidence] ?? confidence}
     </Badge>
   );
 }
@@ -27,8 +35,8 @@ export function RoleFitPanel({ roleScores }: { roleScores: RoleScore[] }) {
   return (
     <Card>
       <CardHeader
-        title="Role match"
-        description="Weighted skill fit per role category, using role-specific skill importance."
+        title="How you match each type of role"
+        description="Skills that show up in more job ads count for more, so this reflects what employers actually ask for."
       />
       <CardBody className="space-y-5">
         {rankedRoles.length === 0 ? (
@@ -45,8 +53,8 @@ export function RoleFitPanel({ roleScores }: { roleScores: RoleScore[] }) {
               <div className="flex flex-wrap items-center gap-2">
                 <ConfidenceBadge confidence={role.sample_confidence} />
                 <span className="text-xs text-text-subtle">
-                  {role.representative_job_count} representative of{" "}
-                  {role.sample_size} postings
+                  {role.sample_size} {role.sample_size === 1 ? "job" : "jobs"} in
+                  this category
                 </span>
               </div>
             </div>

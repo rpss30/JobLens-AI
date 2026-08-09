@@ -23,10 +23,22 @@ const PROFILE_PRESETS: Record<string, string[]> = {
   "Cloud engineer": ["AWS", "Docker", "Terraform", "Kubernetes", "CI/CD"],
 };
 
-const SEARCH_MODES: { value: SearchMode; label: string }[] = [
-  { value: "tfidf", label: "Keyword" },
-  { value: "semantic", label: "Semantic" },
-  { value: "hybrid", label: "Hybrid" },
+const SEARCH_MODES: { value: SearchMode; label: string; hint: string }[] = [
+  {
+    value: "tfidf",
+    label: "Exact words",
+    hint: "Finds jobs containing the words you typed.",
+  },
+  {
+    value: "semantic",
+    label: "Similar meaning",
+    hint: "Also finds jobs that mean the same thing in different words.",
+  },
+  {
+    value: "hybrid",
+    label: "Both",
+    hint: "Blends exact wording with similar meaning.",
+  },
 ];
 
 export function AnalyzeForm({
@@ -85,7 +97,7 @@ export function AnalyzeForm({
       if (!response.ok) {
         setErrorMessage(
           (payload as { detail?: string }).detail ??
-            "The analysis could not be completed.",
+            "We could not check your skills just now.",
         );
         return;
       }
@@ -98,7 +110,7 @@ export function AnalyzeForm({
       router.push(`/?dataset=${encodeURIComponent(datasetName)}`);
     } catch {
       setErrorMessage(
-        "Could not reach the analysis service. Check that the JobLens API is running.",
+        "Could not reach JobLens. Check your connection and try again.",
       );
     } finally {
       setIsSubmitting(false);
@@ -109,22 +121,22 @@ export function AnalyzeForm({
     <form onSubmit={handleSubmit} className="grid gap-6 lg:grid-cols-2">
       <Card>
         <CardHeader
-          title="Your profile"
-          description="Add the skills you already have, or paste resume text for private in-memory matching."
+          title="What you can do"
+          description="List the skills you already have, or paste your resume and we will pull them out."
         />
         <CardBody className="space-y-5">
           <TokenInput
             id="current-skills"
-            label="Current skills"
-            placeholder="Start typing a skill, then press Enter"
-            hint={`${filterOptions.skills.length} skills found in this dataset. Up to 50 can be analyzed.`}
+            label="Skills you have"
+            placeholder="Type a skill, for example Python"
+            hint={`Pick from ${filterOptions.skills.length} skills these employers ask for, or type your own. Up to 50.`}
             values={currentSkills}
             suggestions={filterOptions.skills}
             onChange={setCurrentSkills}
           />
 
           <div>
-            <p className="mb-2 text-sm font-medium text-text">Quick presets</p>
+            <p className="mb-2 text-sm font-medium text-text">Or start from a common profile</p>
             <div className="flex flex-wrap gap-2">
               {Object.entries(PROFILE_PRESETS).map(([name, skills]) => (
                 <Button
@@ -141,9 +153,9 @@ export function AnalyzeForm({
           </div>
 
           <Field
-            label="Resume text"
+            label="Or paste your resume"
             htmlFor="resume-text"
-            hint="Optional. Used for this analysis only and never stored."
+            hint="Optional. Used only to work out this result, and never saved or shared."
           >
             <textarea
               id="resume-text"
@@ -151,7 +163,7 @@ export function AnalyzeForm({
               maxLength={12000}
               value={resumeText}
               onChange={(event) => setResumeText(event.target.value)}
-              placeholder="Paste resume text to extract skills automatically"
+              placeholder="Paste your resume here and we will find your skills for you"
               className={controlClassName}
             />
           </Field>
@@ -160,14 +172,14 @@ export function AnalyzeForm({
 
       <Card>
         <CardHeader
-          title="Search scope"
-          description="Narrow the job market slice this analysis is scored against."
+          title="Which jobs to compare against"
+          description="Leave these as they are to use every job, or narrow it down to what you are looking for."
         />
         <CardBody className="space-y-5">
           <Field
-            label="Job search"
+            label="What kind of job?"
             htmlFor="search-query"
-            hint="Searches titles, skills, companies, locations, and descriptions."
+            hint="Looks through job titles, skills, companies, locations, and full descriptions."
           >
             <input
               id="search-query"
@@ -175,16 +187,16 @@ export function AnalyzeForm({
               maxLength={200}
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="backend python fintech"
+              placeholder="for example, backend developer"
               className={controlClassName}
             />
           </Field>
 
           <fieldset>
             <legend className="mb-2 text-sm font-medium text-text">
-              Search mode
+              How to match your search
             </legend>
-            <div className="inline-flex rounded-lg border border-border p-0.5">
+            <div className="inline-flex flex-wrap rounded-lg border border-border p-0.5">
               {SEARCH_MODES.map((mode) => (
                 <button
                   key={mode.value}
@@ -201,13 +213,16 @@ export function AnalyzeForm({
                 </button>
               ))}
             </div>
+            <p className="mt-2 text-xs text-text-subtle">
+              {SEARCH_MODES.find((mode) => mode.value === searchMode)?.hint}
+            </p>
           </fieldset>
 
           <TokenInput
             id="target-roles"
-            label="Target roles"
-            placeholder="Start typing a job title, then press Enter"
-            hint="Optional when a job search is provided. Up to 20 roles."
+            label="Job titles you are aiming for"
+            placeholder="Type a job title, for example Data Analyst"
+            hint="Optional. Add job titles you are aiming for, up to 20."
             values={targetRoles}
             suggestions={filterOptions.target_roles}
             maxValues={20}
@@ -249,9 +264,9 @@ export function AnalyzeForm({
           </div>
 
           <Field
-            label="Results per section"
+            label="How many results to show"
             htmlFor="top-n"
-            hint="Applies to recommended skills and matching jobs."
+            hint="Applies to the skills list and the job matches."
           >
             <input
               id="top-n"
@@ -277,18 +292,18 @@ export function AnalyzeForm({
 
         <div className="flex flex-wrap items-center gap-4">
           <Button type="submit" disabled={isSubmitting || !hasProfile || !hasScope}>
-            {isSubmitting ? "Analyzing…" : "Run analysis"}
+            {isSubmitting ? "Checking your skills…" : "Check my skills"}
           </Button>
 
           {!hasProfile ? (
             <p className="text-sm text-text-muted">
-              Add at least one skill or paste resume text to continue.
+              Add at least one skill, or paste your resume, to continue.
             </p>
           ) : null}
 
           {hasProfile && !hasScope ? (
             <p className="text-sm text-text-muted">
-              Add a job search or at least one target role to continue.
+              Type what kind of job you are looking for, or add a target role, to continue.
             </p>
           ) : null}
         </div>

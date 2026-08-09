@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 
 from src.api.query_params import ListQueryParams, pagination_params
 from src.api.schemas import (
@@ -9,6 +9,7 @@ from src.api.schemas import (
     ErrorResponse,
     RenameDatasetRequest,
     RenameDatasetResponse,
+    UploadDatasetResponse,
 )
 from src.api.services import dataset_service
 from src.api.services.dataset_service import DatasetSortBy
@@ -46,6 +47,34 @@ def get_datasets(
         sort_order=query.sort_order,
         limit=query.limit,
         offset=query.offset,
+    )
+
+
+@router.post(
+    "",
+    response_model=UploadDatasetResponse,
+    status_code=201,
+    summary="Upload a jobs CSV as a new dataset",
+    responses={
+        400: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+        503: {"model": ErrorResponse},
+    },
+)
+async def upload_dataset(
+    file: Annotated[UploadFile, File(description="Jobs CSV to upload.")],
+    dataset_name: Annotated[
+        str,
+        Form(
+            max_length=120,
+            description="Name for the saved dataset. Stored as a slug.",
+        ),
+    ],
+) -> dict[str, str | int]:
+    return dataset_service.create_uploaded_dataset(
+        filename=file.filename or "uploaded_jobs.csv",
+        content=await file.read(),
+        dataset_name=dataset_name,
     )
 
 

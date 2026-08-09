@@ -62,11 +62,8 @@ export function AppShell({ datasets, statusSlot, children }: AppShellProps) {
             </svg>
           </button>
 
-          <Link href="/" className="flex items-center gap-2">
-            <span className="grid h-7 w-7 place-items-center rounded-lg bg-accent text-sm font-bold text-white">
-              J
-            </span>
-            <span className="text-sm font-semibold tracking-tight text-text">
+          <Link href="/" className="flex items-center">
+            <span className="text-xl font-semibold tracking-tight text-text sm:text-2xl">
               JobLens
             </span>
           </Link>

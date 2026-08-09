@@ -4,12 +4,16 @@ import { cn } from "@/lib/cn";
 
 export type BadgeTone = "neutral" | "accent" | "positive" | "warning" | "danger";
 
+/*
+ * The palette is monochrome, so meaning is carried by fill weight rather than
+ * hue: solid chips read as held or achieved, outlined chips as missing.
+ */
 const toneStyles: Record<BadgeTone, string> = {
   neutral: "bg-surface-muted text-text-muted border-border",
   accent: "bg-accent-soft text-accent border-transparent",
-  positive: "bg-positive-soft text-positive border-transparent",
-  warning: "bg-warning-soft text-warning border-transparent",
-  danger: "bg-danger-soft text-danger border-transparent",
+  positive: "bg-accent text-surface border-transparent",
+  warning: "bg-transparent text-text-subtle border-border-strong border-dashed",
+  danger: "bg-danger-soft text-danger border-text font-semibold",
 };
 
 interface BadgeProps {

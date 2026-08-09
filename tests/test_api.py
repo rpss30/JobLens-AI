@@ -60,6 +60,52 @@ def test_analyze_returns_candidate_fit_summary() -> None:
     assert "related_skills_count" in first_job_match
     assert "related_skills_preview" in first_job_match
     assert "search_relevance" in first_job_match
+    assert "source" in first_job_match
+    assert "source_url" in first_job_match
+
+
+def test_filter_options_expose_canada_snapshot_selections() -> None:
+    response = client.get(
+        "/filter-options",
+        params={"dataset_name": "canada_snapshot"},
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["dataset_name"] == "canada_snapshot"
+    assert data["target_roles"]
+    assert data["role_categories"]
+    assert data["skills"]
+    assert data["locations"]
+
+    # Derived from the dataset so filters always match stored values.
+    assert "Senior" in data["experience_levels"]
+
+    assert data["summary"]["job_count"] > 0
+    assert data["summary"]["company_count"] > 0
+
+
+def test_filter_options_return_404_for_unavailable_local_dataset(monkeypatch) -> None:
+    monkeypatch.setattr(
+        analysis_service,
+        "load_canada_snapshot_jobs",
+        lambda: pd.DataFrame(),
+    )
+    monkeypatch.setitem(
+        analysis_service.LOCAL_DATASET_LOADERS,
+        analysis_service.CANADA_SNAPSHOT_DATASET_NAME,
+        analysis_service.load_canada_snapshot_jobs,
+    )
+
+    response = client.get(
+        "/filter-options",
+        params={"dataset_name": "canada_snapshot"},
+    )
+
+    assert response.status_code == 404
+    assert "canada_snapshot" in response.json()["detail"]
 
 
 def test_analyze_supports_free_text_search_without_target_roles() -> None:

@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import { JobMatchCard } from "@/components/domain/JobMatchCard";
+import { LandingIntro } from "@/components/domain/LandingIntro";
 import { ReportDownloads } from "@/components/domain/ReportDownloads";
 import { RoleFitPanel } from "@/components/domain/RoleFitPanel";
 import { SaveAnalysisButton } from "@/components/domain/SaveAnalysisButton";
@@ -29,17 +30,7 @@ export function OverviewContent({
   const analyzeHref = `/analyze?dataset=${encodeURIComponent(datasetName)}`;
 
   if (!analysis) {
-    return (
-      <EmptyState
-        title="No analysis yet"
-        description={`This dataset holds ${formatCount(summary.job_count)} postings from ${formatCount(summary.company_count)} employers across ${formatCount(summary.location_count)} locations. Run an analysis to see how your skills score against it.`}
-        action={
-          <Link href={analyzeHref}>
-            <Button>Run your first analysis</Button>
-          </Link>
-        }
-      />
-    );
+    return <LandingIntro datasetName={datasetName} summary={summary} />;
   }
 
   const { response, request } = analysis;
@@ -49,26 +40,28 @@ export function OverviewContent({
     <div className="space-y-8">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile
-          label="Best-fit role"
+          label="Your best role"
           value={response.best_role}
-          hint={`Scored across ${formatCount(response.jobs_analyzed)} postings`}
+          hint={`Compared against ${formatCount(response.jobs_analyzed)} jobs`}
         />
         <StatTile
-          label="Role skill fit"
+          label="Skill match"
           value={formatPercent(response.weighted_match_score)}
+          hint="How much of what this role asks for you already have"
           emphasis
         />
         <StatTile
-          label="Top skill gap"
+          label="Biggest gap"
           value={formatSkill(response.top_missing_skill)}
+          hint="The most in-demand skill you are missing"
         />
         <StatTile
-          label="Profile skills"
+          label="Skills you have"
           value={formatCount(
             response.resume_analysis?.combined_skills.length ??
               request.current_skills.length,
           )}
-          hint={response.resume_analysis ? "Includes resume-extracted skills" : undefined}
+          hint={response.resume_analysis ? "Including skills found in your resume" : undefined}
         />
       </div>
 
@@ -83,8 +76,8 @@ export function OverviewContent({
       </div>
 
       <Section
-        title="Strongest job matches"
-        description="Postings where your current skills overlap most with what the role requires."
+        title="Jobs worth applying to first"
+        description="These openings ask for the most skills you already have."
         action={
           <Link
             href={`/jobs?dataset=${encodeURIComponent(datasetName)}`}
@@ -96,11 +89,11 @@ export function OverviewContent({
       >
         {topJobs.length === 0 ? (
           <EmptyState
-            title="No positive job matches"
-            description="None of the filtered postings overlap with your current skills. Try broadening the search or adding more skills."
+            title="No close matches yet"
+            description="None of these jobs overlap with the skills you listed. Try adding more skills, or widening your search."
             action={
               <Link href={analyzeHref}>
-                <Button variant="secondary">Adjust the analysis</Button>
+                <Button variant="secondary">Change my search</Button>
               </Link>
             }
           />

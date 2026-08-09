@@ -571,6 +571,62 @@ def test_analyze_database_dataset_returns_404_when_dataset_missing(monkeypatch) 
     assert response.status_code == 404
     assert "missing_dataset" in response.json()["detail"]
 
+def test_create_analysis_run_saves_and_returns_the_run(monkeypatch) -> None:
+    saved_calls = []
+
+    monkeypatch.setattr(
+        analysis_run_service.database_repository,
+        "check_database_connection",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        analysis_run_service.database_repository,
+        "save_analysis_run",
+        lambda **kwargs: saved_calls.append(kwargs) or 1,
+    )
+    monkeypatch.setattr(
+        analysis_run_service.database_repository,
+        "load_analysis_run",
+        lambda analysis_run_id: make_saved_analysis_run(),
+    )
+
+    response = client.post(
+        "/analysis-runs",
+        json={
+            "dataset_name": "sample_jobs",
+            "target_roles": ["Data Scientist"],
+            "current_skills": ["Python", "SQL"],
+            "best_role": "Data Science",
+            "weighted_match_score": 75.5,
+            "top_missing_skill": "spark",
+            "jobs_analyzed": 20,
+            "recommended_skills": ["spark"],
+            "role_scores": [{"role_category": "Data Science"}],
+        },
+    )
+
+    assert response.status_code == 201
+    assert response.json()["id"] == 1
+
+    # An omitted name falls back to a generated dated name.
+    assert saved_calls[0]["name"].endswith("sample_jobs")
+
+
+def test_create_analysis_run_returns_503_when_database_unavailable(monkeypatch) -> None:
+    monkeypatch.setattr(
+        analysis_run_service.database_repository,
+        "check_database_connection",
+        lambda: False,
+    )
+
+    response = client.post(
+        "/analysis-runs",
+        json={"dataset_name": "sample_jobs"},
+    )
+
+    assert response.status_code == 503
+
+
 def test_list_analysis_runs_returns_saved_runs(monkeypatch) -> None:
     monkeypatch.setattr(
         analysis_run_service.database_repository,

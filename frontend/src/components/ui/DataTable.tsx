@@ -15,6 +15,8 @@ interface DataTableProps<Row> {
   getRowKey: (row: Row, index: number) => string;
   caption?: string;
   emptyMessage?: string;
+  /** Only set for tables with enough columns to need horizontal scrolling. */
+  minWidthClassName?: string;
 }
 
 export function DataTable<Row>({
@@ -23,6 +25,7 @@ export function DataTable<Row>({
   getRowKey,
   caption,
   emptyMessage = "No rows to show.",
+  minWidthClassName = "min-w-full",
 }: DataTableProps<Row>) {
   if (rows.length === 0) {
     return <p className="px-5 py-6 text-sm text-text-muted">{emptyMessage}</p>;
@@ -31,7 +34,7 @@ export function DataTable<Row>({
   return (
     // Wide tables scroll inside their own container, never the page body.
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[32rem] border-collapse text-sm">
+      <table className={cn("w-full border-collapse text-sm", minWidthClassName)}>
         {caption ? <caption className="sr-only">{caption}</caption> : null}
         <thead>
           <tr className="border-b border-border">

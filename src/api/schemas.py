@@ -169,6 +169,108 @@ class AnalysisRunResponse(BaseModel):
     role_scores: list[dict[str, Any]]
     created_at: datetime
     
+class MarketInsightsRequest(BaseModel):
+    target_roles: list[str] = Field(
+        default_factory=list,
+        max_length=MAX_TARGET_ROLE_COUNT,
+        description="Target job titles or role keywords.",
+    )
+    search_query: str = Field(
+        default="",
+        max_length=200,
+        description="Optional free-text query used to narrow the market slice.",
+    )
+    search_mode: Literal["tfidf", "semantic", "hybrid"] = Field(
+        default="tfidf",
+        description=(
+            "Search ranking mode. Use 'tfidf' for lexical relevance, "
+            "'semantic' for dense local similarity, or 'hybrid' to blend both."
+        ),
+    )
+    location: str = Field(
+        default="Any",
+        max_length=120,
+        description="Location filter. Use 'Any' to disable location filtering.",
+    )
+    experience_level: str = Field(
+        default="Any",
+        max_length=80,
+        description="Experience level filter. Use 'Any' to disable filtering.",
+    )
+    top_n: int = Field(
+        default=10,
+        ge=1,
+        le=25,
+        description="Number of ranked rows to return per insight.",
+    )
+    dataset_name: str | None = Field(
+        default=None,
+        max_length=120,
+        description=(
+            "Optional dataset name. If omitted, the API uses the local "
+            "sample dataset."
+        ),
+    )
+
+    @field_validator("target_roles")
+    @classmethod
+    def clean_target_roles(cls, values: list[str]) -> list[str]:
+        cleaned_values = []
+
+        for value in values:
+            cleaned_value = str(value).strip()
+
+            if not cleaned_value:
+                continue
+
+            if len(cleaned_value) > MAX_LIST_ITEM_LENGTH:
+                raise ValueError(
+                    f"List values must be {MAX_LIST_ITEM_LENGTH} characters or fewer."
+                )
+
+            cleaned_values.append(cleaned_value)
+
+        return cleaned_values
+
+
+class SkillDemand(BaseModel):
+    skill: str
+    job_count: int
+
+
+class RoleSkillImportance(BaseModel):
+    role_category: str
+    skill: str
+    job_count: int
+    role_weight: int
+    weighted_importance: float
+
+
+class LocationDemand(BaseModel):
+    location: str
+    job_count: int
+
+
+class CompanyDemand(BaseModel):
+    company: str
+    job_count: int
+
+
+class RoleDistribution(BaseModel):
+    role_category: str
+    job_count: int
+
+
+class MarketInsightsResponse(BaseModel):
+    dataset_name: str
+    jobs_analyzed: int
+    skill_demand: list[SkillDemand]
+    role_skill_importance: list[RoleSkillImportance]
+    jobs_by_location: list[LocationDemand]
+    top_companies: list[CompanyDemand]
+    role_distribution: list[RoleDistribution]
+
+
 class RecommendedSkill(BaseModel):
     skill: str
     score: float

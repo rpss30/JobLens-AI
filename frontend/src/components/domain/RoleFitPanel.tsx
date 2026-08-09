@@ -3,10 +3,12 @@ import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { ScoreBar } from "@/components/ui/ScoreBar";
 import type { RoleScore } from "@/lib/api/types";
 
+// Labels come from get_sample_confidence in the matching engine.
 const confidenceTones: Record<string, BadgeTone> = {
-  High: "positive",
+  Strong: "positive",
   Moderate: "accent",
   Limited: "warning",
+  Insufficient: "danger",
 };
 
 export function ConfidenceBadge({ confidence }: { confidence: string }) {

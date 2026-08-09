@@ -11,23 +11,22 @@ export async function ApiStatus() {
     isOnline = false;
   }
 
+  const statusTitle = isOnline
+    ? "JobLens is connected to its data service."
+    : "JobLens cannot reach its data service, so results may not load.";
+
   return (
-    <span className="flex items-center gap-1.5">
-      {/* Filled versus hollow, since the palette has no red or green. */}
+    <span className="flex items-center gap-1.5" title={statusTitle}>
       <span
         className={`h-2 w-2 rounded-full ${
-          isOnline ? "bg-text" : "border border-border-strong bg-transparent"
+          isOnline ? "bg-status-online" : "bg-status-offline"
         }`}
         aria-hidden="true"
       />
       <span className="hidden text-xs text-text-muted sm:inline">
-        {isOnline ? "API online" : "API offline"}
+        {isOnline ? "Connected" : "Disconnected"}
       </span>
-      <span className="sr-only">
-        {isOnline
-          ? "The JobLens API is reachable."
-          : "The JobLens API is unreachable."}
-      </span>
+      <span className="sr-only">{statusTitle}</span>
     </span>
   );
 }

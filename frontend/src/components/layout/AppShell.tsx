@@ -6,6 +6,7 @@ import { Suspense, useState, type ReactNode } from "react";
 
 import { DatasetSwitcher, type DatasetOption } from "@/components/layout/DatasetSwitcher";
 import { SidebarNav } from "@/components/layout/SidebarNav";
+import { useAnalysis } from "@/context/AnalysisContext";
 
 interface AppShellProps {
   datasets: DatasetOption[];
@@ -17,6 +18,7 @@ export function AppShell({ datasets, statusSlot, children }: AppShellProps) {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const pathname = usePathname();
   const [lastPathname, setLastPathname] = useState(pathname);
+  const { clearAnalysis } = useAnalysis();
 
   // A route change, including browser back, must not leave the mobile drawer
   // covering the page. Adjusting during render avoids an extra effect pass.
@@ -62,7 +64,13 @@ export function AppShell({ datasets, statusSlot, children }: AppShellProps) {
             </svg>
           </button>
 
-          <Link href="/" className="flex min-w-0 items-center">
+          {/* The wordmark is a way back to a clean start, so it clears the
+              current result rather than returning to a stale one. */}
+          <Link
+            href="/"
+            onClick={clearAnalysis}
+            className="flex min-w-0 items-center"
+          >
             <span className="truncate text-xl font-semibold tracking-tight text-text sm:text-2xl">
               JobLens
             </span>

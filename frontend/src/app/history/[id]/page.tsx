@@ -178,6 +178,7 @@ export default async function AnalysisRunPage({
             rows={savedRoleScores}
             getRowKey={(row, index) => `${readText(row, "role_category")}-${index}`}
             caption="Role scores recorded with this analysis run"
+            minWidthClassName="min-w-[38rem]"
             emptyMessage="No role scores were stored with this run."
           />
         </Card>

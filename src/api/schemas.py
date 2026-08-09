@@ -153,6 +153,65 @@ class RenameDatasetResponse(BaseModel):
     renamed: bool
 
 
+class CreateAnalysisRunRequest(BaseModel):
+    name: str = Field(
+        default="",
+        max_length=255,
+        description=(
+            "Optional readable name. A dated name is generated when omitted."
+        ),
+    )
+    dataset_name: str = Field(
+        ...,
+        min_length=1,
+        max_length=255,
+        description="Dataset the analysis was run against.",
+    )
+    target_roles: list[str] = Field(
+        default_factory=list,
+        max_length=MAX_TARGET_ROLE_COUNT,
+    )
+    location: str = Field(default="Any", max_length=120)
+    experience_level: str = Field(default="Any", max_length=80)
+    current_skills: list[str] = Field(
+        default_factory=list,
+        max_length=MAX_SKILL_COUNT,
+    )
+    best_role: str | None = Field(default=None, max_length=120)
+    weighted_match_score: float | None = Field(default=None, ge=0, le=100)
+    top_missing_skill: str | None = Field(default=None, max_length=MAX_LIST_ITEM_LENGTH)
+    jobs_analyzed: int = Field(default=0, ge=0)
+    recommended_skills: list[str] = Field(
+        default_factory=list,
+        max_length=MAX_SKILL_COUNT,
+    )
+    role_scores: list[dict[str, Any]] = Field(
+        default_factory=list,
+        max_length=MAX_TARGET_ROLE_COUNT,
+        description="Saved role score rows from the analysis response.",
+    )
+
+    @field_validator("current_skills", "target_roles", "recommended_skills")
+    @classmethod
+    def clean_text_list(cls, values: list[str]) -> list[str]:
+        cleaned_values = []
+
+        for value in values:
+            cleaned_value = str(value).strip()
+
+            if not cleaned_value:
+                continue
+
+            if len(cleaned_value) > MAX_LIST_ITEM_LENGTH:
+                raise ValueError(
+                    f"List values must be {MAX_LIST_ITEM_LENGTH} characters or fewer."
+                )
+
+            cleaned_values.append(cleaned_value)
+
+        return cleaned_values
+
+
 class AnalysisRunResponse(BaseModel):
     id: int
     name: str

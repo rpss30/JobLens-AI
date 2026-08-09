@@ -121,6 +121,24 @@ class DatasetSummary(BaseModel):
     source_type: str
     created_at: datetime
 
+
+class DatasetSnapshotSummary(BaseModel):
+    job_count: int
+    company_count: int
+    location_count: int
+    refreshed_date: str
+
+
+class FilterOptionsResponse(BaseModel):
+    dataset_name: str
+    target_roles: list[str]
+    role_categories: list[str]
+    skills: list[str]
+    locations: list[str]
+    experience_levels: list[str]
+    summary: DatasetSnapshotSummary
+
+
 class DeleteDatasetResponse(BaseModel):
     dataset_name: str
     deleted: bool
@@ -179,6 +197,8 @@ class JobMatch(BaseModel):
     location: str
     experience_level: str
     role_category: str
+    source: str = ""
+    source_url: str = ""
     search_relevance: float
     semantic_relevance: float = 0.0
     tfidf_relevance: float = 0.0

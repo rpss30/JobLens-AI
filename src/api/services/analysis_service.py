@@ -1,10 +1,12 @@
 from functools import lru_cache
+from pathlib import Path
 
 import pandas as pd
 
 from src.api.errors import ApiError
 from src.api.schemas import AnalyzeRequest, AnalyzeResponse
 from src.dashboard.services import (
+    CANADA_JOBS_SNAPSHOT_PATH,
     filter_jobs,
     get_job_match_details,
     get_positive_job_matches,
@@ -24,6 +26,23 @@ from src.resume.resume_analyzer import analyze_resume_against_jobs
 RAW_DATA_PATH = "data/raw/sample_jobs.csv"
 PROCESSED_DATA_PATH = "data/processed/processed_jobs.csv"
 LOCAL_SAMPLE_DATASET_NAME = "local_sample"
+CANADA_SNAPSHOT_DATASET_NAME = "canada_snapshot"
+
+
+def clean_optional_text(value: object) -> str:
+    """Return a trimmed string for optional posting metadata, or an empty string."""
+    if value is None:
+        return ""
+
+    try:
+        if pd.isna(value):
+            return ""
+    except (TypeError, ValueError):
+        pass
+
+    cleaned_value = str(value).strip()
+
+    return "" if cleaned_value.lower() == "nan" else cleaned_value
 
 
 @lru_cache(maxsize=1)
@@ -37,9 +56,41 @@ def load_api_jobs() -> pd.DataFrame:
     return prepare_processed_jobs_for_dashboard(jobs_df)
 
 
+@lru_cache(maxsize=1)
+def load_canada_snapshot_jobs() -> pd.DataFrame:
+    """Load the bundled Canada jobs snapshot for API analysis."""
+    snapshot_path = Path(CANADA_JOBS_SNAPSHOT_PATH)
+
+    if not snapshot_path.exists():
+        return pd.DataFrame()
+
+    return prepare_processed_jobs_for_dashboard(pd.read_csv(snapshot_path))
+
+
+LOCAL_DATASET_LOADERS = {
+    LOCAL_SAMPLE_DATASET_NAME: load_api_jobs,
+    CANADA_SNAPSHOT_DATASET_NAME: load_canada_snapshot_jobs,
+}
+
+
 def load_jobs_for_analysis(dataset_name: str | None) -> tuple[str, pd.DataFrame]:
     if not dataset_name:
         return LOCAL_SAMPLE_DATASET_NAME, load_api_jobs()
+
+    local_dataset_loader = LOCAL_DATASET_LOADERS.get(dataset_name)
+
+    if local_dataset_loader is not None:
+        local_jobs_df = local_dataset_loader()
+
+        if local_jobs_df.empty:
+            raise ApiError(
+                status_code=404,
+                detail=(
+                    f"Dataset '{dataset_name}' is not available on this deployment."
+                ),
+            )
+
+        return dataset_name, local_jobs_df
 
     if not database_repository.check_database_connection():
         raise ApiError(
@@ -183,6 +234,8 @@ def build_analyze_response(
             "location": str(row["location"]),
             "experience_level": str(row["experience_level"]),
             "role_category": str(row["role_category"]),
+            "source": clean_optional_text(row.get("source", "")),
+            "source_url": clean_optional_text(row.get("source_url", "")),
             "search_relevance": float(row["search_relevance"]),
             "semantic_relevance": float(row.get("semantic_relevance", 0.0)),
             "tfidf_relevance": float(row.get("tfidf_relevance", 0.0)),

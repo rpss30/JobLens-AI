@@ -6,7 +6,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from src.api.errors import ApiError, api_error_handler
-from src.api.routers import analysis_runs, analyze, datasets, health
+from src.api.routers import (
+    analysis_runs,
+    analyze,
+    datasets,
+    filter_options,
+    health,
+)
 from src.api.security import get_cors_origins
 
 
@@ -32,6 +38,10 @@ def create_app() -> FastAPI:
             {
                 "name": "analysis-runs",
                 "description": "Saved role-fit analysis history.",
+            },
+            {
+                "name": "filter-options",
+                "description": "Selectable analysis filters for a dataset.",
             },
             {
                 "name": "analysis",
@@ -66,6 +76,7 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(datasets.router)
     app.include_router(analysis_runs.router)
+    app.include_router(filter_options.router)
     app.include_router(analyze.router)
 
     return app

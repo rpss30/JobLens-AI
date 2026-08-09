@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
@@ -152,40 +153,80 @@ def get_top_insights(
     return best_role, best_score, top_missing_skill, jobs_analyzed
 
 
-def build_analyze_response(
-    *,
-    dataset_name: str,
-    filtered_jobs: pd.DataFrame,
-    current_skills: list[str],
-    resume_text: str = "",
-    target_roles: list[str] | None = None,
-    top_n: int,
-) -> AnalyzeResponse:
-    resume_analysis = None
-    analysis_skills = current_skills
+@dataclass
+class AnalysisFrames:
+    """Computed analysis results shared by the analyze and report endpoints."""
 
-    if resume_text.strip():
+    dataset_name: str
+    filtered_jobs: pd.DataFrame
+    analysis_skills: list[str]
+    role_scores_df: pd.DataFrame
+    recommended_skills_df: pd.DataFrame
+    resume_analysis: dict | None
+
+
+def compute_analysis_frames(request: AnalyzeRequest) -> AnalysisFrames:
+    """Load, filter, and score a dataset for one candidate analysis request."""
+    dataset_name, jobs_df = load_jobs_for_analysis(request.dataset_name)
+
+    filtered_jobs = filter_jobs(
+        df=jobs_df,
+        target_roles=request.target_roles,
+        location=request.location,
+        experience_level=request.experience_level,
+        search_query=request.search_query,
+        search_mode=request.search_mode,
+    )
+
+    if filtered_jobs.empty:
+        raise ApiError(
+            status_code=404,
+            detail=(
+                "No matching jobs found for the search query and selected "
+                "role, location, or experience filters."
+            ),
+        )
+
+    resume_analysis = None
+    analysis_skills = list(request.current_skills)
+
+    if request.resume_text.strip():
         resume_analysis = analyze_resume_against_jobs(
             jobs_df=filtered_jobs,
-            resume_text=resume_text,
-            current_skills=current_skills,
-            target_roles=target_roles or [],
+            resume_text=request.resume_text,
+            current_skills=request.current_skills,
+            target_roles=request.target_roles,
         )
         analysis_skills = list(resume_analysis["combined_skills"])
 
     role_skill_weights = build_role_skill_weights(filtered_jobs)
 
-    role_scores_df = score_roles(
-        filtered_jobs,
-        analysis_skills,
+    return AnalysisFrames(
+        dataset_name=dataset_name,
+        filtered_jobs=filtered_jobs,
+        analysis_skills=analysis_skills,
+        role_scores_df=score_roles(filtered_jobs, analysis_skills),
+        recommended_skills_df=get_recommended_skills(
+            jobs_df=filtered_jobs,
+            user_skills=analysis_skills,
+            role_skill_weights=role_skill_weights,
+            top_n=request.top_n,
+        ),
+        resume_analysis=resume_analysis,
     )
 
-    recommended_skills_df = get_recommended_skills(
-        jobs_df=filtered_jobs,
-        user_skills=analysis_skills,
-        role_skill_weights=role_skill_weights,
-        top_n=top_n,
-    )
+
+def build_analyze_response(
+    *,
+    frames: AnalysisFrames,
+    top_n: int,
+) -> AnalyzeResponse:
+    dataset_name = frames.dataset_name
+    filtered_jobs = frames.filtered_jobs
+    analysis_skills = frames.analysis_skills
+    role_scores_df = frames.role_scores_df
+    recommended_skills_df = frames.recommended_skills_df
+    resume_analysis = frames.resume_analysis
 
     job_match_details_df = get_job_match_details(
         filtered_jobs=filtered_jobs,
@@ -265,31 +306,7 @@ def build_analyze_response(
 
 
 def analyze_jobs(request: AnalyzeRequest) -> AnalyzeResponse:
-    dataset_name, jobs_df = load_jobs_for_analysis(request.dataset_name)
-
-    filtered_jobs = filter_jobs(
-        df=jobs_df,
-        target_roles=request.target_roles,
-        location=request.location,
-        experience_level=request.experience_level,
-        search_query=request.search_query,
-        search_mode=request.search_mode,
-    )
-
-    if filtered_jobs.empty:
-        raise ApiError(
-            status_code=404,
-            detail=(
-                "No matching jobs found for the search query and selected "
-                "role, location, or experience filters."
-            ),
-        )
-
     return build_analyze_response(
-        dataset_name=dataset_name,
-        filtered_jobs=filtered_jobs,
-        current_skills=request.current_skills,
-        resume_text=request.resume_text,
-        target_roles=request.target_roles,
+        frames=compute_analysis_frames(request),
         top_n=request.top_n,
     )

@@ -5,7 +5,7 @@ import {
   useCallback,
   useContext,
   useMemo,
-  useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 
@@ -27,53 +27,85 @@ interface AnalysisContextValue {
 
 const AnalysisContext = createContext<AnalysisContextValue | null>(null);
 
-/**
- * Holds the most recent analysis so Overview, Jobs, and Skills can read one
- * result without re-running it. Session storage keeps it across navigation and
- * reloads without persisting anything to a server.
+/*
+ * Session storage is an external store, so it is read through
+ * useSyncExternalStore rather than during render. The server snapshot is
+ * always null, which keeps the first client render identical to the server
+ * markup and avoids a hydration mismatch.
  */
-function readStoredAnalysis(): StoredAnalysis | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
+const storeListeners = new Set<() => void>();
+
+let cachedRawValue: string | null = null;
+let cachedAnalysis: StoredAnalysis | null = null;
+
+function notifyStoreListeners() {
+  storeListeners.forEach((listener) => listener());
+}
+
+function subscribeToStore(listener: () => void) {
+  storeListeners.add(listener);
+  window.addEventListener("storage", listener);
+
+  return () => {
+    storeListeners.delete(listener);
+    window.removeEventListener("storage", listener);
+  };
+}
+
+function getStoreSnapshot(): StoredAnalysis | null {
+  let rawValue: string | null = null;
 
   try {
-    const rawValue = window.sessionStorage.getItem(STORAGE_KEY);
-
-    return rawValue ? (JSON.parse(rawValue) as StoredAnalysis) : null;
+    rawValue = window.sessionStorage.getItem(STORAGE_KEY);
   } catch {
-    return null;
+    rawValue = null;
   }
+
+  // Cache by raw string so the snapshot reference stays stable between reads.
+  if (rawValue !== cachedRawValue) {
+    cachedRawValue = rawValue;
+
+    try {
+      cachedAnalysis = rawValue
+        ? (JSON.parse(rawValue) as StoredAnalysis)
+        : null;
+    } catch {
+      cachedAnalysis = null;
+    }
+  }
+
+  return cachedAnalysis;
+}
+
+function getServerSnapshot(): StoredAnalysis | null {
+  return null;
 }
 
 export function AnalysisProvider({ children }: { children: ReactNode }) {
-  // Lazy initialiser runs on the client only, so hydration stays consistent.
-  const [analysis, setStoredAnalysis] = useState<StoredAnalysis | null>(null);
-  const [isHydrated, setIsHydrated] = useState(false);
-
-  if (!isHydrated && typeof window !== "undefined") {
-    setIsHydrated(true);
-    setStoredAnalysis(readStoredAnalysis());
-  }
+  const analysis = useSyncExternalStore(
+    subscribeToStore,
+    getStoreSnapshot,
+    getServerSnapshot,
+  );
 
   const setAnalysis = useCallback((nextAnalysis: StoredAnalysis) => {
-    setStoredAnalysis(nextAnalysis);
-
     try {
       window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(nextAnalysis));
     } catch {
       // A full or unavailable session store should not break the analysis.
     }
+
+    notifyStoreListeners();
   }, []);
 
   const clearAnalysis = useCallback(() => {
-    setStoredAnalysis(null);
-
     try {
       window.sessionStorage.removeItem(STORAGE_KEY);
     } catch {
-      // Nothing to recover from; the in-memory value is already cleared.
+      // Nothing to recover from; the next snapshot read returns null.
     }
+
+    notifyStoreListeners();
   }, []);
 
   const value = useMemo(

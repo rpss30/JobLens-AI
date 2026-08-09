@@ -1,16 +1,36 @@
-import { PageHeader } from "@/components/layout/PageHeader";
-import { EmptyState } from "@/components/ui/States";
+import Link from "next/link";
 
-export default function OverviewPage() {
+import { OverviewContent } from "@/components/domain/OverviewContent";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { Button } from "@/components/ui/Button";
+import { getFilterOptions } from "@/lib/api/endpoints";
+import { resolveDataset } from "@/lib/datasets";
+import { formatDatasetLabel } from "@/lib/format";
+
+export default async function OverviewPage({ searchParams }: PageProps<"/">) {
+  const params = await searchParams;
+  const datasetName = resolveDataset(params.dataset);
+  const filterOptions = await getFilterOptions(datasetName);
+
+  const refreshedNote = filterOptions.summary.refreshed_date
+    ? ` · refreshed ${filterOptions.summary.refreshed_date}`
+    : "";
+
   return (
     <>
       <PageHeader
         title="Overview"
-        description="Role fit, skill gaps, and hiring demand across the selected job market dataset."
+        description={`${formatDatasetLabel(filterOptions.dataset_name)}${refreshedNote}`}
+        action={
+          <Link href={`/analyze?dataset=${encodeURIComponent(datasetName)}`}>
+            <Button>New analysis</Button>
+          </Link>
+        }
       />
-      <EmptyState
-        title="No analysis yet"
-        description="Run a candidate analysis to see role fit, skill gaps, and matching postings here."
+
+      <OverviewContent
+        datasetName={datasetName}
+        summary={filterOptions.summary}
       />
     </>
   );

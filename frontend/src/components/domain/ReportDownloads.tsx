@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/Button";
 import { useAnalysis } from "@/context/AnalysisContext";
+import { useToast } from "@/context/ToastContext";
 
 type ReportFormat = "markdown" | "pdf";
 
@@ -14,8 +15,8 @@ const FORMAT_LABELS: Record<ReportFormat, string> = {
 
 export function ReportDownloads() {
   const { analysis } = useAnalysis();
+  const { showToast } = useToast();
   const [pendingFormat, setPendingFormat] = useState<ReportFormat | null>(null);
-  const [errorMessage, setErrorMessage] = useState("");
 
   if (!analysis) {
     return null;
@@ -27,7 +28,6 @@ export function ReportDownloads() {
     }
 
     setPendingFormat(reportFormat);
-    setErrorMessage("");
 
     try {
       const response = await fetch(
@@ -41,7 +41,10 @@ export function ReportDownloads() {
 
       if (!response.ok) {
         const payload = (await response.json()) as { detail?: string };
-        setErrorMessage(payload.detail ?? "The report could not be generated.");
+        showToast(
+          payload.detail ?? "The report could not be created.",
+          "error",
+        );
         return;
       }
 
@@ -61,8 +64,10 @@ export function ReportDownloads() {
       downloadLink.click();
       downloadLink.remove();
       URL.revokeObjectURL(objectUrl);
+
+      showToast(`Downloaded ${filename}.`);
     } catch {
-      setErrorMessage("Could not reach the JobLens API.");
+      showToast("Could not reach JobLens. Check your connection.", "error");
     } finally {
       setPendingFormat(null);
     }
@@ -79,14 +84,10 @@ export function ReportDownloads() {
           disabled={pendingFormat !== null}
         >
           {pendingFormat === reportFormat
-            ? "Generating…"
+            ? "Preparing…"
             : `Download ${FORMAT_LABELS[reportFormat]}`}
         </Button>
       ))}
-
-      <p role="status" className="text-sm text-text-muted">
-        {errorMessage}
-      </p>
     </div>
   );
 }

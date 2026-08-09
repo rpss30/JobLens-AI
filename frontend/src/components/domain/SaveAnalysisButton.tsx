@@ -5,15 +5,16 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/Button";
 import { useAnalysis } from "@/context/AnalysisContext";
+import { useToast } from "@/context/ToastContext";
 import type { CreateAnalysisRunRequest } from "@/lib/api/types";
 
-type SaveState = "idle" | "saving" | "saved" | "error";
+type SaveState = "idle" | "saving";
 
 export function SaveAnalysisButton() {
   const router = useRouter();
   const { analysis } = useAnalysis();
+  const { showToast } = useToast();
   const [saveState, setSaveState] = useState<SaveState>("idle");
-  const [errorMessage, setErrorMessage] = useState("");
 
   if (!analysis) {
     return null;
@@ -25,7 +26,6 @@ export function SaveAnalysisButton() {
     }
 
     setSaveState("saving");
-    setErrorMessage("");
 
     const { request, response } = analysis;
 
@@ -59,38 +59,32 @@ export function SaveAnalysisButton() {
 
       if (!httpResponse.ok) {
         const body = (await httpResponse.json()) as { detail?: string };
-        setErrorMessage(body.detail ?? "This analysis run could not be saved.");
-        setSaveState("error");
+        showToast(
+          body.detail ?? "This result could not be saved.",
+          "error",
+        );
         return;
       }
 
-      setSaveState("saved");
+      showToast("Saved to your history.");
       router.refresh();
     } catch {
-      setErrorMessage("Could not reach the JobLens API.");
-      setSaveState("error");
+      showToast("Could not reach JobLens. Check your connection.", "error");
+    } finally {
+      setSaveState("idle");
     }
   }
 
+  // The button stays enabled after saving so a second save is still possible
+  // and the cursor never sits in a not-allowed state.
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      <Button
-        variant="secondary"
-        size="sm"
-        onClick={handleSave}
-        disabled={saveState === "saving" || saveState === "saved"}
-      >
-        {saveState === "saving"
-          ? "Saving…"
-          : saveState === "saved"
-            ? "Saved to history"
-            : "Save to history"}
-      </Button>
-
-      {/* Errors are announced rather than only shown, since this is an action. */}
-      <p role="status" className="text-sm text-text-muted">
-        {saveState === "error" ? errorMessage : ""}
-      </p>
-    </div>
+    <Button
+      variant="secondary"
+      size="sm"
+      onClick={handleSave}
+      disabled={saveState === "saving"}
+    >
+      {saveState === "saving" ? "Saving…" : "Save to history"}
+    </Button>
   );
 }

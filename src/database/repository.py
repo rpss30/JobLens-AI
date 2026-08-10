@@ -791,3 +791,44 @@ def load_analysis_run(analysis_run_id: int) -> dict[str, Any] | None:
             "role_scores": analysis_run.role_scores,
             "created_at": analysis_run.created_at,
         }
+
+
+def rename_analysis_run(analysis_run_id: int, new_name: str) -> bool:
+    """
+    Rename a saved analysis run.
+
+    Returns True when a run was renamed and False when no run was found.
+    """
+    cleaned_name = new_name.strip()
+
+    if not cleaned_name:
+        raise ValueError("Analysis run name cannot be blank.")
+
+    with get_db_session() as session:
+        analysis_run = session.get(AnalysisRun, analysis_run_id)
+
+        if analysis_run is None:
+            return False
+
+        analysis_run.name = cleaned_name
+        session.flush()
+
+        return True
+
+
+def delete_analysis_run(analysis_run_id: int) -> bool:
+    """
+    Delete a saved analysis run.
+
+    Returns True when a run was deleted and False when no run was found.
+    """
+    with get_db_session() as session:
+        analysis_run = session.get(AnalysisRun, analysis_run_id)
+
+        if analysis_run is None:
+            return False
+
+        session.delete(analysis_run)
+        session.flush()
+
+        return True

@@ -149,3 +149,19 @@ export function createAnalysisRun(
     body: JSON.stringify(request),
   });
 }
+
+export function renameAnalysisRun(
+  analysisRunId: number,
+  newName: string,
+): Promise<{ id: number; name: string; renamed: boolean }> {
+  return apiFetch(`/analysis-runs/${analysisRunId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ new_name: newName }),
+  });
+}
+
+export function deleteAnalysisRun(
+  analysisRunId: number,
+): Promise<{ id: number; deleted: boolean }> {
+  return apiFetch(`/analysis-runs/${analysisRunId}`, { method: "DELETE" });
+}

@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { Suspense } from "react";
 
+import { AnalysisRunRow } from "@/components/domain/AnalysisRunRow";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { CardSkeleton, EmptyState, ErrorState } from "@/components/ui/States";
@@ -10,40 +10,6 @@ import { ApiError } from "@/lib/api/client";
 import { getAnalysisRuns } from "@/lib/api/endpoints";
 import type { AnalysisRun } from "@/lib/api/types";
 import { resolveDataset } from "@/lib/datasets";
-import { formatCount, formatDate, formatPercent, formatSkill } from "@/lib/format";
-
-function AnalysisRunRow({ run }: { run: AnalysisRun }) {
-  return (
-    <li>
-      <Link
-        href={`/history/${run.id}`}
-        className="flex flex-wrap items-center justify-between gap-4 px-5 py-4 hover:bg-surface-muted"
-      >
-        <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-text">{run.name}</p>
-          <p className="mt-0.5 text-xs text-text-muted">
-            {run.dataset_name} · {formatDate(run.created_at)} ·{" "}
-            {formatCount(run.jobs_analyzed)} jobs
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {run.best_role ? <Badge tone="neutral">{run.best_role}</Badge> : null}
-          {run.top_missing_skill ? (
-            <Badge tone="warning">
-              Gap: {formatSkill(run.top_missing_skill)}
-            </Badge>
-          ) : null}
-          <span className="text-sm font-semibold tabular-nums text-text">
-            {run.weighted_match_score === null
-              ? "N/A"
-              : formatPercent(run.weighted_match_score)}
-          </span>
-        </div>
-      </Link>
-    </li>
-  );
-}
 
 async function SavedRuns({ datasetName }: { datasetName: string }) {
   let runs: AnalysisRun[] = [];

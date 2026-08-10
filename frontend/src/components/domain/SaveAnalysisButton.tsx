@@ -12,17 +12,13 @@ type SaveState = "idle" | "saving";
 
 export function SaveAnalysisButton() {
   const router = useRouter();
-  const { analysis } = useAnalysis();
+  const { analysis, isAnalysisSaved, markAnalysisSaved } = useAnalysis();
   const { showToast } = useToast();
   const [saveState, setSaveState] = useState<SaveState>("idle");
-  // Tracks which result was saved, so a new analysis re-enables the button.
-  const [savedCompletedAt, setSavedCompletedAt] = useState<string | null>(null);
 
   if (!analysis) {
     return null;
   }
-
-  const isAlreadySaved = savedCompletedAt === analysis.completedAt;
 
   async function handleSave() {
     if (!analysis) {
@@ -70,7 +66,7 @@ export function SaveAnalysisButton() {
         return;
       }
 
-      setSavedCompletedAt(analysis.completedAt);
+      markAnalysisSaved();
       showToast("Saved to your history.");
       router.refresh();
     } catch {
@@ -85,12 +81,12 @@ export function SaveAnalysisButton() {
       variant="secondary"
       size="sm"
       onClick={handleSave}
-      disabled={saveState === "saving" || isAlreadySaved}
-      disabledCursor={isAlreadySaved ? "default" : "not-allowed"}
+      disabled={saveState === "saving" || isAnalysisSaved}
+      disabledCursor={isAnalysisSaved ? "default" : "not-allowed"}
     >
       {saveState === "saving"
         ? "Saving…"
-        : isAlreadySaved
+        : isAnalysisSaved
           ? "Saved to history"
           : "Save to history"}
     </Button>

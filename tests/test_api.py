@@ -702,6 +702,43 @@ def test_create_analysis_run_returns_503_when_database_unavailable(monkeypatch) 
     assert response.status_code == 503
 
 
+def test_rename_and_delete_analysis_run(monkeypatch) -> None:
+    monkeypatch.setattr(
+        analysis_run_service.database_repository,
+        "check_database_connection",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        analysis_run_service.database_repository,
+        "rename_analysis_run",
+        lambda analysis_run_id, new_name: analysis_run_id == 1,
+    )
+    monkeypatch.setattr(
+        analysis_run_service.database_repository,
+        "delete_analysis_run",
+        lambda analysis_run_id: analysis_run_id == 1,
+    )
+
+    rename_response = client.patch(
+        "/analysis-runs/1",
+        json={"new_name": "My saved check"},
+    )
+
+    assert rename_response.status_code == 200
+    assert rename_response.json()["name"] == "My saved check"
+
+    delete_response = client.delete("/analysis-runs/1")
+
+    assert delete_response.status_code == 200
+    assert delete_response.json()["deleted"] is True
+
+    # Unknown ids are reported rather than silently succeeding.
+    assert (
+        client.patch("/analysis-runs/404", json={"new_name": "x"}).status_code == 404
+    )
+    assert client.delete("/analysis-runs/404").status_code == 404
+
+
 def test_list_analysis_runs_returns_saved_runs(monkeypatch) -> None:
     monkeypatch.setattr(
         analysis_run_service.database_repository,

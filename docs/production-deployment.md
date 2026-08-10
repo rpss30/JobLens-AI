@@ -36,10 +36,26 @@ checklist before running the first production deployment.
 
 ## GitHub Actions
 
-The `Deploy Production` workflow is manual-only through GitHub Actions
-`workflow_dispatch`. It runs in the protected `production` environment, validates
-the shell scripts, writes the deployment SSH key to the runner, and connects to
-the existing server over SSH.
+The `Deploy Production` workflow runs on two triggers:
+
+- **Automatically on every push to `main`**, except pushes that only touch
+  Markdown, `docs/`, `assets/`, or `.gitignore`. Those change nothing the server
+  runs, and a rebuild on the single production box is not free.
+- **Manually through `workflow_dispatch`**, which additionally lets you choose a
+  different `deploy_ref` or skip the public health checks. A push-triggered run
+  has no inputs, so it deploys `origin/main` with health checks enabled.
+
+Both paths run a `test` job first and the deploy job declares `needs: test`, so
+an automatic deploy cannot outrun the suite. If tests fail, the deploy job is
+skipped entirely and nothing reaches the server.
+
+The deploy job runs in the protected `production` environment, validates the
+shell scripts, writes the deployment SSH key to the runner, and connects to the
+existing server over SSH.
+
+Adding required reviewers to the `production` environment turns automatic
+deploys into ones that pause for approval, which is worth considering on a
+single server with no redundancy.
 
 Required encrypted secrets:
 
@@ -79,7 +95,8 @@ documented in [production-compose.md](production-compose.md):
 7. run `python -m django_ops.manage migrate` for Django-owned tables
 8. run `python -m django_ops.manage bootstrap_ops_roles`
 9. start the full stack
-10. run public health checks
+10. prune dangling images and build cache older than seven days
+11. run public health checks
 
 This order keeps Alembic-owned and Django-owned migrations explicit and
 reviewable. If either migration step fails, the deploy exits before the full
@@ -147,6 +164,13 @@ This deployment automation creates no cloud resources and starts no paid
 services. It uses the existing server and normal GitHub Actions minutes. Server,
 static IP, DNS, and storage costs must be tracked separately in the production
 resource inventory.
+
+Deploy frequency does not change the instance bill, which is fixed, and the
+Docker layers a deploy pulls are small against the bundle's transfer allowance.
+Disk is the resource that grows: each deploy supersedes an image generation and
+adds build cache. The deploy prunes both, and the operations monitor warns at 80
+percent and goes critical at 90 percent, so a filling disk surfaces before it
+stops PostgreSQL from writing.
 
 Database backup and restore procedures are documented separately in
 [database-backups.md](database-backups.md). Run and verify a fresh backup before

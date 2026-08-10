@@ -1,0 +1,102 @@
+name: Production Stack Check
+
+# The unit suite proves the Python code works. This proves the production stack
+# actually boots and serves: it builds both images, runs the same migration
+# sequence the deploy runs, waits for every healthcheck, and exercises the public
+# routes through Caddy. Runs on pull requests so a stack that cannot start is
+# caught before it reaches main.
+on:
+  pull_request:
+    branches:
+      - main
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "assets/**"
+      - ".gitignore"
+
+permissions:
+  contents: read
+
+jobs:
+  stack:
+    runs-on: ubuntu-latest
+
+    env:
+      COMPOSE: docker compose --env-file .env.ci -f docker-compose.prod.yml
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      # Throwaway values for an ephemeral runner. JOBLENS_DOMAIN is localhost so
+      # Caddy issues a certificate from its internal CA and the public routes can
+      # be exercised over real HTTPS without public DNS.
+      - name: Write a disposable production env file
+        run: |
+          cat > .env.ci <<'EOF'
+          COMPOSE_PROJECT_NAME=joblens-ci
+          JOBLENS_IMAGE_TAG=ci
+          JOBLENS_DOMAIN=localhost
+          CADDY_ACME_EMAIL=ci@joblens.invalid
+          POSTGRES_DB=joblens_ai
+          POSTGRES_USER=joblens
+          POSTGRES_PASSWORD=ci-throwaway-not-a-secret
+          DATABASE_URL=postgresql+psycopg://joblens:ci-throwaway-not-a-secret@db:5432/joblens_ai
+          JOBLENS_CORS_ORIGINS=https://localhost
+          JOBLENS_API_ROOT_PATH=/api
+          JOBLENS_API_URL=http://api:8000
+          DJANGO_SECRET_KEY=ci-throwaway-not-a-secret-django-key
+          DJANGO_ALLOWED_HOSTS=localhost
+          DJANGO_CSRF_TRUSTED_ORIGINS=https://localhost
+          DJANGO_SECURE_SSL_REDIRECT=true
+          API_WORKERS=1
+          DJANGO_WORKERS=1
+          EOF
+
+      - name: Validate the compose file
+        run: $COMPOSE config -q
+
+      - name: Build the production images
+        run: $COMPOSE build
+
+      - name: Run the deploy migration sequence
+        run: |
+          $COMPOSE up -d db
+          $COMPOSE run --rm api alembic upgrade head
+          $COMPOSE run --rm django-ops python -m django_ops.manage migrate
+          $COMPOSE run --rm django-ops python -m django_ops.manage bootstrap_ops_roles
+
+      # --wait fails the step unless every service reports healthy, which is the
+      # check that would have caught the django-ops healthcheck rejecting its own
+      # probe on the first real deploy.
+      - name: Start the full stack and wait for health
+        run: $COMPOSE up -d --wait --wait-timeout 240
+
+      - name: Check the public routes through Caddy
+        run: |
+          for path in /healthz /proxy/health /api/health /ops/login/ /; do
+            code="$(curl -sk -o /dev/null -w '%{http_code}' "https://localhost${path}")"
+            echo "${path} -> ${code}"
+            test "${code}" = "200"
+          done
+
+      # Caddy forwards /api/* to FastAPI, so a Next.js route handler under /api
+      # would be shadowed. This asserts the browser-facing handler still answers
+      # with its own error rather than FastAPI's.
+      - name: Check the browser-facing proxy route reaches Next.js
+        run: |
+          body="$(curl -sk -X POST https://localhost/proxy/analyze \
+            -H 'Content-Type: application/json' -d 'not-json')"
+          echo "${body}"
+          echo "${body}" | grep -q 'Request body must be valid JSON.'
+
+      - name: Show service state and logs on failure
+        if: failure()
+        run: |
+          $COMPOSE ps -a
+          $COMPOSE logs --tail 60
+
+      - name: Tear down
+        if: always()
+        run: $COMPOSE down -v

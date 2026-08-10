@@ -50,6 +50,14 @@ def test_deploy_script_runs_safe_migration_sequence_before_restart() -> None:
     assert build_index < db_index < alembic_index < django_index < roles_index
     assert roles_index < restart_index
 
+    # Disk cleanup runs after the stack is up and never fails the deploy, so a
+    # full disk cannot accumulate across automatic deploys.
+    prune_index = script.index("docker image prune -f")
+
+    assert restart_index < prune_index
+    assert "docker image prune -f || true" in script
+    assert "docker builder prune -f --filter until=168h || true" in script
+
 
 def test_rollback_script_restarts_without_database_downgrades() -> None:
     script = read_file(ROLLBACK_SCRIPT)
@@ -77,10 +85,22 @@ def test_health_script_checks_edge_api_and_operations_routes() -> None:
     assert "HEALTH_DELAY_SECONDS" in script
 
 
-def test_deployment_workflow_is_manual_environment_protected_and_rollback_ready() -> None:
+def test_deployment_workflow_is_test_gated_environment_protected_and_rollback_ready() -> None:
     workflow = read_file(WORKFLOW_PATH)
 
     assert "workflow_dispatch:" in workflow
+
+    # Pushes to main deploy automatically, except documentation-only pushes,
+    # and never before the test suite passes.
+    assert "push:" in workflow
+    assert "paths-ignore:" in workflow
+    assert '- "**/*.md"' in workflow
+    assert "needs: test" in workflow
+    assert "python -m pytest -q" in workflow
+
+    # A push-triggered run has no workflow inputs to read.
+    assert "inputs.deploy_ref || 'origin/main'" in workflow
+    assert "inputs.skip_public_health_check || 'false'" in workflow
     assert "environment: production" in workflow
     assert "concurrency:" in workflow
     assert "group: production-deployment" in workflow

@@ -1,6 +1,16 @@
 name: Deploy Production
 
 on:
+  # Documentation-only pushes are skipped: they change nothing the server runs,
+  # and a rebuild on the single production box is not free.
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "assets/**"
+      - ".gitignore"
   workflow_dispatch:
     inputs:
       deploy_ref:
@@ -24,7 +34,32 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # An automatic deploy must not outrun the test suite, so this gates the deploy
+  # job rather than relying on tests having passed earlier on the pull request.
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run tests
+        run: python -m pytest -q
+
   deploy:
+    needs: test
     runs-on: ubuntu-latest
     environment: production
 
@@ -55,10 +90,12 @@ jobs:
           DEPLOY_PATH: ${{ secrets.PRODUCTION_DEPLOY_PATH }}
           DEPLOY_SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT }}
           DEPLOY_SSH_KEY_PATH: /home/runner/.ssh/production_deploy_key
-          DEPLOY_REF: ${{ inputs.deploy_ref }}
+          # A push-triggered run has no inputs, so these fall back to deploying
+          # main with the public health checks enabled.
+          DEPLOY_REF: ${{ inputs.deploy_ref || 'origin/main' }}
           JOBLENS_DOMAIN: ${{ secrets.PRODUCTION_DOMAIN }}
           JOBLENS_HEALTH_BASE_URL: ${{ secrets.PRODUCTION_HEALTH_BASE_URL }}
-          SKIP_PUBLIC_HEALTH_CHECK: ${{ inputs.skip_public_health_check }}
+          SKIP_PUBLIC_HEALTH_CHECK: ${{ inputs.skip_public_health_check || 'false' }}
         run: |
           if [ -z "$DEPLOY_SSH_PORT" ]; then
             export DEPLOY_SSH_PORT=22
@@ -76,7 +113,7 @@ jobs:
           DEPLOY_SSH_KEY_PATH: /home/runner/.ssh/production_deploy_key
           JOBLENS_DOMAIN: ${{ secrets.PRODUCTION_DOMAIN }}
           JOBLENS_HEALTH_BASE_URL: ${{ secrets.PRODUCTION_HEALTH_BASE_URL }}
-          SKIP_PUBLIC_HEALTH_CHECK: ${{ inputs.skip_public_health_check }}
+          SKIP_PUBLIC_HEALTH_CHECK: ${{ inputs.skip_public_health_check || 'false' }}
         run: |
           if [ -z "$DEPLOY_SSH_PORT" ]; then
             export DEPLOY_SSH_PORT=22

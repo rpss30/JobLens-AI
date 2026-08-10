@@ -86,6 +86,19 @@ refresh workflow still runs the full pytest suite after rebuilding the
 candidate snapshot, but it does not upload coverage because its primary purpose
 is data quality gating.
 
+The `Production Stack Check` workflow covers what unit tests cannot: that the
+production stack boots. On every pull request it writes a disposable
+`.env.production`, builds both images, runs the deploy's migration sequence,
+starts the stack with `up -d --wait` so a service that never reports healthy
+fails the job, and then exercises `/healthz`, `/proxy/health`, `/api/health`,
+`/ops/login/`, and `/` through Caddy over HTTPS. It also posts invalid JSON to
+`/proxy/analyze` and asserts the Next.js handler answers, which fails if a
+browser-facing route ever moves back under the reverse-proxied `/api/*` prefix.
+
+`JOBLENS_DOMAIN` is `localhost` there, so Caddy issues a certificate from its
+internal CA and the routes can be checked over real HTTPS without public DNS.
+Documentation-only pull requests skip the job.
+
 ## Reliability Rules
 
 - Tests must not require live external APIs.

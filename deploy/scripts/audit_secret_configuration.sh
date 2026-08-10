@@ -163,6 +163,26 @@ for key in "${required_keys[@]}"; do
   fi
 done
 
+# The database password is typed twice: as POSTGRES_PASSWORD and again inside
+# DATABASE_URL. A mismatch starts PostgreSQL cleanly and then fails every
+# application connection, so it is worth catching before a deploy.
+if has_key POSTGRES_PASSWORD && has_key DATABASE_URL; then
+  postgres_password="$(env_value POSTGRES_PASSWORD)"
+  url_credentials="$(env_value DATABASE_URL)"
+  url_credentials="${url_credentials#*://}"
+
+  if [[ "${url_credentials}" != *"@"* ]]; then
+    add_failure "DATABASE_URL does not contain credentials"
+  else
+    url_password="${url_credentials%%@*}"
+    url_password="${url_password#*:}"
+
+    if [[ "${url_password}" != "${postgres_password}" ]]; then
+      add_failure "DATABASE_URL password does not match POSTGRES_PASSWORD"
+    fi
+  fi
+fi
+
 for key in "${optional_secret_keys[@]}"; do
   if ! has_key "${key}" || [[ -z "$(env_value "${key}")" ]]; then
     add_warning "${key} is not configured"

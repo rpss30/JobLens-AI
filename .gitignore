@@ -2,6 +2,11 @@
 .env.*
 !.env.example
 !.env.production.example
+# Private keys never belong in the repository, including a deploy key or a
+# Lightsail .pem dropped here by accident.
+*.pem
+*.key
+
 __pycache__/
 *.pyc
 venv/

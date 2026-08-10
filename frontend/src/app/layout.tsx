@@ -4,6 +4,7 @@ import { Inter } from "next/font/google";
 import { ApiStatus } from "@/components/layout/ApiStatus";
 import { AppShell } from "@/components/layout/AppShell";
 import type { DatasetOption } from "@/components/layout/DatasetSwitcher";
+import { AnalysisProvider } from "@/context/AnalysisContext";
 import { getDatasets } from "@/lib/api/endpoints";
 import { LOCAL_DATASETS } from "@/lib/datasets";
 
@@ -44,9 +45,11 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${inter.variable} h-full antialiased`}>
       <body className="min-h-full font-sans">
-        <AppShell datasets={datasets} statusSlot={<ApiStatus />}>
-          {children}
-        </AppShell>
+        <AnalysisProvider>
+          <AppShell datasets={datasets} statusSlot={<ApiStatus />}>
+            {children}
+          </AppShell>
+        </AnalysisProvider>
       </body>
     </html>
   );

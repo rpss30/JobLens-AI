@@ -1,8 +1,10 @@
+import { Suspense } from "react";
+
 import { DemandBarChart } from "@/components/charts/DemandBarChart";
 import { PageHeader, Section } from "@/components/layout/PageHeader";
-import { Badge } from "@/components/ui/Badge";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { DataTable, type Column } from "@/components/ui/DataTable";
+import { CardSkeleton, Skeleton } from "@/components/ui/States";
 import { TableDisclosure } from "@/components/ui/TableDisclosure";
 import { getMarketInsights } from "@/lib/api/endpoints";
 import type {
@@ -62,9 +64,7 @@ const importanceColumns: Column<RoleSkillImportance>[] = [
   },
 ];
 
-export default async function SkillsPage({ searchParams }: PageProps<"/skills">) {
-  const params = await searchParams;
-  const datasetName = resolveDataset(params.dataset);
+async function MarketSections({ datasetName }: { datasetName: string }) {
   const insights = await getMarketInsights({ datasetName, topN: 12 });
 
   const skillDemandData = insights.skill_demand.map((item) => ({
@@ -79,16 +79,10 @@ export default async function SkillsPage({ searchParams }: PageProps<"/skills">)
 
   return (
     <>
-      <PageHeader
-        title="Skills & Market"
-        description="What this job market is hiring for, independent of any candidate profile."
-        action={
-          <Badge tone="neutral">
-            {formatDatasetLabel(insights.dataset_name)} ·{" "}
-            {formatCount(insights.jobs_analyzed)} postings
-          </Badge>
-        }
-      />
+      <p className="text-sm text-text-muted">
+        Based on {formatCount(insights.jobs_analyzed)} jobs in{" "}
+        {formatDatasetLabel(insights.dataset_name)}.
+      </p>
 
       {/* items-start keeps each card at its natural height when the two charts
           have different row counts. */}
@@ -160,6 +154,7 @@ export default async function SkillsPage({ searchParams }: PageProps<"/skills">)
             rows={insights.role_skill_importance}
             getRowKey={(row) => `${row.role_category}-${row.skill}`}
             caption="Skill importance weighted by role"
+            minWidthClassName="min-w-[38rem]"
             emptyMessage="No role-specific skill weights were produced for this dataset."
           />
         </Card>
@@ -194,9 +189,41 @@ export default async function SkillsPage({ searchParams }: PageProps<"/skills">)
       </div>
 
       <p className="text-sm text-text-subtle">
-        Demand is measured across the current snapshot only. JobLens does not
-        retain historical snapshots, so these counts are not a trend over time.
+        These counts describe the jobs in this dataset right now. JobLens does
+        not keep older copies of the job market, so this is a snapshot of
+        current demand rather than a trend over time.
       </p>
+    </>
+  );
+}
+
+function MarketSectionsSkeleton() {
+  return (
+    <>
+      <Skeleton className="h-5 w-64" />
+      <div className="grid items-start gap-6 lg:grid-cols-2">
+        <CardSkeleton rows={8} />
+        <CardSkeleton rows={8} />
+      </div>
+      <CardSkeleton rows={6} />
+    </>
+  );
+}
+
+export default async function SkillsPage({ searchParams }: PageProps<"/skills">) {
+  const params = await searchParams;
+  const datasetName = resolveDataset(params.dataset);
+
+  return (
+    <>
+      <PageHeader
+        title="Skills & Market"
+        description="What employers in this job market are hiring for right now, whatever your own skills are."
+      />
+
+      <Suspense key={datasetName} fallback={<MarketSectionsSkeleton />}>
+        <MarketSections datasetName={datasetName} />
+      </Suspense>
     </>
   );
 }

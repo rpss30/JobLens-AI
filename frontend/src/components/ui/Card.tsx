@@ -11,7 +11,9 @@ export function Card({ children, className }: CardProps) {
   return (
     <section
       className={cn(
-        "rounded-xl border border-border bg-surface shadow-[0_1px_2px_rgba(16,21,31,0.04)]",
+        // min-w-0 lets the card shrink inside grid and flex tracks; without it
+        // a wide table inside would stretch the whole column past the viewport.
+        "min-w-0 overflow-hidden rounded-xl border border-border bg-surface shadow-[0_1px_2px_rgba(16,21,31,0.04)]",
         className,
       )}
     >

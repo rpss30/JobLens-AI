@@ -133,6 +133,35 @@ Exit codes:
 Use `SKIP_MISSING_DISK_PATHS=true` only when a watched path is optional during
 local testing.
 
+## API Request Logs
+
+The API writes one JSON line per request to stdout, which Docker captures and
+the log aggregation timer collects:
+
+```json
+{"timestamp": "2026-08-10T21:46:55.324275Z", "level": "INFO", "logger": "joblens.api", "message": "request completed", "request_id": "caddy-abc123", "method": "GET", "path": "/health", "status_code": 200, "duration_ms": 1.04}
+```
+
+`request_id` is taken from an incoming `X-Request-ID` header when present and
+generated otherwise, then echoed back on the response. A caller can quote the ID
+from a failed request and it will match the log line for it.
+
+Only method, route path, status, and duration are recorded. Request bodies,
+query strings, and headers are never logged, because the analyze and report
+endpoints receive resume text and job searches are user input. A test asserts
+this rather than trusting the convention.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `JOBLENS_LOG_LEVEL` | `INFO` | Standard logging level name. |
+| `JOBLENS_LOG_FORMAT` | `json` | Set `text` for readable local output. |
+
+Follow one request across services:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml logs api | grep caddy-abc123
+```
+
 ## Log Snapshots
 
 Capture Compose service logs and service status into a timestamped directory:

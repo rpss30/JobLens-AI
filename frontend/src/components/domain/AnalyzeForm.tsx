@@ -41,6 +41,15 @@ const SEARCH_MODES: { value: SearchMode; label: string; hint: string }[] = [
   },
 ];
 
+const EXPERIENCE_BUCKETS = [
+  "Not specified",
+  "0-1 years",
+  "1-2 years",
+  "3-5 years",
+  "5-8 years",
+  "8+ years",
+];
+
 export function AnalyzeForm({
   filterOptions,
   datasetName,
@@ -58,6 +67,7 @@ export function AnalyzeForm({
   const [searchMode, setSearchMode] = useState<SearchMode>("tfidf");
   const [location, setLocation] = useState("Any");
   const [experienceLevel, setExperienceLevel] = useState("Any");
+  const [candidateExperience, setCandidateExperience] = useState("Not specified");
   const [topN, setTopN] = useState(10);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -81,6 +91,7 @@ export function AnalyzeForm({
       search_mode: searchMode,
       location,
       experience_level: experienceLevel,
+      candidate_experience: candidateExperience,
       top_n: topN,
       dataset_name: datasetName,
     };
@@ -166,6 +177,25 @@ export function AnalyzeForm({
               placeholder="Paste your resume here and we will find your skills for you"
               className={controlClassName}
             />
+          </Field>
+
+          <Field
+            label="Relevant professional experience"
+            htmlFor="candidate-experience"
+            hint="Optional. Shown separately from skill fit."
+          >
+            <select
+              id="candidate-experience"
+              value={candidateExperience}
+              onChange={(event) => setCandidateExperience(event.target.value)}
+              className={controlClassName}
+            >
+              {EXPERIENCE_BUCKETS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
           </Field>
         </CardBody>
       </Card>

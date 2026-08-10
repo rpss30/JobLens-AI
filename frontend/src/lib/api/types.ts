@@ -150,6 +150,13 @@ export interface JobMatch {
   tfidf_relevance: number;
   search_mode: string;
   job_match_score: number;
+  skill_match_score: number;
+  candidate_experience: string;
+  required_experience: string;
+  required_experience_years: number | null;
+  experience_requirement_source: string;
+  experience_fit: string;
+  experience_fit_score: number | null;
   matched_skills_count: number;
   related_skills_count: number;
   missing_skills_count: number;
@@ -202,6 +209,7 @@ export interface AnalyzeRequest {
   search_mode: SearchMode;
   location: string;
   experience_level: string;
+  candidate_experience: string;
   top_n: number;
   dataset_name: string | null;
 }

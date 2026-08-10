@@ -108,6 +108,44 @@ def test_filter_options_return_404_for_unavailable_local_dataset(monkeypatch) ->
     assert "canada_snapshot" in response.json()["detail"]
 
 
+def test_candidate_report_downloads_markdown_and_pdf() -> None:
+    request_body = {
+        "current_skills": ["Python", "SQL", "Docker"],
+        "search_query": "backend engineer",
+        "dataset_name": "canada_snapshot",
+        "top_n": 5,
+    }
+
+    markdown_response = client.post(
+        "/reports/candidate",
+        params={"format": "markdown"},
+        json=request_body,
+    )
+
+    assert markdown_response.status_code == 200
+    assert markdown_response.headers["content-type"].startswith("text/markdown")
+    assert ".md" in markdown_response.headers["content-disposition"]
+    assert "JobLens AI Candidate Skill-Gap Report" in markdown_response.text
+
+    pdf_response = client.post(
+        "/reports/candidate",
+        params={"format": "pdf"},
+        json=request_body,
+    )
+
+    assert pdf_response.status_code == 200
+    assert pdf_response.headers["content-type"] == "application/pdf"
+    assert pdf_response.content.startswith(b"%PDF-")
+
+    unsupported_response = client.post(
+        "/reports/candidate",
+        params={"format": "docx"},
+        json=request_body,
+    )
+
+    assert unsupported_response.status_code == 422
+
+
 def test_jobs_support_search_sorting_and_pagination() -> None:
     response = client.get(
         "/jobs",

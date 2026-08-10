@@ -14,6 +14,7 @@ from src.api.routers import (
     health,
     jobs,
     market_insights,
+    reports,
 )
 from src.api.security import get_cors_origins
 
@@ -57,6 +58,10 @@ def create_app() -> FastAPI:
                 "name": "analysis",
                 "description": "Candidate role-fit and skill-gap analysis.",
             },
+            {
+                "name": "reports",
+                "description": "Downloadable candidate skill-gap reports.",
+            },
         ],
     )
     app.add_middleware(
@@ -89,6 +94,7 @@ def create_app() -> FastAPI:
     app.include_router(filter_options.router)
     app.include_router(jobs.router)
     app.include_router(market_insights.router)
+    app.include_router(reports.router)
     app.include_router(analyze.router)
 
     return app

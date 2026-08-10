@@ -68,6 +68,11 @@ def test_analyze_returns_candidate_fit_summary() -> None:
     assert "required_experience" in first_job_match
     assert "required_experience_years" in first_job_match
     assert "experience_fit" in first_job_match
+    assert "matched_required_skills" in first_job_match
+    assert "missing_required_skills" in first_job_match
+    assert "matched_preferred_skills" in first_job_match
+    assert "missing_preferred_skills" in first_job_match
+    assert "preferred_skill_coverage" in first_job_match
 
 
 def test_filter_options_expose_canada_snapshot_selections() -> None:

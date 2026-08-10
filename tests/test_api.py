@@ -23,7 +23,8 @@ def test_analyze_returns_candidate_fit_summary() -> None:
             "location": "Any",
             "experience_level": "Entry Level",
             "candidate_experience": "3-5 years",
-            "top_n": 5,
+            "top_skills": 5,
+            "top_jobs": 6,
         },
     )
 
@@ -43,7 +44,7 @@ def test_analyze_returns_candidate_fit_summary() -> None:
     assert data["resume_analysis"] is None
 
     assert len(data["recommended_skills"]) <= 5
-    assert len(data["top_matching_jobs"]) <= 5
+    assert len(data["top_matching_jobs"]) <= 6
 
     first_role_score = data["role_scores"][0]
 
@@ -73,6 +74,26 @@ def test_analyze_returns_candidate_fit_summary() -> None:
     assert "matched_preferred_skills" in first_job_match
     assert "missing_preferred_skills" in first_job_match
     assert "preferred_skill_coverage" in first_job_match
+
+
+def test_analyze_accepts_legacy_top_n_for_result_limits() -> None:
+    response = client.post(
+        "/analyze",
+        json={
+            "current_skills": ["Python", "SQL", "Pandas"],
+            "target_roles": ["Data Scientist"],
+            "location": "Any",
+            "experience_level": "Entry Level",
+            "top_n": 1,
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert len(data["recommended_skills"]) <= 1
+    assert len(data["top_matching_jobs"]) <= 1
 
 
 def test_filter_options_expose_canada_snapshot_selections() -> None:
@@ -245,7 +266,8 @@ def test_analyze_supports_free_text_search_without_target_roles() -> None:
             "search_query": "data scientist",
             "location": "Any",
             "experience_level": "Any",
-            "top_n": 5,
+            "top_skills": 5,
+            "top_jobs": 5,
         },
     )
 
@@ -268,7 +290,8 @@ def test_analyze_supports_semantic_search_mode() -> None:
             "search_mode": "semantic",
             "location": "Any",
             "experience_level": "Any",
-            "top_n": 5,
+            "top_skills": 5,
+            "top_jobs": 5,
         },
     )
 
@@ -299,7 +322,8 @@ def test_analyze_supports_resume_text_without_manual_skills_or_search_scope() ->
             "search_query": "",
             "location": "Any",
             "experience_level": "Any",
-            "top_n": 5,
+            "top_skills": 5,
+            "top_jobs": 5,
         },
     )
 
@@ -547,7 +571,8 @@ def test_analyze_can_use_database_dataset(monkeypatch) -> None:
             "target_roles": ["Data Scientist"],
             "location": "Any",
             "experience_level": "Entry Level",
-            "top_n": 5,
+            "top_skills": 5,
+            "top_jobs": 5,
         },
     )
 
@@ -581,7 +606,8 @@ def test_analyze_omits_zero_score_top_matching_jobs(monkeypatch) -> None:
             "target_roles": ["Backend Software Engineer"],
             "location": "Any",
             "experience_level": "Any",
-            "top_n": 5,
+            "top_skills": 5,
+            "top_jobs": 5,
         },
     )
 

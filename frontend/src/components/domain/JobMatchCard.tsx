@@ -103,47 +103,52 @@ export function JobMatchCard({ job }: { job: JobMatch }) {
       </div>
 
       {hasRequiredSkillExplanation || hasPreferredSkillExplanation ? (
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          {hasRequiredSkillExplanation ? (
-            <div className="space-y-3">
-              <SkillChips
-                label="Matched required"
-                skills={job.matched_required_skills}
-                tone="positive"
-              />
-              <SkillChips
-                label="Missing required"
-                skills={job.missing_required_skills}
-                tone="warning"
-              />
-            </div>
-          ) : null}
+        <details className="mt-4">
+          <summary className="cursor-pointer text-sm font-medium text-accent hover:underline">
+            View required and preferred details
+          </summary>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            {hasRequiredSkillExplanation ? (
+              <div className="space-y-3">
+                <SkillChips
+                  label="Matched required"
+                  skills={job.matched_required_skills}
+                  tone="positive"
+                />
+                <SkillChips
+                  label="Missing required"
+                  skills={job.missing_required_skills}
+                  tone="warning"
+                />
+              </div>
+            ) : null}
 
-          {hasPreferredSkillExplanation ? (
-            <div className="space-y-3">
-              {job.preferred_skill_coverage !== null ? (
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-text-subtle">
-                    Preferred coverage
-                  </p>
-                  <p className="mt-1 text-sm font-medium text-text">
-                    {Math.round(job.preferred_skill_coverage)}%
-                  </p>
-                </div>
-              ) : null}
-              <SkillChips
-                label="Matched preferred"
-                skills={job.matched_preferred_skills}
-                tone="accent"
-              />
-              <SkillChips
-                label="Missing preferred"
-                skills={job.missing_preferred_skills}
-                tone="warning"
-              />
-            </div>
-          ) : null}
-        </div>
+            {hasPreferredSkillExplanation ? (
+              <div className="space-y-3">
+                {job.preferred_skill_coverage !== null ? (
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-text-subtle">
+                      Preferred coverage
+                    </p>
+                    <p className="mt-1 text-sm font-medium text-text">
+                      {Math.round(job.preferred_skill_coverage)}%
+                    </p>
+                  </div>
+                ) : null}
+                <SkillChips
+                  label="Matched preferred"
+                  skills={job.matched_preferred_skills}
+                  tone="accent"
+                />
+                <SkillChips
+                  label="Missing preferred"
+                  skills={job.missing_preferred_skills}
+                  tone="warning"
+                />
+              </div>
+            ) : null}
+          </div>
+        </details>
       ) : null}
 
       {job.source_url ? (

@@ -20,6 +20,5 @@
   {"company": "Stripe", "source_type": "greenhouse", "source_identifier": "stripe"},
   {"company": "Thinkific", "source_type": "greenhouse", "source_identifier": "thinkific"},
   {"company": "TouchBistro", "source_type": "greenhouse", "source_identifier": "touchbistro"},
-  {"company": "Unity", "source_type": "greenhouse", "source_identifier": "unity3d"},
   {"company": "Wealthsimple", "source_type": "ashby", "source_identifier": "wealthsimple"}
 ]

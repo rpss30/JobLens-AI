@@ -77,10 +77,22 @@ def test_health_script_checks_edge_api_and_operations_routes() -> None:
     assert "HEALTH_DELAY_SECONDS" in script
 
 
-def test_deployment_workflow_is_manual_environment_protected_and_rollback_ready() -> None:
+def test_deployment_workflow_is_test_gated_environment_protected_and_rollback_ready() -> None:
     workflow = read_file(WORKFLOW_PATH)
 
     assert "workflow_dispatch:" in workflow
+
+    # Pushes to main deploy automatically, except documentation-only pushes,
+    # and never before the test suite passes.
+    assert "push:" in workflow
+    assert "paths-ignore:" in workflow
+    assert '- "**/*.md"' in workflow
+    assert "needs: test" in workflow
+    assert "python -m pytest -q" in workflow
+
+    # A push-triggered run has no workflow inputs to read.
+    assert "inputs.deploy_ref || 'origin/main'" in workflow
+    assert "inputs.skip_public_health_check || 'false'" in workflow
     assert "environment: production" in workflow
     assert "concurrency:" in workflow
     assert "group: production-deployment" in workflow

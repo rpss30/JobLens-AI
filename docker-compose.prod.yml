@@ -107,6 +107,9 @@ services:
     restart: unless-stopped
     environment:
       <<: *app-env
+      # The healthcheck sends this as the Host header so Django accepts it
+      # without loopback names in DJANGO_ALLOWED_HOSTS.
+      JOBLENS_DOMAIN: ${JOBLENS_DOMAIN:?JOBLENS_DOMAIN must be set}
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY must be set}
       DJANGO_DEBUG: "false"
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:?DJANGO_ALLOWED_HOSTS must be set}
@@ -124,7 +127,7 @@ services:
       db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8001/health/ || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS -H \"Host: $${JOBLENS_DOMAIN}\" http://127.0.0.1:8001/health/ || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3

@@ -271,6 +271,44 @@ def test_secret_audit_fails_placeholder_missing_and_public_env_file(tmp_path: Pa
     assert "Secret configuration audit failed" in result.stderr
     assert "replace-with-a-long-random-password" not in result.stdout + result.stderr
 
+    # A password that is only replaced in one of its two places starts
+    # PostgreSQL cleanly and then fails every application connection.
+    mismatched_env = tmp_path / ".env.mismatched"
+    mismatched_status = tmp_path / "secret-audit-mismatch.json"
+    write_fake_production_env(mismatched_env)
+    mismatched_env.write_text(
+        mismatched_env.read_text(encoding="utf-8").replace(
+            "joblens:prod-postgres-password-value@db",
+            "joblens:still-a-placeholder@db",
+        ),
+        encoding="utf-8",
+    )
+    mismatched_env.chmod(0o600)
+
+    mismatched_result = subprocess.run(
+        [str(AUDIT_SCRIPT)],
+        check=False,
+        capture_output=True,
+        env={
+            **os.environ,
+            "ENV_FILE": str(mismatched_env),
+            "AUDIT_STATUS_FILE": str(mismatched_status),
+        },
+        text=True,
+    )
+
+    mismatched_payload = json.loads(mismatched_status.read_text(encoding="utf-8"))
+
+    assert mismatched_result.returncode == 1
+    assert (
+        "DATABASE_URL password does not match POSTGRES_PASSWORD"
+        in mismatched_payload["failures"]
+    )
+    assert (
+        "prod-postgres-password-value"
+        not in mismatched_result.stdout + mismatched_result.stderr
+    )
+
 
 def test_provider_key_rotation_dry_run_reports_key_names_without_writing_values(
     tmp_path: Path,

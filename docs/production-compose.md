@@ -189,6 +189,14 @@ docker compose --env-file .env.production -f docker-compose.prod.yml exec fronte
 The frontend image has no `curl`; it uses BusyBox `wget`, which is also what its
 Compose healthcheck runs.
 
+The Django healthcheck sends `Host: $JOBLENS_DOMAIN` and targets `127.0.0.1`
+rather than `localhost`. Django validates the `Host` header against
+`DJANGO_ALLOWED_HOSTS` and answers `400` for anything unlisted, so probing
+`localhost` would require adding loopback names to that variable — which
+`audit_secret_configuration.sh` rejects as placeholder values. Sending the real
+hostname satisfies both. `SECURE_REDIRECT_EXEMPT` covers the health path so the
+probe still gets a `200` when `DJANGO_SECURE_SSL_REDIRECT` is on.
+
 Check the public edge after DNS and TLS are ready:
 
 ```bash

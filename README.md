@@ -16,6 +16,8 @@ uses Groq to extract skills from complete job descriptions.
 
 | Surface | Link | Status |
 | --- | --- | --- |
+| Next.js app on Lightsail | [Open live app](https://joblens-ai.duckdns.org/) | Available |
+| FastAPI documentation on Lightsail | [Open Swagger UI](https://joblens-ai.duckdns.org/api/docs) | Available |
 | Streamlit Cloud dashboard | [Open live dashboard](https://joblens-ai-rpss-30.streamlit.app/) | Available; may need to wake after inactivity |
 | AWS ECS Fargate dashboard | [Open AWS deployment](http://joblens-alb-134373356.ca-central-1.elb.amazonaws.com/) | Inactive to avoid ongoing AWS charges |
 | FastAPI documentation | [Open Swagger UI](http://joblens-alb-134373356.ca-central-1.elb.amazonaws.com/docs) | Inactive to avoid ongoing AWS charges |

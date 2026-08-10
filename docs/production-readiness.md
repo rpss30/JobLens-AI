@@ -44,9 +44,30 @@ RUN_COMPOSE_CONFIG=true \
 RUN_SECRET_AUDIT=true \
 RUN_PARAMETER_STORE_RENDER_CHECK=true \
 RUN_BACKUP_STATUS_CHECK=true \
+BACKUP_STATUS_FILE=/srv/joblens-backups/latest_backup.json \
 RUN_OFFSITE_BACKUP_STATUS_CHECK=true \
 RUN_OPERATIONS_STATUS_CHECK=true \
 RUN_TERRAFORM_VALIDATE=true \
+deploy/scripts/check_production_readiness.sh
+```
+
+`BACKUP_STATUS_FILE` is needed because the backup check defaults to
+`deploy/backups/`, while the systemd timer writes to `/srv/joblens-backups/`.
+Without it, strict mode reports a missing backup that exists.
+
+Enable only the flags matching what the server actually runs. Each one shells
+out to a subsystem's own checker, so `RUN_PARAMETER_STORE_RENDER_CHECK`,
+`RUN_OFFSITE_BACKUP_STATUS_CHECK`, and `RUN_TERRAFORM_VALIDATE` fail in strict
+mode on a server that has no Parameter Store path, no off-server backup target,
+or no Terraform binary. A single-server deployment with hand-written secrets
+usually runs:
+
+```bash
+STRICT_READINESS=true \
+RUN_COMPOSE_CONFIG=true \
+RUN_SECRET_AUDIT=true \
+RUN_BACKUP_STATUS_CHECK=true \
+BACKUP_STATUS_FILE=/srv/joblens-backups/latest_backup.json \
 deploy/scripts/check_production_readiness.sh
 ```
 

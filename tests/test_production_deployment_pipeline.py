@@ -38,12 +38,12 @@ def test_deploy_script_runs_safe_migration_sequence_before_restart() -> None:
 
     build_index = script.index("docker-compose.prod.yml build")
     db_index = script.index("docker-compose.prod.yml up -d db")
-    alembic_index = script.index("run --rm api alembic upgrade head")
+    alembic_index = script.index("run --rm -T api alembic upgrade head")
     django_index = script.index(
-        "run --rm django-ops python -m django_ops.manage migrate",
+        "run --rm -T django-ops python -m django_ops.manage migrate",
     )
     roles_index = script.index(
-        "run --rm django-ops python -m django_ops.manage bootstrap_ops_roles",
+        "run --rm -T django-ops python -m django_ops.manage bootstrap_ops_roles",
     )
     restart_index = script.index('docker-compose.prod.yml up -d\n')
 
@@ -57,6 +57,34 @@ def test_deploy_script_runs_safe_migration_sequence_before_restart() -> None:
     assert restart_index < prune_index
     assert "docker image prune -f || true" in script
     assert "docker builder prune -f --filter until=168h || true" in script
+
+
+def test_deploy_script_does_not_let_compose_consume_the_piped_script() -> None:
+    """The remote block arrives on stdin, so a container attached to stdin eats it.
+
+    Without this, the deploy stopped silently after the first migration and still
+    exited 0, leaving freshly built images that were never started.
+    """
+    script = read_file(DEPLOY_SCRIPT)
+
+    assert "bash -s" in script
+
+    compose_run_lines = [
+        line
+        for line in script.splitlines()
+        if "compose" in line and "run --rm" in line
+    ]
+
+    assert compose_run_lines
+
+    for line in compose_run_lines:
+        assert "run --rm -T" in line, line
+        assert line.rstrip().endswith("< /dev/null"), line
+
+    # Truncation is invisible to the health checks, which pass against the old
+    # containers, so the remote block has to prove it reached the end.
+    assert 'echo "REMOTE_DEPLOY_COMPLETE"' in script
+    assert "grep -q '^REMOTE_DEPLOY_COMPLETE$'" in script
 
 
 def test_rollback_script_restarts_without_database_downgrades() -> None:

@@ -45,7 +45,10 @@ remote_env=(
   "DEPLOY_ENV_FILE=$(shell_quote "${DEPLOY_ENV_FILE}")"
 )
 
-ssh_command "${remote_env[*]} bash -s" <<'REMOTE_DEPLOY'
+remote_log="$(mktemp)"
+trap 'rm -f "${remote_log}"' EXIT
+
+ssh_command "${remote_env[*]} bash -s" <<'REMOTE_DEPLOY' | tee "${remote_log}"
 set -euo pipefail
 
 cd "${DEPLOY_PATH}"
@@ -60,9 +63,17 @@ git checkout --force "${DEPLOY_REF}"
 docker compose --env-file "${DEPLOY_ENV_FILE}" -f docker-compose.prod.yml config -q
 docker compose --env-file "${DEPLOY_ENV_FILE}" -f docker-compose.prod.yml build
 docker compose --env-file "${DEPLOY_ENV_FILE}" -f docker-compose.prod.yml up -d db
-docker compose --env-file "${DEPLOY_ENV_FILE}" -f docker-compose.prod.yml run --rm api alembic upgrade head
-docker compose --env-file "${DEPLOY_ENV_FILE}" -f docker-compose.prod.yml run --rm django-ops python -m django_ops.manage migrate
-docker compose --env-file "${DEPLOY_ENV_FILE}" -f docker-compose.prod.yml run --rm django-ops python -m django_ops.manage bootstrap_ops_roles
+
+# This script reaches the server as standard input to "bash -s", so the shell is
+# still reading the remaining lines from stdin while it runs. "compose run"
+# attaches the container to stdin by default, which makes it swallow the rest of
+# this script: the deploy would then stop silently after the first migration and
+# still exit 0. "-T" and "< /dev/null" keep stdin with the shell that needs it.
+# Any command added below that might read stdin needs the same treatment.
+docker compose --env-file "${DEPLOY_ENV_FILE}" -f docker-compose.prod.yml run --rm -T api alembic upgrade head < /dev/null
+docker compose --env-file "${DEPLOY_ENV_FILE}" -f docker-compose.prod.yml run --rm -T django-ops python -m django_ops.manage migrate < /dev/null
+docker compose --env-file "${DEPLOY_ENV_FILE}" -f docker-compose.prod.yml run --rm -T django-ops python -m django_ops.manage bootstrap_ops_roles < /dev/null
+
 docker compose --env-file "${DEPLOY_ENV_FILE}" -f docker-compose.prod.yml up -d
 docker compose --env-file "${DEPLOY_ENV_FILE}" -f docker-compose.prod.yml ps
 
@@ -73,7 +84,18 @@ docker compose --env-file "${DEPLOY_ENV_FILE}" -f docker-compose.prod.yml ps
 docker image prune -f || true
 docker builder prune -f --filter until=168h || true
 docker system df
+
+echo "REMOTE_DEPLOY_COMPLETE"
 REMOTE_DEPLOY
+
+# A remote block that ends early still exits 0, which once let a deploy report
+# success while the stack was never restarted. The health checks cannot catch
+# that, because the old containers are still up and healthy. Require the marker
+# the remote block prints as its last line.
+if ! grep -q '^REMOTE_DEPLOY_COMPLETE$' "${remote_log}"; then
+  echo "Remote deploy ended before completing; treating this as a failed deploy." >&2
+  exit 1
+fi
 
 if [[ "${SKIP_PUBLIC_HEALTH_CHECK}" != "true" ]]; then
   if [[ -n "${JOBLENS_HEALTH_BASE_URL:-}" || -n "${JOBLENS_DOMAIN:-}" ]]; then

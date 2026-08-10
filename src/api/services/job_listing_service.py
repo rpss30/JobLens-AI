@@ -5,7 +5,7 @@ import pandas as pd
 from src.api.schemas import JobListResponse
 from src.api.services.analysis_service import clean_optional_text, load_jobs_for_analysis
 from src.api.services.listing import paginate_items, sort_items
-from src.dashboard.services import filter_jobs
+from src.analysis.job_services import filter_jobs
 
 
 JobSortBy = Literal[

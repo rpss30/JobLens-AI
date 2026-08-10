@@ -1,11 +1,42 @@
 from fastapi.testclient import TestClient
 from src.api.main import app
 from datetime import UTC, datetime
+from pathlib import Path
+import subprocess
+import sys
+
 import pandas as pd
 
 from src.api.services import analysis_run_service, analysis_service, dataset_service
 
 client = TestClient(app)
+
+ROOT_DIR = Path(__file__).resolve().parents[1]
+
+
+def test_api_does_not_import_the_streamlit_dashboard() -> None:
+    """The API builds on src.analysis, never on the Streamlit package.
+
+    Importing the dashboard drags Streamlit and its cache layer into the API
+    process, which is why the shared helpers live in a framework-free module.
+    This runs in a subprocess because other tests import the dashboard, so
+    sys.modules in this process says nothing about what the API pulls in.
+    """
+    probe = (
+        "import sys, src.api.main;"
+        "print('streamlit' in sys.modules);"
+        "print(any(m.startswith('src.dashboard') for m in sys.modules))"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", probe],
+        capture_output=True,
+        text=True,
+        check=True,
+        cwd=ROOT_DIR,
+    )
+
+    assert result.stdout.split() == ["False", "False"], result.stdout
+
 
 def test_health_check_returns_ok() -> None:
     response = client.get("/health")

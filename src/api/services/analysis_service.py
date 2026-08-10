@@ -6,7 +6,7 @@ import pandas as pd
 
 from src.api.errors import ApiError
 from src.api.schemas import AnalyzeRequest, AnalyzeResponse
-from src.dashboard.services import (
+from src.analysis.job_services import (
     CANADA_JOBS_SNAPSHOT_PATH,
     filter_jobs,
     get_job_match_details,

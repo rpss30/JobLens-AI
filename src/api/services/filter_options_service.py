@@ -1,7 +1,7 @@
 import pandas as pd
 
 from src.api.services.analysis_service import load_jobs_for_analysis
-from src.dashboard.services import (
+from src.analysis.job_services import (
     get_available_locations,
     get_available_skills,
     get_available_target_roles,

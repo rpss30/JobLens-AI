@@ -99,7 +99,8 @@ The dashboard also shows market-level insights such as top required skills, role
 - Top matching job cards with job-level evidence
 - Jobs-by-location market insight
 - Role distribution and top hiring companies
-- Next.js frontend with overview, analysis, job browsing, market insights, and history
+- Next.js frontend with overview, analysis, job browsing, market insights, history, and dataset management
+- Markdown and PDF candidate report downloads from the API and both frontends
 - Server-rendered pages that consume the FastAPI backend without duplicating business logic
 - Interactive Streamlit dashboard with controlled search presets and profile presets
 - Free-text TF-IDF job search across titles, skills, employers, locations, and descriptions
@@ -521,6 +522,7 @@ curl -X POST http://127.0.0.1:8000/analyze \
 | --- | --- | --- |
 | `GET` | `/health` | Check API availability |
 | `GET` | `/datasets` | List PostgreSQL datasets |
+| `POST` | `/datasets` | Upload a jobs CSV as a new dataset |
 | `PATCH` | `/datasets/{dataset_name}` | Rename an uploaded dataset |
 | `DELETE` | `/datasets/{dataset_name}` | Delete an uploaded dataset |
 | `GET` | `/analysis-runs` | List saved analysis runs |
@@ -529,6 +531,7 @@ curl -X POST http://127.0.0.1:8000/analyze \
 | `GET` | `/filter-options` | List selectable analysis filters and dataset summary |
 | `GET` | `/jobs` | Browse job postings with search, sorting, and pagination |
 | `POST` | `/market-insights` | Summarize skill, location, and employer demand |
+| `POST` | `/reports/candidate` | Download a Markdown or PDF skill-gap report |
 | `POST` | `/analyze` | Search jobs and run role-fit and skill-gap analysis |
 
 List endpoints support bounded pagination with `limit` and `offset`, plus

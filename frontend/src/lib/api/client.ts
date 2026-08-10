@@ -70,6 +70,35 @@ async function readErrorDetail(response: Response): Promise<string> {
   return `Request failed with status ${response.status}.`;
 }
 
+/**
+ * Multipart uploads must let fetch set the Content-Type boundary, so this
+ * skips the JSON header apiFetch applies.
+ */
+export async function apiUpload<T>(
+  path: string,
+  formData: FormData,
+): Promise<T> {
+  let response: Response;
+
+  try {
+    response = await fetch(`${getApiBaseUrl()}${path}`, {
+      method: "POST",
+      body: formData,
+    });
+  } catch {
+    throw new ApiError(
+      "Could not reach the JobLens API. Check that the backend is running.",
+      503,
+    );
+  }
+
+  if (!response.ok) {
+    throw new ApiError(await readErrorDetail(response), response.status);
+  }
+
+  return (await response.json()) as T;
+}
+
 export async function apiFetch<T>(
   path: string,
   init: RequestInit = {},

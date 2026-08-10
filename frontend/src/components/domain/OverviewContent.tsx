@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import { JobMatchCard } from "@/components/domain/JobMatchCard";
+import { ReportDownloads } from "@/components/domain/ReportDownloads";
 import { RoleFitPanel } from "@/components/domain/RoleFitPanel";
 import { SaveAnalysisButton } from "@/components/domain/SaveAnalysisButton";
 import { SkillGapPanel } from "@/components/domain/SkillGapPanel";
@@ -71,7 +72,10 @@ export function OverviewContent({
         />
       </div>
 
-      <SaveAnalysisButton />
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+        <SaveAnalysisButton />
+        <ReportDownloads />
+      </div>
 
       <div className="grid items-start gap-6 lg:grid-cols-2">
         <RoleFitPanel roleScores={response.role_scores} />

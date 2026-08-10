@@ -2,7 +2,7 @@ from typing import Literal
 
 from src.api.schemas import AnalyzeRequest
 from src.api.services.analysis_service import compute_analysis_frames
-from src.dashboard.services import (
+from src.analysis.job_services import (
     generate_candidate_report_markdown,
     generate_candidate_report_pdf,
     get_candidate_fit_summary,

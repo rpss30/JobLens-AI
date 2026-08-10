@@ -6,11 +6,20 @@ import { useId, useState, type ReactNode } from "react";
  * Reveals an explanation on hover, focus, or tap. Focus and click are handled
  * as well as hover so it is reachable by keyboard and on touch devices.
  */
+const triggerStyles = {
+  // A standalone control, such as the dataset name on the overview.
+  chip: "rounded-md border border-border bg-surface-muted px-2 py-0.5 text-xs font-medium text-text-muted hover:text-text",
+  // Sits inline beside other status text, so it carries no chrome of its own.
+  plain: "rounded text-xs font-medium text-text-muted hover:text-text",
+};
+
 export function InfoTooltip({
   label,
+  variant = "chip",
   children,
 }: {
-  label: string;
+  label: ReactNode;
+  variant?: keyof typeof triggerStyles;
   children: ReactNode;
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -29,7 +38,7 @@ export function InfoTooltip({
         onFocus={() => setIsOpen(true)}
         onBlur={() => setIsOpen(false)}
         onClick={() => setIsOpen((open) => !open)}
-        className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-muted px-2 py-0.5 text-xs font-medium text-text-muted hover:text-text"
+        className={`inline-flex items-center gap-1 ${triggerStyles[variant]}`}
       >
         {label}
         <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true">

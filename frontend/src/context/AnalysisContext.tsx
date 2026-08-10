@@ -21,6 +21,9 @@ interface AnalysisContextValue {
   analysis: StoredAnalysis | null;
   setAnalysis: (analysis: StoredAnalysis) => void;
   clearAnalysis: () => void;
+  /** True once the current result has been written to history. */
+  isAnalysisSaved: boolean;
+  markAnalysisSaved: () => void;
 }
 
 const AnalysisContext = createContext<AnalysisContextValue | null>(null);
@@ -36,18 +39,39 @@ const AnalysisContext = createContext<AnalysisContextValue | null>(null);
  */
 export function AnalysisProvider({ children }: { children: ReactNode }) {
   const [analysis, setStoredAnalysis] = useState<StoredAnalysis | null>(null);
+  /*
+   * Which result has already been saved. This lives beside the analysis rather
+   * than inside the save button, because the button unmounts whenever the user
+   * moves to another tab; keeping it there let the same result be saved twice.
+   */
+  const [savedCompletedAt, setSavedCompletedAt] = useState<string | null>(null);
 
   const setAnalysis = useCallback((nextAnalysis: StoredAnalysis) => {
     setStoredAnalysis(nextAnalysis);
+    setSavedCompletedAt(null);
   }, []);
 
   const clearAnalysis = useCallback(() => {
     setStoredAnalysis(null);
+    setSavedCompletedAt(null);
   }, []);
 
+  const markAnalysisSaved = useCallback(() => {
+    setSavedCompletedAt(analysis?.completedAt ?? null);
+  }, [analysis?.completedAt]);
+
+  const isAnalysisSaved =
+    analysis !== null && savedCompletedAt === analysis.completedAt;
+
   const value = useMemo(
-    () => ({ analysis, setAnalysis, clearAnalysis }),
-    [analysis, setAnalysis, clearAnalysis],
+    () => ({
+      analysis,
+      setAnalysis,
+      clearAnalysis,
+      isAnalysisSaved,
+      markAnalysisSaved,
+    }),
+    [analysis, setAnalysis, clearAnalysis, isAnalysisSaved, markAnalysisSaved],
   );
 
   return (

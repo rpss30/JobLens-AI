@@ -83,6 +83,63 @@ def create_analysis_run(request: CreateAnalysisRunRequest) -> dict:
     return saved_analysis_run
 
 
+def rename_saved_analysis_run(analysis_run_id: int, new_name: str) -> dict:
+    if not database_repository.check_database_connection():
+        raise ApiError(
+            status_code=503,
+            detail="PostgreSQL is unavailable, so analysis runs cannot be renamed.",
+        )
+
+    try:
+        renamed = database_repository.rename_analysis_run(
+            analysis_run_id,
+            new_name,
+        )
+    except ValueError as error:
+        raise ApiError(status_code=400, detail=str(error)) from error
+    except Exception as error:
+        raise ApiError(
+            status_code=500,
+            detail=f"Could not rename analysis run {analysis_run_id}.",
+        ) from error
+
+    if not renamed:
+        raise ApiError(
+            status_code=404,
+            detail=f"Analysis run {analysis_run_id} was not found.",
+        )
+
+    return {
+        "id": analysis_run_id,
+        "name": new_name.strip(),
+        "renamed": True,
+    }
+
+
+def delete_saved_analysis_run(analysis_run_id: int) -> dict:
+    if not database_repository.check_database_connection():
+        raise ApiError(
+            status_code=503,
+            detail="PostgreSQL is unavailable, so analysis runs cannot be deleted.",
+        )
+
+    try:
+        deleted = database_repository.delete_analysis_run(analysis_run_id)
+    except Exception as error:
+        raise ApiError(
+            status_code=500,
+            detail=f"Could not delete analysis run {analysis_run_id}.",
+        ) from error
+
+    if not deleted:
+        raise ApiError(
+            status_code=404,
+            detail=f"Analysis run {analysis_run_id} was not found.",
+        )
+
+    return {"id": analysis_run_id, "deleted": True}
+
+
 def get_saved_analysis_run(analysis_run_id: int) -> dict:
     if not database_repository.check_database_connection():
         raise ApiError(

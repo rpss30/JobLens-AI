@@ -275,6 +275,21 @@ class CreateAnalysisRunRequest(BaseModel):
         return cleaned_values
 
 
+class RenameAnalysisRunRequest(BaseModel):
+    new_name: str = Field(..., min_length=1, max_length=255)
+
+
+class RenameAnalysisRunResponse(BaseModel):
+    id: int
+    name: str
+    renamed: bool
+
+
+class DeleteAnalysisRunResponse(BaseModel):
+    id: int
+    deleted: bool
+
+
 class AnalysisRunResponse(BaseModel):
     id: int
     name: str

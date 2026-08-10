@@ -6,7 +6,10 @@ from src.api.query_params import ListQueryParams, pagination_params
 from src.api.schemas import (
     AnalysisRunResponse,
     CreateAnalysisRunRequest,
+    DeleteAnalysisRunResponse,
     ErrorResponse,
+    RenameAnalysisRunRequest,
+    RenameAnalysisRunResponse,
 )
 from src.api.services import analysis_run_service
 from src.api.services.analysis_run_service import AnalysisRunSortBy
@@ -72,3 +75,38 @@ def create_analysis_run(request: CreateAnalysisRunRequest) -> dict:
 )
 def get_analysis_run(analysis_run_id: int) -> dict:
     return analysis_run_service.get_saved_analysis_run(analysis_run_id)
+
+
+@router.patch(
+    "/{analysis_run_id}",
+    response_model=RenameAnalysisRunResponse,
+    summary="Rename a saved analysis run",
+    responses={
+        400: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+        503: {"model": ErrorResponse},
+    },
+)
+def rename_analysis_run(
+    analysis_run_id: int,
+    request: RenameAnalysisRunRequest,
+) -> dict:
+    return analysis_run_service.rename_saved_analysis_run(
+        analysis_run_id,
+        request.new_name,
+    )
+
+
+@router.delete(
+    "/{analysis_run_id}",
+    response_model=DeleteAnalysisRunResponse,
+    summary="Delete a saved analysis run",
+    responses={
+        404: {"model": ErrorResponse},
+        500: {"model": ErrorResponse},
+        503: {"model": ErrorResponse},
+    },
+)
+def remove_analysis_run(analysis_run_id: int) -> dict:
+    return analysis_run_service.delete_saved_analysis_run(analysis_run_id)

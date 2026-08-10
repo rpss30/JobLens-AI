@@ -6,6 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from src.api.errors import ApiError, api_error_handler
+from src.api.logging_config import configure_logging
+from src.api.middleware import RequestContextMiddleware
 from src.api.routers import (
     analysis_runs,
     analyze,
@@ -24,6 +26,8 @@ def get_api_root_path() -> str:
 
 
 def create_app() -> FastAPI:
+    configure_logging()
+
     app = FastAPI(
         title="JobLens AI API",
         description="Backend API for JobLens AI role-fit and skill-gap analysis.",
@@ -71,6 +75,10 @@ def create_app() -> FastAPI:
         allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["Content-Type", "Authorization"],
     )
+    # Starlette applies the last registered middleware outermost, so this sits
+    # outside CORS: every request gets an ID and a log line, including the
+    # preflights and rejections CORS answers by itself.
+    app.add_middleware(RequestContextMiddleware)
     app.add_exception_handler(ApiError, api_error_handler)
 
     @app.exception_handler(Exception)

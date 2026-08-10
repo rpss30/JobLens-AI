@@ -41,3 +41,22 @@ def test_refresh_workflow_gates_refresh_steps_on_groq_secret() -> None:
         "if: steps.groq_config.outputs.configured == 'true' "
         "&& steps.changes.outputs.changed == 'true'"
     ) in workflow_text
+
+
+def test_refresh_workflow_merges_and_deploys_the_validated_snapshot() -> None:
+    workflow_text = WORKFLOW_PATH.read_text(encoding="utf-8")
+
+    # The merge is only defensible because validation and the suite run first.
+    validate_index = workflow_text.index("- name: Validate refreshed snapshot")
+    tests_index = workflow_text.index("- name: Run test suite")
+    merge_index = workflow_text.index("gh pr merge")
+
+    assert validate_index < merge_index
+    assert tests_index < merge_index
+    assert "--squash --delete-branch" in workflow_text
+
+    # A merge made with GITHUB_TOKEN raises no push event, so the deploy has to
+    # be dispatched explicitly or the refreshed snapshot never ships.
+    assert "actions: write" in workflow_text
+    assert "gh workflow run deploy-production.yml" in workflow_text
+    assert merge_index < workflow_text.index("gh workflow run")

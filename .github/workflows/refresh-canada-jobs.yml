@@ -8,6 +8,8 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  # Needed to dispatch the deploy workflow after the snapshot merges.
+  actions: write
 
 concurrency:
   group: refresh-canada-jobs
@@ -136,3 +138,30 @@ jobs:
             --head "$BRANCH_NAME" \
             --title "Refresh Canada jobs snapshot" \
             --body-file /tmp/pull-request.md
+
+      # Safe to merge unattended because the snapshot only reaches this point
+      # after validate_canada_jobs_snapshot.py and the full pytest suite have
+      # already passed above. The pull request remains the audit trail and the
+      # revert handle. Nothing is waiting on required checks, so this merges now.
+      - name: Merge the snapshot refresh pull request
+        if: steps.groq_config.outputs.configured == 'true' && steps.changes.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH_NAME: automation/canada-jobs-refresh-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          gh pr merge "$BRANCH_NAME" --squash --delete-branch
+
+      # A merge performed with GITHUB_TOKEN does not raise a push event, so the
+      # deploy workflow would never see the new snapshot. workflow_dispatch is
+      # one of the two events the token is allowed to trigger, so request the
+      # deploy explicitly. Without this the refreshed data sits in main until
+      # some later code change happens to deploy it.
+      - name: Deploy the refreshed snapshot
+        if: steps.groq_config.outputs.configured == 'true' && steps.changes.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run deploy-production.yml \
+            --ref main \
+            -f deploy_ref=origin/main \
+            -f skip_public_health_check=false

@@ -33,6 +33,68 @@ def test_extract_skills_groq_first_uses_groq(monkeypatch):
     assert result.confidence == 0.8
 
 
+def test_extract_skills_groq_first_waits_out_rate_limits_without_spending_attempts(
+    monkeypatch,
+):
+    rate_limit_message = (
+        "Error code: 429 - {'error': {'message': 'Rate limit reached for model "
+        "`llama-3.3-70b-versatile` on tokens per minute (TPM): Limit 12000, "
+        "Used 10115, Requested 2128. Please try again in 1.215s.', "
+        "'code': 'rate_limit_exceeded'}}"
+    )
+
+    class EmptyGroqResult:
+        skills: list[str] = []
+        skill_items: list[ExtractedSkill] = []
+        model = "llama-test"
+        prompt_version = "skill-extraction-v2"
+
+    responses: list[object] = [
+        RuntimeError(rate_limit_message),
+        EmptyGroqResult(),
+        FakeGroqResult(),
+    ]
+    sleeps: list[float] = []
+
+    def fake_extract(title, description):
+        response = responses.pop(0)
+
+        if isinstance(response, Exception):
+            raise response
+
+        return response
+
+    monkeypatch.setattr(
+        build_canada_jobs_snapshot,
+        "extract_skills_with_groq",
+        fake_extract,
+    )
+    monkeypatch.setattr(
+        build_canada_jobs_snapshot.time,
+        "sleep",
+        sleeps.append,
+    )
+
+    result = build_canada_jobs_snapshot.extract_skills_groq_first(
+        title="Data Engineer",
+        description="Build pipelines with Python, SQL, and AWS.",
+    )
+
+    # The rate limit bought another real attempt rather than consuming one, so
+    # the empty extraction did not push this posting to the fallback.
+    assert result.provider == "groq"
+    assert result.skills == ["python", "sql", "AWS"]
+    assert responses == []
+
+    # Waited the delay Groq asked for, not the flat retry delay.
+    assert sleeps[0] == 1.715
+
+    # Only genuine rate limits are treated as capacity waits.
+    assert build_canada_jobs_snapshot.rate_limit_wait_seconds(
+        RuntimeError("Groq unavailable"),
+    ) is None
+
+
 def test_extract_skills_groq_first_falls_back_after_failures(monkeypatch):
     monkeypatch.setattr(
         build_canada_jobs_snapshot,

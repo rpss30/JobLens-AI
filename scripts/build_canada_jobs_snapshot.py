@@ -7,6 +7,7 @@ from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime
 from math import isfinite
+import re
 import sys
 import time
 from pathlib import Path
@@ -107,17 +108,49 @@ def metadata_text(value: object, *, default: str = "") -> str:
     return text if text else default
 
 
+RATE_LIMIT_WAIT_CEILING_SECONDS = 30.0
+RATE_LIMIT_WAIT_MARGIN_SECONDS = 0.5
+
+
+def rate_limit_wait_seconds(error: Exception) -> float | None:
+    """Read the wait Groq asks for in a rate-limit error, if this is one.
+
+    A tokens-per-minute rejection reports how long the bucket needs, for example
+    "Please try again in 1.215s". Returns None for any other failure so only real
+    rate limits are treated as retryable capacity waits.
+    """
+    message = str(error)
+
+    if "rate_limit" not in message.lower() and "429" not in message:
+        return None
+
+    match = re.search(r"try again in ([0-9.]+)s", message)
+
+    if not match:
+        return RATE_LIMIT_WAIT_MARGIN_SECONDS
+
+    return min(
+        float(match.group(1)) + RATE_LIMIT_WAIT_MARGIN_SECONDS,
+        RATE_LIMIT_WAIT_CEILING_SECONDS,
+    )
+
+
 def extract_skills_groq_first(
     *,
     title: str,
     description: str,
     max_attempts: int = 2,
     retry_delay_seconds: int = 3,
+    max_rate_limit_waits: int = 3,
 ) -> SnapshotSkillExtractionResult:
     """Use Groq for complete descriptions, with deterministic emergency fallback."""
     errors: list[str] = []
+    attempt = 0
+    rate_limit_waits = 0
 
-    for attempt in range(1, max_attempts + 1):
+    while attempt < max_attempts:
+        attempt += 1
+
         try:
             result = extract_skills_with_groq(
                 title=title,
@@ -140,6 +173,18 @@ def extract_skills_groq_first(
             errors.append(
                 f"Groq attempt {attempt}: {type(error).__name__}: {error}"
             )
+
+            wait_seconds = rate_limit_wait_seconds(error)
+
+            # A rate limit means the model never read the posting, so waiting for
+            # token capacity should not spend one of the extraction attempts.
+            # Otherwise a single 429 leaves one real attempt, and a posting that
+            # then returns no skills drops to the deterministic fallback.
+            if wait_seconds is not None and rate_limit_waits < max_rate_limit_waits:
+                rate_limit_waits += 1
+                attempt -= 1
+                time.sleep(wait_seconds)
+                continue
 
         if attempt < max_attempts:
             time.sleep(retry_delay_seconds)

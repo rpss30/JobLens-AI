@@ -1,12 +1,13 @@
 # src/matching/match_engine.py
 
 import math
-import re
 from collections import defaultdict
 
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+
+from src.skill_extraction.normalizer import normalize_skill_key
 
 
 RELATED_SKILL_THRESHOLD = 0.60
@@ -16,18 +17,7 @@ CONFIDENCE_SAMPLE_SCALE = 5.0
 
 def normalize_skill(skill: str) -> str:
     """Normalize skill names for comparison."""
-    normalized = str(skill).strip().lower()
-    normalized = re.sub(r"(?<=\w)\.(?=\w)", "", normalized)
-    normalized = re.sub(r"[-_/]+", " ", normalized)
-    normalized = re.sub(r"[^a-z0-9+#\s]", " ", normalized)
-    normalized = re.sub(r"\s+", " ", normalized).strip()
-
-    tokens = [
-        "api" if token == "apis" else token  # nosec
-        for token in normalized.split()
-    ]
-
-    return " ".join(tokens)
+    return normalize_skill_key(skill)
 
 
 def _lexical_skill_similarity(first_skill: str, second_skill: str) -> float:

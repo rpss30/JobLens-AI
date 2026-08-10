@@ -38,8 +38,11 @@ SKILL_ALIASES = {
     "ide": "IDEs",
     "ides": "IDEs",
     "aws": "AWS",
+    "amazon web services": "AWS",
     "gcp": "GCP",
     "azure": "Azure",
+    "go": "Go",
+    "golang": "Go",
     "mlflow": "MLflow",
     "nlp": "NLP",
     "genai": "generative ai",
@@ -53,6 +56,37 @@ SKILL_ALIASES = {
     "finops": "FinOps",
     "api design": "API design",
 }
+
+
+def _normalize_skill_key_without_aliases(skill: str) -> str:
+    normalized = str(skill).strip().lower()
+    normalized = re.sub(r"(?<=\w)\.(?=\w)", "", normalized)
+    normalized = re.sub(r"[-_/]+", " ", normalized)
+    normalized = re.sub(r"[^a-z0-9+#\s]", " ", normalized)
+    normalized = re.sub(r"\s+", " ", normalized).strip()
+
+    tokens = [
+        "api" if token == "apis" else token  # nosec
+        for token in normalized.split()
+    ]
+    return " ".join(tokens)
+
+
+def normalize_skill_text(skill: str) -> str:
+    """Normalize skill-like text without collapsing aliases."""
+    return _normalize_skill_key_without_aliases(skill)
+
+
+def normalize_skill_key(skill: str) -> str:
+    """Normalize one skill into the canonical comparison key used by matching."""
+    normalized = _normalize_skill_key_without_aliases(skill)
+
+    canonical = SKILL_ALIASES.get(normalized, normalized)
+
+    if canonical == normalized:
+        return normalized
+
+    return _normalize_skill_key_without_aliases(canonical)
 
 
 def normalize_skill_name(skill: str) -> str:

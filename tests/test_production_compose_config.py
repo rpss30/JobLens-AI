@@ -101,6 +101,8 @@ def test_production_env_example_declares_required_runtime_settings():
         "JOBLENS_CORS_ORIGINS=",
         "JOBLENS_API_ROOT_PATH=/api",
         "JOBLENS_API_URL=http://api:8000",
+        "JOBLENS_LOG_LEVEL=INFO",
+        "JOBLENS_LOG_FORMAT=json",
         "DJANGO_SECRET_KEY=",
         "DJANGO_ALLOWED_HOSTS=",
         "DJANGO_CSRF_TRUSTED_ORIGINS=",

@@ -108,6 +108,54 @@ def test_filter_options_return_404_for_unavailable_local_dataset(monkeypatch) ->
     assert "canada_snapshot" in response.json()["detail"]
 
 
+def test_jobs_support_search_sorting_and_pagination() -> None:
+    response = client.get(
+        "/jobs",
+        params={"dataset_name": "canada_snapshot", "limit": 3},
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["dataset_name"] == "canada_snapshot"
+    assert data["total"] > 3
+    assert len(data["jobs"]) == 3
+    assert data["jobs"][0]["title"]
+    assert data["jobs"][0]["source_url"]
+
+    search_response = client.get(
+        "/jobs",
+        params={
+            "dataset_name": "canada_snapshot",
+            "search_query": "machine learning platform",
+            "limit": 3,
+        },
+    )
+
+    search_data = search_response.json()
+
+    # A free-text query narrows the slice and ranks by relevance.
+    assert search_data["total"] < data["total"]
+    assert search_data["jobs"][0]["search_relevance"] > 0
+
+    sorted_response = client.get(
+        "/jobs",
+        params={
+            "dataset_name": "canada_snapshot",
+            "sort_by": "company",
+            "sort_order": "asc",
+            "limit": 5,
+        },
+    )
+
+    companies = [job["company"] for job in sorted_response.json()["jobs"]]
+
+    assert companies == sorted(companies)
+
+    assert client.get("/jobs", params={"sort_by": "unsupported"}).status_code == 422
+
+
 def test_market_insights_summarize_demand_without_a_candidate_profile() -> None:
     response = client.post(
         "/market-insights",

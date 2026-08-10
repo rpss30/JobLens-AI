@@ -169,6 +169,31 @@ class AnalysisRunResponse(BaseModel):
     role_scores: list[dict[str, Any]]
     created_at: datetime
     
+class JobListing(BaseModel):
+    job_id: str = ""
+    title: str
+    company: str
+    location: str
+    experience_level: str
+    role_category: str
+    employment_type: str = ""
+    workplace_type: str = ""
+    is_remote: bool = False
+    date_posted: str = ""
+    source: str = ""
+    source_url: str = ""
+    skills: list[str] = Field(default_factory=list)
+    search_relevance: float = 0.0
+
+
+class JobListResponse(BaseModel):
+    dataset_name: str
+    total: int
+    limit: int
+    offset: int
+    jobs: list[JobListing]
+
+
 class MarketInsightsRequest(BaseModel):
     target_roles: list[str] = Field(
         default_factory=list,

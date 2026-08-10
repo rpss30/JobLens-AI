@@ -156,7 +156,7 @@ The Skills & Market section  shows market-level insights such as top required sk
 - Groq skill extraction from complete first-party job descriptions
 - Structured skill extraction with prompt versioning, confidence metadata, and offline evaluation cases
 - JSON/Markdown ingestion run summaries with refresh metrics and failure logs
-- Weekly Canada snapshot refreshes with automated quality gates and reviewable pull requests
+- Weekly Canada snapshot refreshes gated on quality thresholds, then merged and deployed unattended
 - AWS deployment automation for Amazon ECR, ECS Fargate, ALB, Secrets Manager, and RDS PostgreSQL
 - Opt-in off-server database backup upload checks and webhook alert delivery for production monitoring
 - Read-only Parameter Store env rendering for production secrets with local audit integration
@@ -228,9 +228,12 @@ packaged skill extraction. The raw multi-employer fetch is generated outside
 Git; the validated processed snapshot is committed so the app remains
 stable and reproducible.
 
-A GitHub Actions workflow refreshes the snapshot weekly, runs quality checks
-and the full test suite, and opens a pull request when the dataset changes.
-This keeps data updates reviewable rather than modifying `main` automatically.
+A GitHub Actions workflow refreshes the snapshot weekly. It runs the quality
+gates and the full test suite first, and only then opens a pull request, merges
+it, and deploys. The gates decide whether the refresh ships: a snapshot that
+falls under 65% of the previous one, loses employers or locations, or drops below
+95% Groq coverage fails the job and no pull request is created. The merged pull
+request stays as the audit trail and the revert handle.
 
 The Canada jobs snapshot is the app's default dataset. The bundled sample
 dataset remains available in the dataset chooser and is used as a safety

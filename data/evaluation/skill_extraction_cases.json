@@ -3,6 +3,7 @@
     "id": "backend_api_platform",
     "title": "Backend Software Engineer",
     "description": "Build REST APIs and backend services with Python, PostgreSQL, Docker, AWS, CI/CD pipelines, and production monitoring.",
+    "rationale": "Baseline: skills named in a plain list.",
     "expected_skills": [
       "Python",
       "REST APIs",
@@ -17,6 +18,7 @@
     "id": "ml_platform",
     "title": "Machine Learning Engineer",
     "description": "Develop machine learning systems using PyTorch, TensorFlow, scikit-learn, Pandas, NumPy, MLflow, model deployment, and model monitoring workflows.",
+    "rationale": "Baseline: library names that must survive normalization.",
     "expected_skills": [
       "machine learning",
       "PyTorch",
@@ -33,6 +35,7 @@
     "id": "cloud_data_platform",
     "title": "Cloud Data Engineer",
     "description": "Own data pipelines and ETL jobs with Spark, PySpark, Airflow, AWS S3, Lambda, Terraform, Kubernetes, and data warehousing.",
+    "rationale": "Baseline: cloud services alongside the platform that hosts them.",
     "expected_skills": [
       "data pipelines",
       "ETL",
@@ -51,6 +54,7 @@
     "id": "analytics_bi",
     "title": "Analytics Engineer",
     "description": "Create dashboards and product metrics using SQL, dbt, data modeling, Tableau, Power BI, Excel, A/B testing, statistics, and data visualization.",
+    "rationale": "Baseline: analytics tooling and multi-word practices.",
     "expected_skills": [
       "SQL",
       "dbt",
@@ -63,6 +67,108 @@
       "data visualization",
       "dashboards",
       "product metrics"
+    ]
+  },
+  {
+    "id": "required_and_preferred_sections",
+    "title": "Senior Backend Engineer",
+    "description": "What you bring:\n- 5+ years writing production Python\n- Strong SQL and experience designing schemas in PostgreSQL\n- Comfort with Docker in a CI/CD pipeline\n\nNice to have:\n- Exposure to Kubernetes\n- Familiarity with Terraform\n\nWe are a remote-first team with a generous learning budget and dental coverage.",
+    "rationale": "Extraction is skill presence, not requirement tiering, so preferred skills count too. Benefits and working arrangements must not become skills.",
+    "expected_skills": [
+      "Python",
+      "SQL",
+      "PostgreSQL",
+      "Docker",
+      "CI/CD",
+      "Kubernetes",
+      "Terraform"
+    ]
+  },
+  {
+    "id": "acronyms_and_aliases",
+    "title": "AI Engineer",
+    "description": "You will ship LLM features end to end: designing RAG pipelines over our document corpus, evaluating prompts, and deploying models. Solid ML fundamentals and Python are essential, and you will expose everything through APIs.",
+    "rationale": "Probes the alias table: ML, LLM, RAG and API must resolve to their canonical names.",
+    "expected_skills": [
+      "large language models",
+      "retrieval augmented generation",
+      "machine learning",
+      "Python",
+      "APIs"
+    ]
+  },
+  {
+    "id": "versioned_frameworks",
+    "title": "Frontend Engineer",
+    "description": "Our stack is React 19 with Next.js 15 on Node.js 20, styled with Tailwind CSS, and written in TypeScript throughout. You will own component tests.",
+    "rationale": "Version numbers attached to framework names must not prevent a match.",
+    "expected_skills": [
+      "React",
+      "Next.js",
+      "Node.js",
+      "Tailwind CSS",
+      "TypeScript",
+      "testing"
+    ]
+  },
+  {
+    "id": "prose_without_a_skill_list",
+    "title": "Data Engineer",
+    "description": "Our warehouse is the backbone of every decision the company makes. You will spend your first quarter untangling the ingestion jobs that feed it, moving them onto Airflow, and rewriting the worst of them in Python. Once that settles you will help us decide whether Spark is still the right tool for our largest transformations. Everything is on AWS and everything is defined in Terraform.",
+    "rationale": "Realistic prose rather than a comma-separated list, which is how most postings actually read.",
+    "expected_skills": [
+      "Airflow",
+      "Python",
+      "Spark",
+      "AWS",
+      "Terraform"
+    ]
+  },
+  {
+    "id": "soft_skills_are_not_technical_skills",
+    "title": "Engineering Manager, Data",
+    "description": "You will mentor four engineers, run our weekly planning, and handle stakeholder communication with the finance team. Technically you should still be able to read SQL and review Python pull requests.",
+    "rationale": "Precision guard: mentoring, planning and stakeholder communication are real requirements but not technical skills, so only two skills are expected.",
+    "expected_skills": [
+      "SQL",
+      "Python"
+    ]
+  },
+  {
+    "id": "company_and_location_noise",
+    "title": "Platform Engineer",
+    "description": "Java Holdings Inc. is hiring for our Toronto office, with travel to our Ruby Lake site twice a year. The role itself is Go and Kubernetes on Google Cloud, with Prometheus for metrics.",
+    "rationale": "Precision guard: 'Java' and 'Ruby' appear only inside a company and place name and must not be extracted as languages.",
+    "expected_skills": [
+      "Go",
+      "Kubernetes",
+      "Google Cloud",
+      "Prometheus"
+    ]
+  },
+  {
+    "id": "sql_dialects_and_databases",
+    "title": "Database Engineer",
+    "description": "Deep SQL skills across PostgreSQL and MySQL, plus experience tuning queries and designing indexes. Redis for caching and some exposure to MongoDB.",
+    "rationale": "Distinct database products alongside the shared query language.",
+    "expected_skills": [
+      "SQL",
+      "PostgreSQL",
+      "MySQL",
+      "query tuning",
+      "Redis",
+      "MongoDB"
+    ]
+  },
+  {
+    "id": "infrastructure_practices",
+    "title": "Site Reliability Engineer",
+    "description": "Practise infrastructure as code, own continuous integration for a dozen services, and keep our observability stack useful. On call is one week in six.",
+    "rationale": "Multi-word practice names carry the meaning, with no product names to lean on.",
+    "expected_skills": [
+      "infrastructure as code",
+      "continuous integration",
+      "observability"
     ]
   }
 ]

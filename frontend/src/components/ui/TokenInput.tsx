@@ -100,7 +100,23 @@ export function TokenInput({
       </datalist>
 
       {values.length > 0 ? (
-        <ul className="flex flex-wrap gap-1.5 pt-1">
+        <div className="flex items-center justify-between gap-3 pt-1">
+          <p className="text-xs text-text-subtle">
+            {values.length} added
+          </p>
+          <button
+            type="button"
+            onClick={() => onChange([])}
+            className="text-xs font-medium text-text-muted underline underline-offset-2 hover:text-text"
+          >
+            Clear all
+            <span className="sr-only"> {label.toLowerCase()}</span>
+          </button>
+        </div>
+      ) : null}
+
+      {values.length > 0 ? (
+        <ul className="flex flex-wrap gap-1.5">
           {values.map((value) => (
             <li key={value}>
               <span className="inline-flex items-center gap-1 rounded-md bg-accent-soft py-0.5 pl-2 pr-1 text-xs font-medium text-accent">

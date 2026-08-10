@@ -5,6 +5,7 @@ import { ApiStatus } from "@/components/layout/ApiStatus";
 import { AppShell } from "@/components/layout/AppShell";
 import type { DatasetOption } from "@/components/layout/DatasetSwitcher";
 import { AnalysisProvider } from "@/context/AnalysisContext";
+import { ToastProvider } from "@/context/ToastContext";
 import { getDatasets } from "@/lib/api/endpoints";
 import { LOCAL_DATASETS } from "@/lib/datasets";
 
@@ -45,11 +46,13 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${inter.variable} h-full antialiased`}>
       <body className="min-h-full font-sans">
-        <AnalysisProvider>
-          <AppShell datasets={datasets} statusSlot={<ApiStatus />}>
-            {children}
-          </AppShell>
-        </AnalysisProvider>
+        <ToastProvider>
+          <AnalysisProvider>
+            <AppShell datasets={datasets} statusSlot={<ApiStatus />}>
+              {children}
+            </AppShell>
+          </AnalysisProvider>
+        </ToastProvider>
       </body>
     </html>
   );

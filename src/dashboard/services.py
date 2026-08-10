@@ -33,6 +33,10 @@ from src.matching.match_engine import (
     score_skill_set,
     select_best_role_row,
 )
+from src.matching.skill_requirements import (
+    classify_job_skill_requirements,
+    requirement_weight_multiplier,
+)
 from src.processing.job_processor import process_jobs
 from src.search.semantic_search import (
     HYBRID_SEARCH_MODE,
@@ -807,15 +811,24 @@ def get_job_match_details(
             job_skills = [skill.strip() for skill in job_skills_raw.split(",") if skill.strip()]
 
         role_category = str(row.get("role_category", "Other"))
+        skill_requirement_map = classify_job_skill_requirements(
+            job_skills,
+            row.get("description", ""),
+        )
         job_score = score_skill_set(
             required_skills=job_skills,
             role_category=role_category,
             role_skill_weights=role_skill_weights,
             skill_match_map=skill_match_map,
+            skill_requirement_map=skill_requirement_map,
         )
         matched_skills = job_score["matched_skills"]
         related_skills = job_score["related_skills"]
         missing_skills = job_score["missing_skills"]
+        matched_required_skills = job_score["matched_required_skills"]
+        missing_required_skills = job_score["missing_required_skills"]
+        matched_preferred_skills = job_score["matched_preferred_skills"]
+        missing_preferred_skills = job_score["missing_preferred_skills"]
         experience_fit = evaluate_experience_fit(
             candidate_experience=candidate_experience,
             description=row.get("description", ""),
@@ -852,6 +865,11 @@ def get_job_match_details(
             "matched_skills_preview": ", ".join(matched_skills[:5]) if matched_skills else "None",
             "related_skills_preview": ", ".join(related_skills[:3]) if related_skills else "None",
             "missing_skills_preview": ", ".join(missing_skills[:5]) if missing_skills else "None",
+            "matched_required_skills": matched_required_skills,
+            "missing_required_skills": missing_required_skills,
+            "matched_preferred_skills": matched_preferred_skills,
+            "missing_preferred_skills": missing_preferred_skills,
+            "preferred_skill_coverage": job_score["preferred_skill_coverage"],
         })
 
     job_match_df = pd.DataFrame(rows)
@@ -940,6 +958,11 @@ def get_recommended_skills(
                 if skill.strip()
             ]
 
+        skill_requirement_map = classify_job_skill_requirements(
+            skills,
+            row.get("description", ""),
+        )
+
         for skill in skills:
             normalized_skill = normalize_skill(skill)
 
@@ -955,6 +978,8 @@ def get_recommended_skills(
                 continue
 
             weight = category_weights.get(normalized_skill, 1)
+            requirement_type = skill_requirement_map.get(normalized_skill)
+            weight *= requirement_weight_multiplier(str(requirement_type))
 
             if normalized_skill not in skill_scores:
                 skill_scores[normalized_skill] = {

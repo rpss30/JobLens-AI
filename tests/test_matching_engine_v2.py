@@ -4,9 +4,11 @@ from src.dashboard.services import filter_jobs, load_processed_jobs_from_csv
 from src.matching.match_engine import (
     build_skill_match_map,
     get_skill_similarity,
+    score_skill_set,
     score_roles,
     select_best_role_row,
 )
+from src.matching.skill_requirements import classify_job_skill_requirements
 
 
 CANADA_SNAPSHOT_PATH = "data/processed/canada_jobs_snapshot.csv"
@@ -103,6 +105,46 @@ def test_role_fit_uses_representative_jobs_instead_of_the_full_skill_union() -> 
     assert software_row["weighted_match_score"] == 100.0
     assert software_row["representative_job_count"] == 1
     assert software_row["sample_size"] == 4
+
+
+def test_preferred_skills_have_reduced_match_weight() -> None:
+    skill_match_map = build_skill_match_map(
+        user_skills=["Python"],
+        required_skills=["Python", "Docker"],
+    )
+
+    score = score_skill_set(
+        required_skills=["Python", "Docker"],
+        role_category="Software Engineering",
+        role_skill_weights={},
+        skill_match_map=skill_match_map,
+        skill_requirement_map={
+            "python": "required",
+            "docker": "preferred",
+        },
+    )
+
+    assert score["weighted_match_score"] == 66.67
+    assert score["matched_required_skills"] == ["python"]
+    assert score["missing_preferred_skills"] == ["docker"]
+    assert score["preferred_skill_coverage"] == 0.0
+
+
+def test_skill_requirement_classifier_uses_nearest_context() -> None:
+    description = (
+        "Required qualifications include Python and SQL. "
+        "Nice to have: Docker and Kubernetes."
+    )
+
+    requirement_map = classify_job_skill_requirements(
+        ["Python", "SQL", "Docker", "Kubernetes"],
+        description,
+    )
+
+    assert requirement_map["python"] == "required"
+    assert requirement_map["sql"] == "required"
+    assert requirement_map["docker"] == "preferred"
+    assert requirement_map["kubernetes"] == "preferred"
 
 
 def test_limited_sample_role_cannot_outrank_supported_role_for_headline() -> None:

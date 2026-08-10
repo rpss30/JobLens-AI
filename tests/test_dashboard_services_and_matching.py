@@ -458,6 +458,40 @@ def test_get_job_match_details_explains_experience_fit() -> None:
     assert junior_job["experience_fit"] == "Meets requirement"
 
 
+def test_get_job_match_details_explains_required_and_preferred_skills() -> None:
+    jobs_df = pd.DataFrame(
+        [
+            {
+                "title": "Backend Engineer",
+                "company": "APIForge",
+                "location": "Toronto ON",
+                "experience_level": "Mid Level",
+                "role_category": "Software Engineering",
+                "description": (
+                    "Required qualifications include Python and SQL. "
+                    "Nice to have: Docker."
+                ),
+                "extracted_skills": ["Python", "SQL", "Docker"],
+                "skills_text": "Python, SQL, Docker",
+            }
+        ]
+    )
+
+    job_match_df = get_job_match_details(
+        filtered_jobs=jobs_df,
+        user_skills=["Python"],
+    )
+
+    job_match = job_match_df.iloc[0]
+
+    assert job_match["job_match_score"] == 40.0
+    assert job_match["matched_required_skills"] == ["python"]
+    assert job_match["missing_required_skills"] == ["sql"]
+    assert job_match["matched_preferred_skills"] == []
+    assert job_match["missing_preferred_skills"] == ["docker"]
+    assert job_match["preferred_skill_coverage"] == 0.0
+
+
 def test_get_positive_job_matches_excludes_zero_score_jobs() -> None:
     jobs_df = make_sample_jobs_df()
 

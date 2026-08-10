@@ -1,4 +1,4 @@
-import { Badge } from "@/components/ui/Badge";
+import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import type { JobMatch } from "@/lib/api/types";
 import { formatSkill, parseSkillPreview } from "@/lib/format";
 
@@ -31,9 +31,26 @@ function SkillChips({
   );
 }
 
+function getExperienceTone(fit: string): BadgeTone {
+  if (fit === "Meets requirement") {
+    return "positive";
+  }
+
+  if (fit === "Close match") {
+    return "accent";
+  }
+
+  if (fit === "Stretch") {
+    return "warning";
+  }
+
+  return "neutral";
+}
+
 export function JobMatchCard({ job }: { job: JobMatch }) {
   const matchedSkills = parseSkillPreview(job.matched_skills_preview);
   const missingSkills = parseSkillPreview(job.missing_skills_preview);
+  const skillMatchScore = job.skill_match_score ?? job.job_match_score;
 
   return (
     <article className="rounded-xl border border-border bg-surface p-5">
@@ -44,7 +61,7 @@ export function JobMatchCard({ job }: { job: JobMatch }) {
         </div>
         <div className="shrink-0 text-right">
           <p className="text-2xl font-semibold tabular-nums text-text">
-            {Math.round(job.job_match_score)}%
+            {Math.round(skillMatchScore)}%
           </p>
           <p className="text-xs text-text-subtle">skill fit</p>
         </div>
@@ -57,6 +74,22 @@ export function JobMatchCard({ job }: { job: JobMatch }) {
         <li aria-hidden="true">·</li>
         <li>{job.role_category}</li>
       </ul>
+
+      <div className="mt-4 rounded-lg border border-border bg-surface-muted p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs font-medium uppercase tracking-wide text-text-subtle">
+            Experience fit
+          </p>
+          <Badge tone={getExperienceTone(job.experience_fit)}>
+            {job.experience_fit}
+          </Badge>
+        </div>
+        <p className="mt-2 text-sm text-text-muted">
+          Candidate: {job.candidate_experience}
+          <span aria-hidden="true"> · </span>
+          Required: {job.required_experience}
+        </p>
+      </div>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <SkillChips label="Matched" skills={matchedSkills} tone="positive" />

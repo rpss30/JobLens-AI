@@ -23,6 +23,7 @@ from reportlab.platypus import (
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
+from src.matching.experience import evaluate_experience_fit
 from src.matching.match_engine import (
     RELATED_SKILL_THRESHOLD,
     build_role_skill_weights,
@@ -778,6 +779,7 @@ def get_jobs_by_location(df: pd.DataFrame) -> pd.DataFrame:
 def get_job_match_details(
     filtered_jobs: pd.DataFrame,
     user_skills: list[str],
+    candidate_experience: str = "Not specified",
 ) -> pd.DataFrame:
     """Build job-level match details for matching job postings."""
     role_skill_weights = build_role_skill_weights(filtered_jobs)
@@ -814,6 +816,11 @@ def get_job_match_details(
         matched_skills = job_score["matched_skills"]
         related_skills = job_score["related_skills"]
         missing_skills = job_score["missing_skills"]
+        experience_fit = evaluate_experience_fit(
+            candidate_experience=candidate_experience,
+            description=row.get("description", ""),
+            experience_level=row.get("experience_level", ""),
+        )
 
         rows.append({
             "title": row["title"],
@@ -829,6 +836,15 @@ def get_job_match_details(
             "tfidf_relevance": float(row.get("tfidf_relevance", 0.0)),
             "search_mode": row.get("search_mode", TFIDF_SEARCH_MODE),
             "job_match_score": job_score["weighted_match_score"],
+            "skill_match_score": job_score["weighted_match_score"],
+            "candidate_experience": experience_fit.candidate_experience,
+            "required_experience": experience_fit.required_experience,
+            "required_experience_years": experience_fit.required_experience_years,
+            "experience_requirement_source": (
+                experience_fit.experience_requirement_source
+            ),
+            "experience_fit": experience_fit.experience_fit,
+            "experience_fit_score": experience_fit.experience_fit_score,
             "unweighted_job_match_score": job_score["unweighted_match_score"],
             "matched_skills_count": len(matched_skills),
             "related_skills_count": len(related_skills),
@@ -841,20 +857,26 @@ def get_job_match_details(
     job_match_df = pd.DataFrame(rows)
 
     if not job_match_df.empty:
-        sort_columns = ["job_match_score", "matched_skills_count"]
-        sort_ascending = [False, False]
+        sort_columns = [
+            "job_match_score",
+            "experience_fit_score",
+            "matched_skills_count",
+        ]
+        sort_ascending = [False, False, False]
 
         if job_match_df["search_relevance"].gt(0).any():
             sort_columns = [
                 "search_relevance",
                 "job_match_score",
+                "experience_fit_score",
                 "matched_skills_count",
             ]
-            sort_ascending = [False, False, False]
+            sort_ascending = [False, False, False, False]
 
         job_match_df = job_match_df.sort_values(
             by=sort_columns,
             ascending=sort_ascending,
+            na_position="last",
         )
 
     return job_match_df

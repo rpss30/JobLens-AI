@@ -389,13 +389,73 @@ def test_get_job_match_details_calculates_job_level_scores() -> None:
     assert "matched_skills_preview" in job_match_df.columns
     assert "missing_skills_preview" in job_match_df.columns
     assert "source_url" in job_match_df.columns
+    assert "skill_match_score" in job_match_df.columns
+    assert "candidate_experience" in job_match_df.columns
+    assert "required_experience" in job_match_df.columns
+    assert "experience_fit" in job_match_df.columns
 
     top_job = job_match_df.iloc[0]
 
     assert top_job["title"] == "Data Scientist"
     assert top_job["job_match_score"] == 75.0
+    assert top_job["skill_match_score"] == 75.0
+    assert top_job["candidate_experience"] == "Not specified"
+    assert top_job["experience_fit"] == "Not assessed"
     assert top_job["matched_skills_count"] == 3
     assert top_job["missing_skills_count"] == 1
+
+
+def test_get_job_match_details_explains_experience_fit() -> None:
+    jobs_df = pd.DataFrame(
+        [
+            {
+                "title": "Backend Engineer",
+                "company": "APIForge",
+                "location": "Toronto ON",
+                "experience_level": "Senior Level",
+                "role_category": "Software Engineering",
+                "description": (
+                    "Required qualifications include 5+ years of professional "
+                    "experience building backend APIs."
+                ),
+                "extracted_skills": ["Python", "REST APIs", "PostgreSQL"],
+                "skills_text": "Python, REST APIs, PostgreSQL",
+            },
+            {
+                "title": "Junior Developer",
+                "company": "StarterCo",
+                "location": "Toronto ON",
+                "experience_level": "Entry Level",
+                "role_category": "Software Engineering",
+                "description": (
+                    "Our company has 10 years of experience helping customers "
+                    "ship internal tools."
+                ),
+                "extracted_skills": ["Python", "REST APIs", "PostgreSQL"],
+                "skills_text": "Python, REST APIs, PostgreSQL",
+            },
+        ]
+    )
+
+    job_match_df = get_job_match_details(
+        filtered_jobs=jobs_df,
+        user_skills=["Python", "REST APIs", "PostgreSQL"],
+        candidate_experience="3-5 years",
+    )
+
+    senior_job = job_match_df[job_match_df["title"] == "Backend Engineer"].iloc[0]
+    junior_job = job_match_df[job_match_df["title"] == "Junior Developer"].iloc[0]
+
+    assert senior_job["required_experience_years"] == 5
+    assert senior_job["required_experience"] == "5+ years"
+    assert senior_job["experience_requirement_source"] == "description"
+    assert senior_job["experience_fit"] == "Close match"
+    assert senior_job["experience_fit_score"] == 75.0
+
+    assert junior_job["required_experience_years"] == 0
+    assert junior_job["required_experience"] == "Entry Level inferred"
+    assert junior_job["experience_requirement_source"] == "experience_level"
+    assert junior_job["experience_fit"] == "Meets requirement"
 
 
 def test_get_positive_job_matches_excludes_zero_score_jobs() -> None:

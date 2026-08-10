@@ -1,8 +1,13 @@
 from pathlib import Path
 
 
+import json
+
+
 WORKFLOW_PATH = Path(".github/workflows/tests.yml")
 STACK_WORKFLOW_PATH = Path(".github/workflows/stack-check.yml")
+FRONTEND_WORKFLOW_PATH = Path(".github/workflows/frontend-checks.yml")
+FRONTEND_PACKAGE_JSON = Path("frontend/package.json")
 
 
 def test_tests_workflow_runs_pytest_with_coverage() -> None:
@@ -38,3 +43,27 @@ def test_stack_check_workflow_boots_the_production_stack_on_pull_requests() -> N
 
     assert "/proxy/analyze" in workflow_text
     assert "Request body must be valid JSON." in workflow_text
+
+
+def test_frontend_checks_workflow_lints_and_typechecks_the_frontend() -> None:
+    workflow_text = FRONTEND_WORKFLOW_PATH.read_text(encoding="utf-8")
+
+    assert "pull_request:" in workflow_text
+    assert "npm ci" in workflow_text
+    assert "npm run lint" in workflow_text
+    assert "npm run typecheck" in workflow_text
+
+    # Matches the node:24-alpine base image the production frontend runs on.
+    assert 'node-version: "24"' in workflow_text
+
+
+def test_frontend_typecheck_generates_route_types_first() -> None:
+    """Route and layout prop types are generated, not committed.
+
+    PageProps and LayoutProps come from .next/types, which is gitignored, so a
+    bare `tsc --noEmit` fails on a clean checkout. The typecheck script has to
+    run `next typegen` first or the CI job can never pass.
+    """
+    scripts = json.loads(FRONTEND_PACKAGE_JSON.read_text(encoding="utf-8"))["scripts"]
+
+    assert scripts["typecheck"] == "next typegen && tsc --noEmit"

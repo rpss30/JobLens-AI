@@ -36,10 +36,26 @@ checklist before running the first production deployment.
 
 ## GitHub Actions
 
-The `Deploy Production` workflow is manual-only through GitHub Actions
-`workflow_dispatch`. It runs in the protected `production` environment, validates
-the shell scripts, writes the deployment SSH key to the runner, and connects to
-the existing server over SSH.
+The `Deploy Production` workflow runs on two triggers:
+
+- **Automatically on every push to `main`**, except pushes that only touch
+  Markdown, `docs/`, `assets/`, or `.gitignore`. Those change nothing the server
+  runs, and a rebuild on the single production box is not free.
+- **Manually through `workflow_dispatch`**, which additionally lets you choose a
+  different `deploy_ref` or skip the public health checks. A push-triggered run
+  has no inputs, so it deploys `origin/main` with health checks enabled.
+
+Both paths run a `test` job first and the deploy job declares `needs: test`, so
+an automatic deploy cannot outrun the suite. If tests fail, the deploy job is
+skipped entirely and nothing reaches the server.
+
+The deploy job runs in the protected `production` environment, validates the
+shell scripts, writes the deployment SSH key to the runner, and connects to the
+existing server over SSH.
+
+Adding required reviewers to the `production` environment turns automatic
+deploys into ones that pause for approval, which is worth considering on a
+single server with no redundancy.
 
 Required encrypted secrets:
 

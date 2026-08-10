@@ -835,6 +835,61 @@ def test_get_analysis_run_returns_503_when_database_unavailable(monkeypatch) -> 
     assert response.status_code == 503
     assert "PostgreSQL is unavailable" in response.json()["detail"]
 
+def test_upload_dataset_saves_processed_jobs(monkeypatch) -> None:
+    saved_datasets = []
+
+    monkeypatch.setattr(
+        dataset_service.database_repository,
+        "check_database_connection",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        dataset_service.database_repository,
+        "save_uploaded_dataset_from_dataframe",
+        lambda **kwargs: saved_datasets.append(kwargs) or "uploaded_sample",
+    )
+
+    with open("data/examples/sample_upload_jobs.csv", "rb") as upload_file:
+        response = client.post(
+            "/datasets",
+            files={"file": ("sample_upload_jobs.csv", upload_file.read(), "text/csv")},
+            data={"dataset_name": "uploaded sample"},
+        )
+
+    assert response.status_code == 201
+    assert response.json()["dataset_name"] == "uploaded_sample"
+    assert response.json()["job_count"] > 0
+
+    # The CSV is processed before saving, so extracted skills are present.
+    assert "extracted_skills" in saved_datasets[0]["df"].columns
+
+
+def test_upload_dataset_rejects_invalid_uploads(monkeypatch) -> None:
+    monkeypatch.setattr(
+        dataset_service.database_repository,
+        "check_database_connection",
+        lambda: True,
+    )
+
+    non_csv_response = client.post(
+        "/datasets",
+        files={"file": ("jobs.txt", b"title,company\n", "text/plain")},
+        data={"dataset_name": "invalid"},
+    )
+
+    assert non_csv_response.status_code == 400
+    assert "CSV file" in non_csv_response.json()["detail"]
+
+    missing_columns_response = client.post(
+        "/datasets",
+        files={"file": ("jobs.csv", b"title,company\nEngineer,Acme\n", "text/csv")},
+        data={"dataset_name": "invalid"},
+    )
+
+    assert missing_columns_response.status_code == 400
+    assert "missing required columns" in missing_columns_response.json()["detail"]
+
+
 def test_delete_dataset_deletes_uploaded_dataset(monkeypatch) -> None:
     monkeypatch.setattr(
         dataset_service.database_repository,

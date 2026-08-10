@@ -139,6 +139,11 @@ class FilterOptionsResponse(BaseModel):
     summary: DatasetSnapshotSummary
 
 
+class UploadDatasetResponse(BaseModel):
+    dataset_name: str
+    job_count: int
+
+
 class DeleteDatasetResponse(BaseModel):
     dataset_name: str
     deleted: bool

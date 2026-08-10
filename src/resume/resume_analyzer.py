@@ -23,6 +23,7 @@ from src.matching.match_engine import (
     select_best_role_row,
 )
 from src.search.semantic_search import rank_jobs_by_candidate_profile
+from src.skill_extraction.normalizer import normalize_skill_text
 
 
 MAX_RESUME_TEXT_LENGTH = 12_000
@@ -141,7 +142,7 @@ def clean_resume_text(resume_text: str, max_length: int = MAX_RESUME_TEXT_LENGTH
 
 
 def normalize_resume_text(resume_text: str) -> str:
-    return normalize_skill(clean_resume_text(resume_text))
+    return normalize_skill_text(clean_resume_text(resume_text))
 
 
 def get_resume_skill_taxonomy() -> list[str]:
@@ -162,9 +163,9 @@ def build_alias_lookup() -> dict[str, list[str]]:
     for skill in get_resume_skill_taxonomy():
         aliases = {skill, *SKILL_ALIASES.get(skill, [])}
         normalized_aliases = {
-            normalize_skill(alias)
+            normalize_skill_text(alias)
             for alias in aliases
-            if normalize_skill(alias)
+            if normalize_skill_text(alias)
         }
         alias_lookup[skill] = sorted(normalized_aliases, key=lambda value: (-len(value), value))
 
@@ -232,7 +233,7 @@ def extract_pattern_matches(
         match_count = sum(
             1
             for pattern in patterns
-            if phrase_in_text(normalize_skill(pattern), normalized_text)
+            if phrase_in_text(normalize_skill_text(pattern), normalized_text)
         )
 
         if match_count:

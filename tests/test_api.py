@@ -22,6 +22,7 @@ def test_analyze_returns_candidate_fit_summary() -> None:
             "target_roles": ["Data Scientist"],
             "location": "Any",
             "experience_level": "Entry Level",
+            "candidate_experience": "3-5 years",
             "top_n": 5,
         },
     )
@@ -62,6 +63,11 @@ def test_analyze_returns_candidate_fit_summary() -> None:
     assert "search_relevance" in first_job_match
     assert "source" in first_job_match
     assert "source_url" in first_job_match
+    assert first_job_match["skill_match_score"] == first_job_match["job_match_score"]
+    assert first_job_match["candidate_experience"] == "3-5 years"
+    assert "required_experience" in first_job_match
+    assert "required_experience_years" in first_job_match
+    assert "experience_fit" in first_job_match
 
 
 def test_filter_options_expose_canada_snapshot_selections() -> None:

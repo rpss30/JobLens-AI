@@ -5,7 +5,7 @@ DEPLOY_ENV_FILE="${DEPLOY_ENV_FILE:-.env.production}"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
 LOG_DIR="${LOG_DIR:-deploy/logs}"
 LOG_TIMESTAMP="${LOG_TIMESTAMP:-$(date -u +%Y%m%dT%H%M%SZ)}"
-LOG_SERVICES="${LOG_SERVICES:-caddy dashboard api django-ops db}"
+LOG_SERVICES="${LOG_SERVICES:-caddy frontend api django-ops db}"
 LOG_LINES="${LOG_LINES:-300}"
 INCLUDE_SYSTEMD_LOGS="${INCLUDE_SYSTEMD_LOGS:-false}"
 

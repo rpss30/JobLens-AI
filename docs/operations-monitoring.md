@@ -27,7 +27,7 @@ deploy/server/systemd/joblens-ops-monitor.timer
 
 | Check | What It Verifies |
 | --- | --- |
-| Compose services | `caddy`, `dashboard`, `api`, `django-ops`, and `db` are running. |
+| Compose services | `caddy`, `frontend`, `api`, `django-ops`, and `db` are running. |
 | Public health | `/healthz`, `/api/health`, and `/ops/login/` respond through the public edge when a domain or base URL is configured. |
 | Database backup | `latest_backup.json` exists, reports success, and is fresh. |
 | Off-server backup | `latest_offsite_backup.json` exists, reports success, and is fresh when the check is enabled. |
@@ -67,7 +67,7 @@ Useful defaults:
 | --- | --- |
 | `DEPLOY_ENV_FILE` | `.env.production` |
 | `COMPOSE_FILE` | `docker-compose.prod.yml` |
-| `EXPECTED_SERVICES` | `caddy dashboard api django-ops db` |
+| `EXPECTED_SERVICES` | `caddy frontend api django-ops db` |
 | `BACKUP_STATUS_FILE` | `/srv/joblens-backups/latest_backup.json` |
 | `BACKUP_MAX_AGE_HOURS` | `30` |
 | `OFFSITE_BACKUP_STATUS_FILE` | `/srv/joblens-backups/latest_offsite_backup.json` |
@@ -134,7 +134,7 @@ The script writes:
 ```text
 compose_ps.txt
 caddy.log
-dashboard.log
+frontend.log
 api.log
 django-ops.log
 db.log

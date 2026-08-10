@@ -26,6 +26,7 @@ check_url() {
 
 for attempt in $(seq 1 "${HEALTH_RETRIES}"); do
   if check_url "/healthz" \
+      && check_url "/proxy/health" \
       && check_url "/api/health" \
       && check_url "/ops/login/"; then
     echo "Production health checks passed for ${JOBLENS_HEALTH_BASE_URL}."

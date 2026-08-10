@@ -20,7 +20,7 @@ deploy/server/systemd/joblens-log-aggregation.timer
 
 `aggregate_operations_logs.sh` collects:
 
-- Compose logs for `caddy`, `dashboard`, `api`, `django-ops`, and `db`
+- Compose logs for `caddy`, `frontend`, `api`, `django-ops`, and `db`
 - systemd journal entries for the operations monitor, database backup, and
   ingestion refresh timers
 
@@ -68,7 +68,7 @@ Useful defaults:
 | `COMPOSE_FILE` | `docker-compose.prod.yml` |
 | `LOG_AGGREGATION_DIR` | `deploy/log-aggregation` |
 | `LOG_AGGREGATION_STATUS_FILE` | `$LOG_AGGREGATION_DIR/latest_log_aggregation.json` |
-| `LOG_AGGREGATION_SERVICES` | `caddy dashboard api django-ops db` |
+| `LOG_AGGREGATION_SERVICES` | `caddy frontend api django-ops db` |
 | `LOG_AGGREGATION_LINES` | `400` |
 | `LOG_AGGREGATION_RETENTION_DAYS` | `14` |
 | `INCLUDE_SYSTEMD_LOGS` | `true` |

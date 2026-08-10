@@ -3,7 +3,7 @@ set -euo pipefail
 
 DEPLOY_ENV_FILE="${DEPLOY_ENV_FILE:-.env.production}"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
-EXPECTED_SERVICES="${EXPECTED_SERVICES:-caddy dashboard api django-ops db}"
+EXPECTED_SERVICES="${EXPECTED_SERVICES:-caddy frontend api django-ops db}"
 MONITOR_STATUS_FILE="${MONITOR_STATUS_FILE:-deploy/monitoring/latest_status.json}"
 SKIP_COMPOSE_CHECK="${SKIP_COMPOSE_CHECK:-false}"
 SKIP_PUBLIC_HEALTH_CHECK="${SKIP_PUBLIC_HEALTH_CHECK:-false}"

@@ -7,6 +7,13 @@ import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
+from src.matching.skill_requirements import (
+    PREFERRED_SKILL,
+    REQUIRED_SKILL,
+    UNKNOWN_SKILL_REQUIREMENT,
+    classify_job_skill_requirements,
+    requirement_weight_multiplier,
+)
 from src.skill_extraction.normalizer import normalize_skill_key
 
 
@@ -386,6 +393,7 @@ def score_skill_set(
     role_category: str,
     role_skill_weights: dict[str, dict[str, int]],
     skill_match_map: dict[str, tuple[float, str | None]],
+    skill_requirement_map: dict[str, str] | None = None,
 ) -> dict:
     """Score one posting's extracted skills against a candidate profile."""
     normalized_required_skills = sorted({
@@ -403,24 +411,43 @@ def score_skill_set(
             "matched_skills": [],
             "related_skills": [],
             "missing_skills": [],
+            "matched_required_skills": [],
+            "missing_required_skills": [],
+            "matched_preferred_skills": [],
+            "missing_preferred_skills": [],
+            "preferred_skill_coverage": None,
             "skill_match_details": [],
         }
 
+    skill_requirement_map = skill_requirement_map or {}
     matched_weight = 0.0
     total_possible_weight = 0.0
     match_quality_total = 0.0
     matched_skills = []
     related_skills = []
     missing_skills = []
+    matched_required_skills = []
+    missing_required_skills = []
+    matched_preferred_skills = []
+    missing_preferred_skills = []
+    preferred_match_quality_total = 0.0
+    preferred_skill_count = 0
     skill_match_details = []
 
     for required_skill in normalized_required_skills:
-        skill_weight = float(
+        base_skill_weight = float(
             get_skill_weight_for_role(
                 required_skill,
                 role_category,
                 role_skill_weights,
             )
+        )
+        requirement_type = skill_requirement_map.get(
+            required_skill,
+            UNKNOWN_SKILL_REQUIREMENT,
+        )
+        skill_weight = base_skill_weight * requirement_weight_multiplier(
+            requirement_type
         )
         match_quality, matched_user_skill = skill_match_map.get(
             required_skill,
@@ -438,13 +465,29 @@ def score_skill_set(
                 related_skills.append(
                     f"{matched_user_skill} -> {required_skill}"
                 )
+
+            if requirement_type == REQUIRED_SKILL:
+                matched_required_skills.append(required_skill)
+            elif requirement_type == PREFERRED_SKILL:
+                matched_preferred_skills.append(required_skill)
         else:
             missing_skills.append(required_skill)
+
+            if requirement_type == REQUIRED_SKILL:
+                missing_required_skills.append(required_skill)
+            elif requirement_type == PREFERRED_SKILL:
+                missing_preferred_skills.append(required_skill)
+
+        if requirement_type == PREFERRED_SKILL:
+            preferred_skill_count += 1
+            preferred_match_quality_total += match_quality
 
         skill_match_details.append({
             "required_skill": required_skill,
             "matched_user_skill": matched_user_skill,
             "match_quality": match_quality,
+            "requirement_type": requirement_type,
+            "base_weight": base_skill_weight,
             "weight": skill_weight,
         })
 
@@ -457,6 +500,11 @@ def score_skill_set(
         (match_quality_total / len(normalized_required_skills)) * 100,
         2,
     )
+    preferred_skill_coverage = (
+        round((preferred_match_quality_total / preferred_skill_count) * 100, 2)
+        if preferred_skill_count
+        else None
+    )
 
     return {
         "weighted_match_score": weighted_match_score,
@@ -466,6 +514,11 @@ def score_skill_set(
         "matched_skills": matched_skills,
         "related_skills": related_skills,
         "missing_skills": missing_skills,
+        "matched_required_skills": matched_required_skills,
+        "missing_required_skills": missing_required_skills,
+        "matched_preferred_skills": matched_preferred_skills,
+        "missing_preferred_skills": missing_preferred_skills,
+        "preferred_skill_coverage": preferred_skill_coverage,
         "skill_match_details": skill_match_details,
     }
 
@@ -635,6 +688,10 @@ def score_roles(df: pd.DataFrame, user_skills: list[str]) -> pd.DataFrame:
                 role_category=role_category,
                 role_skill_weights=role_skill_weights,
                 skill_match_map=skill_match_map,
+                skill_requirement_map=classify_job_skill_requirements(
+                    required_skills,
+                    row.get("description", ""),
+                ),
             )
             job_score["row_index"] = row_index
             job_score["title"] = str(row.get("title", ""))

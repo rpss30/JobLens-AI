@@ -1,8 +1,8 @@
 name: Frontend Checks
 
 # The Python suite never sees the frontend, and the production stack check only
-# proves the image builds. This runs ESLint and the TypeScript compiler over the
-# frontend source, which nothing in CI did before.
+# proves the image builds. This runs ESLint, the TypeScript compiler, and the
+# Vitest suite over the frontend source, which nothing in CI did before.
 on:
   pull_request:
     branches:
@@ -46,8 +46,12 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      # The typecheck script runs `next typegen` first. Route and layout prop
-      # types are generated into the gitignored .next/types, so on a clean
-      # checkout tsc would otherwise fail on PageProps and LayoutProps.
+      # The typecheck script clears .next/types and runs `next typegen` first.
+      # Route and layout prop types are generated into that gitignored directory,
+      # so on a clean checkout tsc would otherwise fail on PageProps and
+      # LayoutProps.
       - name: Typecheck
         run: npm run typecheck
+
+      - name: Test
+        run: npm test

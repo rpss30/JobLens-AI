@@ -101,8 +101,13 @@ export function OverviewContent({
         ) : (
           <div className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {visibleJobs.map((job) => (
-                <JobMatchCard key={`${job.title}-${job.company}`} job={job} />
+              {/* Title and company are not unique: one employer can post the
+                  same role twice, which collided as a React key. */}
+              {visibleJobs.map((job, index) => (
+                <JobMatchCard
+                  key={`${job.title}-${job.company}-${index}`}
+                  job={job}
+                />
               ))}
             </div>
 
@@ -112,8 +117,11 @@ export function OverviewContent({
                   Show more matches ({remainingJobs.length})
                 </summary>
                 <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {remainingJobs.map((job) => (
-                    <JobMatchCard key={`${job.title}-${job.company}`} job={job} />
+                  {remainingJobs.map((job, index) => (
+                    <JobMatchCard
+                      key={`${job.title}-${job.company}-${visibleJobs.length + index}`}
+                      job={job}
+                    />
                   ))}
                 </div>
               </details>

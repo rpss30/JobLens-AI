@@ -53,7 +53,7 @@ export function JobMatchCard({ job }: { job: JobMatch }) {
   const skillMatchScore = job.skill_match_score ?? job.job_match_score;
   // Presence is judged on whether there are skills to show, not on whether a
   // coverage figure came back: a job can report 0% preferred coverage while
-  // listing no preferred skills at all, which would open an empty section.
+  // listing no preferred skills at all.
   const hasRequiredSkillExplanation =
     job.matched_required_skills.length > 0 ||
     job.missing_required_skills.length > 0;
@@ -61,13 +61,13 @@ export function JobMatchCard({ job }: { job: JobMatch }) {
     job.matched_preferred_skills.length > 0 ||
     job.missing_preferred_skills.length > 0;
 
-  // The summary names only what is actually inside it.
-  const skillExplanationLabel =
-    hasRequiredSkillExplanation && hasPreferredSkillExplanation
-      ? "View required and preferred details"
-      : hasRequiredSkillExplanation
-        ? "View required skill details"
-        : "View preferred skill details";
+  /*
+   * The breakdown only earns its place when the posting actually separates
+   * must-haves from nice-to-haves. If a job lists only one kind, the split
+   * repeats the matched and missing chips above it, so it is hidden.
+   */
+  const hasSkillSplit =
+    hasRequiredSkillExplanation && hasPreferredSkillExplanation;
 
   return (
     <article className="rounded-xl border border-border bg-surface p-5">
@@ -113,10 +113,10 @@ export function JobMatchCard({ job }: { job: JobMatch }) {
         <SkillChips label="Missing" skills={missingSkills} tone="warning" />
       </div>
 
-      {hasRequiredSkillExplanation || hasPreferredSkillExplanation ? (
+      {hasSkillSplit ? (
         <details className="mt-4">
           <summary className="cursor-pointer text-sm font-medium text-accent hover:underline">
-            {skillExplanationLabel}
+            View required and preferred details
           </summary>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             {hasRequiredSkillExplanation ? (

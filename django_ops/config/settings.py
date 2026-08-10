@@ -128,4 +128,8 @@ SESSION_COOKIE_SECURE = env_bool("DJANGO_SESSION_COOKIE_SECURE", default=not DEB
 CSRF_COOKIE_SECURE = env_bool("DJANGO_CSRF_COOKIE_SECURE", default=not DEBUG)
 SECURE_SSL_REDIRECT = env_bool("DJANGO_SECURE_SSL_REDIRECT", default=False)
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+# The container healthcheck reaches this service directly over plain HTTP on the
+# Docker network, so redirecting it to HTTPS would answer 301 instead of running
+# the check. Every other path still redirects.
+SECURE_REDIRECT_EXEMPT = [r"^health/$"]
 X_FRAME_OPTIONS = "DENY"

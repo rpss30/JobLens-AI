@@ -51,15 +51,19 @@ calls post to thin route handlers that forward the body unchanged:
 ```
 Server Component  ──►  src/lib/api/endpoints.ts  ──►  FastAPI
 Server Action     ──►  src/app/datasets/actions  ──►  FastAPI
-Client component  ──►  /api/analyze              ──►  FastAPI
-                  ──►  /api/analysis-runs        ──►  FastAPI
-                  ──►  /api/reports/candidate    ──►  FastAPI
+Client component  ──►  /proxy/analyze            ──►  FastAPI
+                  ──►  /proxy/analysis-runs      ──►  FastAPI
+                  ──►  /proxy/reports/candidate  ──►  FastAPI
 ```
 
 Dataset upload, rename, and delete are Server Actions so they can call
 `refresh()` and update the rendered list without a manual reload. The report
 route stays a route handler because it streams a file response, which a Server
 Action cannot return.
+
+Those handlers sit under `/proxy` rather than the more usual `/api` because in
+production Caddy forwards `/api/*` to FastAPI, so a Next.js route handler under
+`/api` would be shadowed by the reverse proxy and never receive the request.
 
 This keeps the API base URL on the server and avoids a CORS allowlist change.
 One consequence worth knowing: FastAPI's per-client rate limiter sees the Next.js

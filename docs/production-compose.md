@@ -1,7 +1,7 @@
 # Production Docker Compose Stack
 
 This stack is the low-cost production base for running JobLens on one Linux
-server. It runs Caddy, the Streamlit dashboard, FastAPI API, Django operations
+server. It runs Caddy, the Next.js frontend, FastAPI API, Django operations
 service, and PostgreSQL with Docker Compose.
 
 It does not create cloud resources or configure DNS. Caddy terminates HTTPS
@@ -14,6 +14,7 @@ ports 80 and 443 are reachable.
 docker-compose.prod.yml
 .env.production.example
 deploy/caddy/Caddyfile
+frontend/Dockerfile
 ```
 
 Copy the example environment file on the server:
@@ -50,21 +51,46 @@ Caddy is the only service that publishes host ports:
 443/tcp
 ```
 
-The production Compose file uses `expose` instead of `ports` for Streamlit,
+The production Compose file uses `expose` instead of `ports` for the frontend,
 FastAPI, and Django. PostgreSQL does not publish a host port.
 
 Public routing:
 
 ```text
-/       -> dashboard:8501
-/api/*  -> api:8000 with /api stripped before the request reaches FastAPI
-/ops/*  -> django-ops:8001
-/healthz -> Caddy edge health response
+/            -> frontend:3000
+/proxy/*     -> frontend:3000 (Next.js route handlers the browser calls)
+/api/*       -> api:8000 with /api stripped before the request reaches FastAPI
+/ops/*       -> django-ops:8001
+/healthz     -> Caddy edge health response
 ```
 
 FastAPI uses `JOBLENS_API_ROOT_PATH=/api` so generated OpenAPI and Swagger UI
 links work behind the `/api/*` proxy prefix. Django receives forwarded scheme
 and host headers from Caddy and uses secure cookies in production.
+
+Because Caddy owns `/api/*`, the frontend's own browser-facing route handlers
+live under `/proxy/*`. A Next.js route handler placed under `/api` would be
+shadowed by the reverse proxy and never receive the request.
+
+## Frontend Service
+
+The frontend is the only service built from a separate image
+(`frontend/Dockerfile`, a multi-stage build producing a Next.js standalone
+server that runs as a non-root user on port 3000).
+
+It joins the `joblens_edge` network only. Server Components and route handlers
+reach FastAPI at `JOBLENS_API_URL`, which defaults to `http://api:8000` on the
+internal network:
+
+- the browser never receives the API origin, so no public API hostname is needed
+- the Node process has no PostgreSQL access of its own
+- FastAPI's per-client rate limiter sees the frontend's address rather than each
+  visitor's, because requests arrive server-side
+
+The Streamlit dashboard is no longer part of this stack. It shared the `/` route
+with the frontend and competed for memory on the same small server. The
+Streamlit code stays in the repository and its separate Streamlit Community
+Cloud deployment is unaffected by this stack.
 
 ## DNS and Firewall Preconditions
 
@@ -157,13 +183,17 @@ Check service health from inside the Docker network:
 ```bash
 docker compose --env-file .env.production -f docker-compose.prod.yml exec api curl -fsS http://localhost:8000/health
 docker compose --env-file .env.production -f docker-compose.prod.yml exec django-ops curl -fsS http://localhost:8001/health/
-docker compose --env-file .env.production -f docker-compose.prod.yml exec dashboard curl -fsS http://localhost:8501/_stcore/health
+docker compose --env-file .env.production -f docker-compose.prod.yml exec frontend wget -qO - http://127.0.0.1:3000/proxy/health
 ```
+
+The frontend image has no `curl`; it uses BusyBox `wget`, which is also what its
+Compose healthcheck runs.
 
 Check the public edge after DNS and TLS are ready:
 
 ```bash
 curl -fsS https://$JOBLENS_DOMAIN/healthz
+curl -fsS https://$JOBLENS_DOMAIN/proxy/health
 curl -fsS https://$JOBLENS_DOMAIN/api/health
 ```
 

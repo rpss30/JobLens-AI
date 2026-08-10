@@ -60,7 +60,7 @@ object storage buckets, NAT gateways, container services, or external monitors.
 - SSH is limited to `ssh_cidrs`; the example uses documentation-only CIDR
   `203.0.113.10/32`.
 - HTTP and HTTPS are public because Caddy owns web ingress.
-- PostgreSQL, FastAPI, Django operations, and Streamlit ports stay private to
+- PostgreSQL, FastAPI, Django operations, and Next.js ports stay private to
   Docker Compose.
 - Required tags are applied through AWS provider `default_tags`.
 

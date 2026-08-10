@@ -35,8 +35,8 @@ Use one Amazon Lightsail Linux/Unix instance with a public IPv4 address:
 | Medium | $24 | 4 GB | 2 | 80 GB SSD | 4 TB | Fallback if memory pressure appears |
 
 The $12 plan is the smallest defensible target for the current Compose stack
-because the server runs Caddy, Streamlit, FastAPI, Django operations, and
-PostgreSQL together. The $5 and $7 public IPv4 bundles are useful for tiny apps,
+because the server runs Caddy, the Next.js frontend, FastAPI, Django operations,
+and PostgreSQL together. The $5 and $7 public IPv4 bundles are useful for tiny apps,
 but they leave little memory headroom for this stack and can make PostgreSQL or
 Python workers brittle under refreshes, migrations, or repeated demo traffic.
 
@@ -119,7 +119,7 @@ Use this checklist only after approval:
 11. Install the systemd timer templates for backups and monitoring.
 12. Run the production readiness checker in strict mode.
 13. Trigger the deployment workflow.
-14. Verify dashboard, API, operations login, backups, and status checks.
+14. Verify the site, API, operations login, backups, and status checks.
 15. Update the private production inventory with resource identifiers and URLs.
 
 ## Teardown Checklist

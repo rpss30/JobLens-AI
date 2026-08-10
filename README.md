@@ -366,6 +366,7 @@ JobLens AI
 │   │   ├── components
 │   │   ├── context
 │   │   └── lib
+│   ├── Dockerfile
 │   └── README.md
 ├── scripts
 │   ├── fetch_greenhouse_jobs.py
@@ -612,6 +613,12 @@ and no public database port:
 cp .env.production.example .env.production
 docker compose --env-file .env.production -f docker-compose.prod.yml config -q
 ```
+
+Caddy serves the Next.js frontend at `/`, FastAPI at `/api/*`, and the Django
+operations portal at `/ops/*` under one domain and one certificate. The frontend
+reaches FastAPI over the internal Docker network, so the API needs no public
+hostname of its own. The Streamlit dashboard is not part of this stack; it stays
+in the repository and on Streamlit Community Cloud as a separate deployment.
 
 See [docs/production-compose.md](docs/production-compose.md) for startup,
 migration order, routing, health checks, and current limits. The production

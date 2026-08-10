@@ -75,6 +75,7 @@ Useful defaults:
 | `SKIP_OFFSITE_BACKUP_CHECK` | `true` |
 | `INGESTION_STATUS_FILE` | `/srv/joblens-ingestion/latest_ingestion_refresh.json` |
 | `INGESTION_MAX_AGE_HOURS` | `192` |
+| `SKIP_INGESTION_REFRESH_CHECK` | `false` |
 | `LOG_AGGREGATION_STATUS_FILE` | `/srv/joblens-logs/latest_log_aggregation.json` |
 | `LOG_AGGREGATION_MAX_AGE_HOURS` | `6` |
 | `SKIP_LOG_AGGREGATION_CHECK` | `false` |
@@ -83,6 +84,20 @@ Useful defaults:
 | `DISK_CRITICAL_PERCENT` | `90` |
 | `ALERT_ON_FAILURE` | `false` |
 | `ALERT_FAILURES_ARE_FATAL` | `false` |
+
+When `joblens-ingestion-refresh.timer` is left disabled, its status file never
+appears and the ingestion check fails on every monitor run. Skip that one check
+with a systemd drop-in so the shipped unit file stays canonical:
+
+```text
+/etc/systemd/system/joblens-ops-monitor.service.d/override.conf
+
+[Service]
+Environment=SKIP_INGESTION_REFRESH_CHECK=true
+```
+
+Run `systemctl daemon-reload` afterwards, and remove the override if scheduled
+ingestion is enabled later.
 
 For maintenance windows, individual checks can be skipped with:
 

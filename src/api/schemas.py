@@ -435,6 +435,11 @@ class JobMatch(BaseModel):
     matched_skills_preview: str
     related_skills_preview: str
     missing_skills_preview: str
+    matched_required_skills: list[str] = Field(default_factory=list)
+    missing_required_skills: list[str] = Field(default_factory=list)
+    matched_preferred_skills: list[str] = Field(default_factory=list)
+    missing_preferred_skills: list[str] = Field(default_factory=list)
+    preferred_skill_coverage: float | None = None
 
 
 class LearningPriority(BaseModel):

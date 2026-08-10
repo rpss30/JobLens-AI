@@ -9,7 +9,7 @@ function SkillChips({
 }: {
   label: string;
   skills: string[];
-  tone: "positive" | "warning";
+  tone: BadgeTone;
 }) {
   if (skills.length === 0) {
     return null;
@@ -51,6 +51,12 @@ export function JobMatchCard({ job }: { job: JobMatch }) {
   const matchedSkills = parseSkillPreview(job.matched_skills_preview);
   const missingSkills = parseSkillPreview(job.missing_skills_preview);
   const skillMatchScore = job.skill_match_score ?? job.job_match_score;
+  const hasRequiredSkillExplanation =
+    job.matched_required_skills.length > 0 || job.missing_required_skills.length > 0;
+  const hasPreferredSkillExplanation =
+    job.matched_preferred_skills.length > 0 ||
+    job.missing_preferred_skills.length > 0 ||
+    job.preferred_skill_coverage !== null;
 
   return (
     <article className="rounded-xl border border-border bg-surface p-5">
@@ -95,6 +101,50 @@ export function JobMatchCard({ job }: { job: JobMatch }) {
         <SkillChips label="Matched" skills={matchedSkills} tone="positive" />
         <SkillChips label="Missing" skills={missingSkills} tone="warning" />
       </div>
+
+      {hasRequiredSkillExplanation || hasPreferredSkillExplanation ? (
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          {hasRequiredSkillExplanation ? (
+            <div className="space-y-3">
+              <SkillChips
+                label="Matched required"
+                skills={job.matched_required_skills}
+                tone="positive"
+              />
+              <SkillChips
+                label="Missing required"
+                skills={job.missing_required_skills}
+                tone="warning"
+              />
+            </div>
+          ) : null}
+
+          {hasPreferredSkillExplanation ? (
+            <div className="space-y-3">
+              {job.preferred_skill_coverage !== null ? (
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-text-subtle">
+                    Preferred coverage
+                  </p>
+                  <p className="mt-1 text-sm font-medium text-text">
+                    {Math.round(job.preferred_skill_coverage)}%
+                  </p>
+                </div>
+              ) : null}
+              <SkillChips
+                label="Matched preferred"
+                skills={job.matched_preferred_skills}
+                tone="accent"
+              />
+              <SkillChips
+                label="Missing preferred"
+                skills={job.missing_preferred_skills}
+                tone="warning"
+              />
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       {job.source_url ? (
         <a

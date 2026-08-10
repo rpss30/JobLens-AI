@@ -307,6 +307,15 @@ def build_analyze_response(
             "matched_skills_preview": str(row["matched_skills_preview"]),
             "related_skills_preview": str(row["related_skills_preview"]),
             "missing_skills_preview": str(row["missing_skills_preview"]),
+            "matched_required_skills": list(row["matched_required_skills"]),
+            "missing_required_skills": list(row["missing_required_skills"]),
+            "matched_preferred_skills": list(row["matched_preferred_skills"]),
+            "missing_preferred_skills": list(row["missing_preferred_skills"]),
+            "preferred_skill_coverage": (
+                None
+                if pd.isna(row["preferred_skill_coverage"])
+                else float(row["preferred_skill_coverage"])
+            ),
         }
         for _, row in positive_job_matches_df.head(top_n).iterrows()
     ]

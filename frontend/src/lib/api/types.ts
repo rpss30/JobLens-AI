@@ -163,6 +163,11 @@ export interface JobMatch {
   matched_skills_preview: string;
   related_skills_preview: string;
   missing_skills_preview: string;
+  matched_required_skills: string[];
+  missing_required_skills: string[];
+  matched_preferred_skills: string[];
+  missing_preferred_skills: string[];
+  preferred_skill_coverage: number | null;
 }
 
 export interface LearningPriority {

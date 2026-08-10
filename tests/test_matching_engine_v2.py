@@ -39,21 +39,31 @@ def test_skill_similarity_recognizes_variants_without_conflating_languages() -> 
     assert get_skill_similarity("REST APIs", "REST") >= 0.75
     assert get_skill_similarity("PostgreSQL", "SQL") >= 0.60
     assert get_skill_similarity("Mongo", "MongoDB") >= 0.60
+    assert get_skill_similarity("Go", "Golang") == 1.0
+    assert get_skill_similarity("Kubernetes", "k8s") == 1.0
+    assert get_skill_similarity("JavaScript", "JS") == 1.0
+    assert get_skill_similarity("AWS", "Amazon Web Services") == 1.0
     assert get_skill_similarity("Java", "JavaScript") < 0.60
 
     corpus_match_map = build_skill_match_map(
-        user_skills=["Java", "Mongo"],
+        user_skills=["Java", "Mongo", "Golang", "k8s", "Amazon Web Services"],
         required_skills=[
+            "AWS",
+            "Go",
             "Java",
             "JavaScript",
+            "Kubernetes",
             "MongoDB",
             "Python",
             "TypeScript",
         ],
     )
 
+    assert corpus_match_map["aws"][0] == 1.0
+    assert corpus_match_map["go"][0] == 1.0
     assert corpus_match_map["java"][0] == 1.0
     assert corpus_match_map["javascript"][0] == 0.0
+    assert corpus_match_map["kubernetes"][0] == 1.0
     assert corpus_match_map["mongodb"][0] >= 0.60
 
 

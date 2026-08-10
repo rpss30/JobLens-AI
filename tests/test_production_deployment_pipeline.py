@@ -70,6 +70,7 @@ def test_health_script_checks_edge_api_and_operations_routes() -> None:
     assert "JOBLENS_HEALTH_BASE_URL" in script
     assert "JOBLENS_DOMAIN" in script
     assert 'check_url "/healthz"' in script
+    assert 'check_url "/proxy/health"' in script
     assert 'check_url "/api/health"' in script
     assert 'check_url "/ops/login/"' in script
     assert "HEALTH_RETRIES" in script

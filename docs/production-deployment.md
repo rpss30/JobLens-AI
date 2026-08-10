@@ -95,7 +95,8 @@ documented in [production-compose.md](production-compose.md):
 7. run `python -m django_ops.manage migrate` for Django-owned tables
 8. run `python -m django_ops.manage bootstrap_ops_roles`
 9. start the full stack
-10. run public health checks
+10. prune dangling images and build cache older than seven days
+11. run public health checks
 
 This order keeps Alembic-owned and Django-owned migrations explicit and
 reviewable. If either migration step fails, the deploy exits before the full
@@ -163,6 +164,13 @@ This deployment automation creates no cloud resources and starts no paid
 services. It uses the existing server and normal GitHub Actions minutes. Server,
 static IP, DNS, and storage costs must be tracked separately in the production
 resource inventory.
+
+Deploy frequency does not change the instance bill, which is fixed, and the
+Docker layers a deploy pulls are small against the bundle's transfer allowance.
+Disk is the resource that grows: each deploy supersedes an image generation and
+adds build cache. The deploy prunes both, and the operations monitor warns at 80
+percent and goes critical at 90 percent, so a filling disk surfaces before it
+stops PostgreSQL from writing.
 
 Database backup and restore procedures are documented separately in
 [database-backups.md](database-backups.md). Run and verify a fresh backup before

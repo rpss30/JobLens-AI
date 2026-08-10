@@ -50,6 +50,14 @@ def test_deploy_script_runs_safe_migration_sequence_before_restart() -> None:
     assert build_index < db_index < alembic_index < django_index < roles_index
     assert roles_index < restart_index
 
+    # Disk cleanup runs after the stack is up and never fails the deploy, so a
+    # full disk cannot accumulate across automatic deploys.
+    prune_index = script.index("docker image prune -f")
+
+    assert restart_index < prune_index
+    assert "docker image prune -f || true" in script
+    assert "docker builder prune -f --filter until=168h || true" in script
+
 
 def test_rollback_script_restarts_without_database_downgrades() -> None:
     script = read_file(ROLLBACK_SCRIPT)

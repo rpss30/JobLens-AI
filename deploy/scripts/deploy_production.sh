@@ -65,6 +65,14 @@ docker compose --env-file "${DEPLOY_ENV_FILE}" -f docker-compose.prod.yml run --
 docker compose --env-file "${DEPLOY_ENV_FILE}" -f docker-compose.prod.yml run --rm django-ops python -m django_ops.manage bootstrap_ops_roles
 docker compose --env-file "${DEPLOY_ENV_FILE}" -f docker-compose.prod.yml up -d
 docker compose --env-file "${DEPLOY_ENV_FILE}" -f docker-compose.prod.yml ps
+
+# Every deploy leaves the previous image generation dangling and adds to the
+# build cache, which fills the disk over time on a small server. Prune after the
+# stack is up, and never fail the deploy over cleanup: dangling images are
+# untagged, so nothing a running container depends on can be removed here.
+docker image prune -f || true
+docker builder prune -f --filter until=168h || true
+docker system df
 REMOTE_DEPLOY
 
 if [[ "${SKIP_PUBLIC_HEALTH_CHECK}" != "true" ]]; then

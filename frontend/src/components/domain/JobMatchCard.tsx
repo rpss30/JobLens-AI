@@ -51,12 +51,23 @@ export function JobMatchCard({ job }: { job: JobMatch }) {
   const matchedSkills = parseSkillPreview(job.matched_skills_preview);
   const missingSkills = parseSkillPreview(job.missing_skills_preview);
   const skillMatchScore = job.skill_match_score ?? job.job_match_score;
+  // Presence is judged on whether there are skills to show, not on whether a
+  // coverage figure came back: a job can report 0% preferred coverage while
+  // listing no preferred skills at all, which would open an empty section.
   const hasRequiredSkillExplanation =
-    job.matched_required_skills.length > 0 || job.missing_required_skills.length > 0;
+    job.matched_required_skills.length > 0 ||
+    job.missing_required_skills.length > 0;
   const hasPreferredSkillExplanation =
     job.matched_preferred_skills.length > 0 ||
-    job.missing_preferred_skills.length > 0 ||
-    job.preferred_skill_coverage !== null;
+    job.missing_preferred_skills.length > 0;
+
+  // The summary names only what is actually inside it.
+  const skillExplanationLabel =
+    hasRequiredSkillExplanation && hasPreferredSkillExplanation
+      ? "View required and preferred details"
+      : hasRequiredSkillExplanation
+        ? "View required skill details"
+        : "View preferred skill details";
 
   return (
     <article className="rounded-xl border border-border bg-surface p-5">
@@ -105,7 +116,7 @@ export function JobMatchCard({ job }: { job: JobMatch }) {
       {hasRequiredSkillExplanation || hasPreferredSkillExplanation ? (
         <details className="mt-4">
           <summary className="cursor-pointer text-sm font-medium text-accent hover:underline">
-            View required and preferred details
+            {skillExplanationLabel}
           </summary>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             {hasRequiredSkillExplanation ? (

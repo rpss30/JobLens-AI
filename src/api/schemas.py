@@ -3,6 +3,12 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from src.matching.experience import (
+    EXPERIENCE_BUCKETS,
+    NO_CANDIDATE_EXPERIENCE,
+    normalize_candidate_experience_bucket,
+)
+
 
 MAX_SKILL_COUNT = 50
 MAX_TARGET_ROLE_COUNT = 20
@@ -58,6 +64,14 @@ class AnalyzeRequest(BaseModel):
         max_length=80,
         description="Experience level filter. Use 'Any' to disable filtering.",
     )
+    candidate_experience: str = Field(
+        default=NO_CANDIDATE_EXPERIENCE,
+        max_length=40,
+        description=(
+            "Candidate's relevant professional experience bucket. Used as a "
+            "soft fit signal separate from the experience level filter."
+        ),
+    )
     top_n: int = Field(
         default=10,
         ge=1,
@@ -92,6 +106,19 @@ class AnalyzeRequest(BaseModel):
             cleaned_values.append(cleaned_value)
 
         return cleaned_values
+
+    @field_validator("candidate_experience")
+    @classmethod
+    def clean_candidate_experience(cls, value: str) -> str:
+        cleaned_value = str(value or "").strip()
+
+        if not cleaned_value:
+            return NO_CANDIDATE_EXPERIENCE
+
+        if cleaned_value not in EXPERIENCE_BUCKETS:
+            return normalize_candidate_experience_bucket(cleaned_value)
+
+        return cleaned_value
 
     @model_validator(mode="after")
     def require_search_scope(self) -> "AnalyzeRequest":
@@ -395,6 +422,13 @@ class JobMatch(BaseModel):
     tfidf_relevance: float = 0.0
     search_mode: str = "tfidf"
     job_match_score: float
+    skill_match_score: float
+    candidate_experience: str
+    required_experience: str
+    required_experience_years: int | None = None
+    experience_requirement_source: str
+    experience_fit: str
+    experience_fit_score: float | None = None
     matched_skills_count: int
     related_skills_count: int
     missing_skills_count: int

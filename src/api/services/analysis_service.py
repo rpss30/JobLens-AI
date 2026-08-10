@@ -220,6 +220,7 @@ def build_analyze_response(
     *,
     frames: AnalysisFrames,
     top_n: int,
+    candidate_experience: str = "Not specified",
 ) -> AnalyzeResponse:
     dataset_name = frames.dataset_name
     filtered_jobs = frames.filtered_jobs
@@ -231,6 +232,7 @@ def build_analyze_response(
     job_match_details_df = get_job_match_details(
         filtered_jobs=filtered_jobs,
         user_skills=analysis_skills,
+        candidate_experience=candidate_experience,
     )
     positive_job_matches_df = get_positive_job_matches(job_match_details_df)
 
@@ -282,6 +284,23 @@ def build_analyze_response(
             "tfidf_relevance": float(row.get("tfidf_relevance", 0.0)),
             "search_mode": str(row.get("search_mode", "tfidf")),
             "job_match_score": float(row["job_match_score"]),
+            "skill_match_score": float(row["skill_match_score"]),
+            "candidate_experience": str(row["candidate_experience"]),
+            "required_experience": str(row["required_experience"]),
+            "required_experience_years": (
+                None
+                if pd.isna(row["required_experience_years"])
+                else int(row["required_experience_years"])
+            ),
+            "experience_requirement_source": str(
+                row["experience_requirement_source"]
+            ),
+            "experience_fit": str(row["experience_fit"]),
+            "experience_fit_score": (
+                None
+                if pd.isna(row["experience_fit_score"])
+                else float(row["experience_fit_score"])
+            ),
             "matched_skills_count": int(row["matched_skills_count"]),
             "related_skills_count": int(row["related_skills_count"]),
             "missing_skills_count": int(row["missing_skills_count"]),
@@ -309,4 +328,5 @@ def analyze_jobs(request: AnalyzeRequest) -> AnalyzeResponse:
     return build_analyze_response(
         frames=compute_analysis_frames(request),
         top_n=request.top_n,
+        candidate_experience=request.candidate_experience,
     )

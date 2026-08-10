@@ -33,6 +33,7 @@ def generate_candidate_report(
     job_match_details_df = get_job_match_details(
         filtered_jobs=frames.filtered_jobs,
         user_skills=frames.analysis_skills,
+        candidate_experience=request.candidate_experience,
     )
     candidate_fit_summary = get_candidate_fit_summary(
         filtered_jobs=frames.filtered_jobs,

@@ -72,11 +72,26 @@ class AnalyzeRequest(BaseModel):
             "soft fit signal separate from the experience level filter."
         ),
     )
-    top_n: int = Field(
+    top_skills: int = Field(
         default=10,
         ge=1,
         le=25,
-        description="Number of recommended skills and matching jobs to return.",
+        description="Number of recommended skills to return.",
+    )
+    top_jobs: int = Field(
+        default=20,
+        ge=1,
+        le=50,
+        description="Number of ranked job matches to return.",
+    )
+    top_n: int | None = Field(
+        default=None,
+        ge=1,
+        le=25,
+        description=(
+            "Legacy combined result limit. Used only when top_skills or "
+            "top_jobs are absent."
+        ),
     )
     dataset_name: str | None = Field(
         default=None,
@@ -106,6 +121,22 @@ class AnalyzeRequest(BaseModel):
             cleaned_values.append(cleaned_value)
 
         return cleaned_values
+
+    @model_validator(mode="before")
+    @classmethod
+    def apply_legacy_top_n(cls, data: Any) -> Any:
+        if not isinstance(data, dict) or data.get("top_n") is None:
+            return data
+
+        normalized_data = dict(data)
+
+        if normalized_data.get("top_skills") is None:
+            normalized_data["top_skills"] = normalized_data["top_n"]
+
+        if normalized_data.get("top_jobs") is None:
+            normalized_data["top_jobs"] = normalized_data["top_n"]
+
+        return normalized_data
 
     @field_validator("candidate_experience")
     @classmethod

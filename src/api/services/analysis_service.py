@@ -210,7 +210,7 @@ def compute_analysis_frames(request: AnalyzeRequest) -> AnalysisFrames:
             jobs_df=filtered_jobs,
             user_skills=analysis_skills,
             role_skill_weights=role_skill_weights,
-            top_n=request.top_n,
+            top_n=request.top_skills,
         ),
         resume_analysis=resume_analysis,
     )
@@ -219,7 +219,8 @@ def compute_analysis_frames(request: AnalyzeRequest) -> AnalysisFrames:
 def build_analyze_response(
     *,
     frames: AnalysisFrames,
-    top_n: int,
+    top_skills: int,
+    top_jobs: int,
     candidate_experience: str = "Not specified",
 ) -> AnalyzeResponse:
     dataset_name = frames.dataset_name
@@ -249,7 +250,7 @@ def build_analyze_response(
             "job_count": int(row["job_count"]),
             "avg_weight": float(row["avg_weight"]),
         }
-        for _, row in recommended_skills_df.head(top_n).iterrows()
+        for _, row in recommended_skills_df.head(top_skills).iterrows()
     ]
 
     role_scores = [
@@ -317,7 +318,7 @@ def build_analyze_response(
                 else float(row["preferred_skill_coverage"])
             ),
         }
-        for _, row in positive_job_matches_df.head(top_n).iterrows()
+        for _, row in positive_job_matches_df.head(top_jobs).iterrows()
     ]
 
     return AnalyzeResponse(
@@ -336,6 +337,7 @@ def build_analyze_response(
 def analyze_jobs(request: AnalyzeRequest) -> AnalyzeResponse:
     return build_analyze_response(
         frames=compute_analysis_frames(request),
-        top_n=request.top_n,
+        top_skills=request.top_skills,
+        top_jobs=request.top_jobs,
         candidate_experience=request.candidate_experience,
     )

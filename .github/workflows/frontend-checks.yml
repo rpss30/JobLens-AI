@@ -1,0 +1,53 @@
+name: Frontend Checks
+
+# The Python suite never sees the frontend, and the production stack check only
+# proves the image builds. This runs ESLint and the TypeScript compiler over the
+# frontend source, which nothing in CI did before.
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "frontend/**"
+      - ".github/workflows/frontend-checks.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "frontend/**"
+      - ".github/workflows/frontend-checks.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      # Matches the node:24-alpine base image the production frontend runs on.
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      # The typecheck script runs `next typegen` first. Route and layout prop
+      # types are generated into the gitignored .next/types, so on a clean
+      # checkout tsc would otherwise fail on PageProps and LayoutProps.
+      - name: Typecheck
+        run: npm run typecheck

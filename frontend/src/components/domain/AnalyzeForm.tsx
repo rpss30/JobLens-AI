@@ -68,7 +68,6 @@ export function AnalyzeForm({
   const [location, setLocation] = useState("Any");
   const [experienceLevel, setExperienceLevel] = useState("Any");
   const [candidateExperience, setCandidateExperience] = useState("Not specified");
-  const [topN, setTopN] = useState(10);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -92,7 +91,6 @@ export function AnalyzeForm({
       location,
       experience_level: experienceLevel,
       candidate_experience: candidateExperience,
-      top_n: topN,
       dataset_name: datasetName,
     };
 
@@ -293,21 +291,6 @@ export function AnalyzeForm({
             </Field>
           </div>
 
-          <Field
-            label="How many results to show"
-            htmlFor="top-n"
-            hint="Applies to the skills list and the job matches."
-          >
-            <input
-              id="top-n"
-              type="number"
-              min={1}
-              max={25}
-              value={topN}
-              onChange={(event) => setTopN(Number(event.target.value))}
-              className={controlClassName}
-            />
-          </Field>
         </CardBody>
       </Card>
 

@@ -34,7 +34,8 @@ export function OverviewContent({
   }
 
   const { response, request } = analysis;
-  const topJobs = response.top_matching_jobs.slice(0, 3);
+  const visibleJobs = response.top_matching_jobs.slice(0, 6);
+  const remainingJobs = response.top_matching_jobs.slice(6);
 
   return (
     <div className="space-y-8">
@@ -83,11 +84,11 @@ export function OverviewContent({
             href={`/jobs?dataset=${encodeURIComponent(datasetName)}`}
             className="text-sm font-medium text-accent hover:underline"
           >
-            Browse all jobs
+            Browse all postings
           </Link>
         }
       >
-        {topJobs.length === 0 ? (
+        {visibleJobs.length === 0 ? (
           <EmptyState
             title="No close matches yet"
             description="None of these jobs overlap with the skills you listed. Try adding more skills, or widening your search."
@@ -98,10 +99,25 @@ export function OverviewContent({
             }
           />
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {topJobs.map((job) => (
-              <JobMatchCard key={`${job.title}-${job.company}`} job={job} />
-            ))}
+          <div className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {visibleJobs.map((job) => (
+                <JobMatchCard key={`${job.title}-${job.company}`} job={job} />
+              ))}
+            </div>
+
+            {remainingJobs.length > 0 ? (
+              <details className="group">
+                <summary className="inline-flex cursor-pointer list-none items-center rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm font-medium text-text transition-colors hover:bg-surface-muted">
+                  Show more matches ({remainingJobs.length})
+                </summary>
+                <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {remainingJobs.map((job) => (
+                    <JobMatchCard key={`${job.title}-${job.company}`} job={job} />
+                  ))}
+                </div>
+              </details>
+            ) : null}
           </div>
         )}
       </Section>

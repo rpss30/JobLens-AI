@@ -215,7 +215,9 @@ export interface AnalyzeRequest {
   location: string;
   experience_level: string;
   candidate_experience: string;
-  top_n: number;
+  top_skills?: number;
+  top_jobs?: number;
+  top_n?: number;
   dataset_name: string | null;
 }
 

@@ -4,13 +4,16 @@
 [![Security Scan](https://github.com/rpss30/JobLens-AI/actions/workflows/security-scan.yml/badge.svg)](https://github.com/rpss30/JobLens-AI/actions/workflows/security-scan.yml)
 [![Canada Jobs Refresh](https://github.com/rpss30/JobLens-AI/actions/workflows/refresh-canada-jobs.yml/badge.svg)](https://github.com/rpss30/JobLens-AI/actions/workflows/refresh-canada-jobs.yml)
 ![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
-![AWS](https://img.shields.io/badge/AWS-ECS%20Fargate-FF9900?logo=amazonwebservices&logoColor=white)
+![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)
+![AWS](https://img.shields.io/badge/AWS-Lightsail-FF9900?logo=amazonwebservices&logoColor=white)
 
 JobLens AI is a production-style data and AI analytics system for personalized job market intelligence. It turns job postings into explainable role-fit scores, skill-gap recommendations, market insights, and downloadable candidate reports.
 
-The runtime is deterministic and reproducible, while the ingestion pipeline
-collects first-party Canadian postings from Greenhouse, Lever, and Ashby and
-uses Groq to extract skills from complete job descriptions.
+The web app is a server-rendered Next.js frontend backed by a FastAPI service,
+running behind Caddy on a single Linux server with automatic HTTPS. The runtime
+is deterministic and reproducible, while the ingestion pipeline collects
+first-party Canadian postings from Greenhouse, Lever, and Ashby and uses Groq to
+extract skills from complete job descriptions.
 
 ## Live Deployments
 
@@ -23,8 +26,16 @@ uses Groq to extract skills from complete job descriptions.
 | FastAPI documentation | [Open Swagger UI](http://joblens-alb-134373356.ca-central-1.elb.amazonaws.com/docs) | Inactive to avoid ongoing AWS charges |
 | AWS deployment architecture | [View deployment guide](docs/aws-deployment.md) | Available |
 
+The Lightsail deployment is the current production path: one small Linux server
+running Caddy, the Next.js frontend, FastAPI, the Django operations portal, and
+PostgreSQL under Docker Compose, with a Let's Encrypt certificate and scheduled
+backups, monitoring, and log aggregation.
+
+The Streamlit dashboard was the original interface and is kept as a separate
+Streamlit Community Cloud demo. It is no longer part of the production stack.
+
 The AWS deployment was verified end to end before its runtime resources were
-stopped for cost control. It runs Streamlit and FastAPI in one ECS Fargate task
+stopped for cost control. It ran Streamlit and FastAPI in one ECS Fargate task
 behind an Application Load Balancer, with a private Amazon RDS PostgreSQL
 database and credentials stored in AWS Secrets Manager.
 
@@ -34,16 +45,41 @@ database and credentials stored in AWS Secrets Manager.
 flowchart LR
     A["Curated CSV / Uploaded CSV / Canadian employer job boards"] --> B["Processing and Groq skill extraction"]
     B --> C["Processed JobLens dataframe"]
-    C --> D["Dashboard services"]
+    C --> D["Analysis services"]
     D --> E["Weighted matching engine"]
-    E --> F["Streamlit dashboard"]
     E --> G["FastAPI backend"]
     G --> I["Next.js frontend"]
-    F --> H["PostgreSQL datasets and saved analyses"]
-    G --> H
+    G --> H["PostgreSQL datasets and saved analyses"]
+    E --> F["Streamlit dashboard (legacy demo)"]
+    F --> H
 ```
 
-The deployed AWS path is:
+The browser only ever talks to the Next.js server. Pages fetch through Server
+Components and Server Actions, and the few client-side calls post to thin route
+handlers under `/proxy/*`, so the FastAPI origin stays server-side and needs no
+CORS allowlist for the app itself.
+
+The deployed single-server path is:
+
+```text
+Let's Encrypt
+      |
+      v
+Caddy :80/:443  (one domain, one certificate)
+      |
+      +--> /          --> Next.js       :3000
+      +--> /api/*     --> FastAPI       :8000
+      +--> /ops/*     --> Django ops    :8001
+      |
+      v
+Private Docker network --> PostgreSQL :5432
+```
+
+Only Caddy publishes host ports. The application services use `expose`, so
+PostgreSQL, FastAPI, Django, and the Next.js server are unreachable from the
+public internet.
+
+The earlier AWS path was:
 
 ```text
 Amazon ECR image
@@ -60,29 +96,33 @@ One ECS Fargate task --> Private RDS PostgreSQL
 
 ## Demo Preview
 
+Screens from the Next.js app. The sidebar carries Overview, Analyze, Jobs,
+Skills & Market, History, and Datasets, with a dataset switcher and a live
+backend status indicator in the header.
+
 ### Role Fit Overview
 
 ![Role Fit Overview](assets/screenshots/role-fit-overview.png)
 
-The dashboard summarizes the candidate's best-fit role, role skill fit, sample confidence, top skill gap, number of jobs analyzed, and current skill count.
+The overview page summarizes the candidate's best-fit role, role skill fit, sample confidence, top skill gap, number of jobs analyzed, and current skill count.
 
 ### Candidate Fit Summary
 
 ![Candidate Fit Summary](assets/screenshots/candidate-fit-summary.png)
 
-JobLens AI generates a short natural-language summary explaining the candidate's strongest role fit, existing strengths, and highest-impact missing skills.
+JobLens AI generates a short natural-language summary explaining the candidate's strongest role fit, existing strengths, and highest-impact missing skills, alongside Markdown and PDF report downloads.
 
 ### Top Matching Job Cards
 
 ![Top Matching Job Cards](assets/screenshots/job-cards.png)
 
-The dashboard highlights the strongest individual job matches using card-based job summaries with match score, company, location, role category, matched skills, and missing skills.
+The strongest individual job matches appear as cards with match score, company, location, role category, matched skills, and missing skills.
 
 ### Market Insights
 
 ![Market Insights](assets/screenshots/market-insights.png)
 
-The dashboard also shows market-level insights such as top required skills, role-specific skill importance, jobs by location, top hiring companies, and role distribution.
+The Skills & Market page shows market-level insights such as top required skills, role-specific skill importance, jobs by location, top hiring companies, and role distribution.
 
 
 
@@ -102,17 +142,18 @@ The dashboard also shows market-level insights such as top required skills, role
 - Jobs-by-location market insight
 - Role distribution and top hiring companies
 - Next.js frontend with overview, analysis, job browsing, market insights, history, and dataset management
+- Server-rendered pages that consume the FastAPI backend without duplicating business logic, so the API origin never reaches the browser
+- Saved analysis history with per-run rename and delete controls
 - Markdown and PDF candidate report downloads from the API and both frontends
-- Server-rendered pages that consume the FastAPI backend without duplicating business logic
-- Interactive Streamlit dashboard with controlled search presets and profile presets
+- Original Streamlit dashboard retained as a standalone demo with search and profile presets
 - Free-text TF-IDF job search across titles, skills, employers, locations, and descriptions
 - Optional semantic and hybrid search modes using local deterministic SVD embeddings
 - Optional PostgreSQL-backed data loading with CSV fallback
 - Local database seeding script for processed job postings
 - Custom CSV upload validation with extension, size, row-count, and schema checks
 - Uploaded CSV datasets can be saved to PostgreSQL
-- Uploaded CSV datasets can be named, renamed, and deleted through focused management overlays
-- Saved PostgreSQL datasets can be selected and reloaded from the dashboard
+- Uploaded CSV datasets can be named, renamed, and deleted from the datasets page
+- Saved PostgreSQL datasets can be selected from the header dataset switcher on any page
 - FastAPI backend with health check, candidate analysis, CORS allowlist, safe errors, and rate limiting
 - Docker Compose support for local development and a production-style single-server stack
 - FastAPI dataset, analysis run, and PostgreSQL-backed analysis support
@@ -190,14 +231,14 @@ The snapshot contains a balanced set of up to 72 active postings across
 normalized Canadian location labels. It combines first-party Greenhouse, Lever,
 and Ashby boards, preserves original application links, and uses Groq for
 packaged skill extraction. The raw multi-employer fetch is generated outside
-Git; the validated processed snapshot is committed so the dashboard remains
+Git; the validated processed snapshot is committed so the app remains
 stable and reproducible.
 
 A GitHub Actions workflow refreshes the snapshot weekly, runs quality checks
 and the full test suite, and opens a pull request when the dataset changes.
 This keeps data updates reviewable rather than modifying `main` automatically.
 
-The Canada jobs snapshot is the dashboard's default dataset. The bundled sample
+The Canada jobs snapshot is the app's default dataset. The bundled sample
 dataset remains available in the dataset chooser and is used as a safety
 fallback if the committed Canada snapshot cannot be loaded.
 
@@ -263,7 +304,7 @@ This keeps the scoring system data-driven while still being simple enough to exp
 
 ## Custom CSV Upload
 
-The dashboard supports uploading a custom job postings CSV.
+The datasets page supports uploading a custom job postings CSV.
 
 Required columns:
 
@@ -288,12 +329,13 @@ A sample upload file is available at:
 data/examples/sample_upload_jobs.csv
 ```
 
-By default, uploaded CSVs are processed during the active Streamlit session. If
-PostgreSQL is enabled, users can save uploaded datasets with a required custom
-name and reload them later from the dashboard dataset selector. The management
-dialog keeps the dataset list visible while row-level rename and delete
-overlays handle focused edits and confirmations. Curated sample datasets remain
-protected.
+Uploads are saved to PostgreSQL under a required custom name and stay available
+from the header dataset switcher on every page. Upload, rename, and delete run as
+Server Actions, so the rendered list updates without a manual reload, and delete
+asks for confirmation first. Curated sample datasets remain protected.
+
+In the legacy Streamlit dashboard, uploads are processed for the active session
+and persisted only when PostgreSQL is enabled.
 
 
 
@@ -301,16 +343,16 @@ protected.
 
 | Layer | Technologies |
 | --- | --- |
+| Frontend | Next.js 16, React 19, TypeScript, Tailwind CSS, Recharts |
 | Data and matching | Python, Pandas, scikit-learn |
-| Frontend | Next.js, TypeScript, Tailwind CSS, Recharts |
-| Dashboard | Streamlit, Altair, Plotly |
-| API | FastAPI, Pydantic, Uvicorn |
+| API | FastAPI, Pydantic, Uvicorn, Gunicorn |
+| Legacy dashboard | Streamlit, Altair, Plotly |
 | Ops tooling | Django, Django templates, Gunicorn |
 | Persistence | PostgreSQL, SQLAlchemy, Alembic, psycopg |
 | AI enrichment | Groq, Google Gemini, deterministic fallback |
 | Reports | ReportLab, pypdf |
 | Infrastructure | Docker, Docker Compose, Caddy, Terraform templates, Amazon ECR, ECS Fargate, ALB, RDS, Secrets Manager, CloudWatch |
-| Quality and delivery | pytest, GitHub Actions, deployment scripts, Streamlit Cloud |
+| Quality and delivery | pytest, GitHub Actions, deployment scripts, Amazon Lightsail, Streamlit Cloud |
 | Security checks | pip-audit, Bandit, Trivy |
 
 
@@ -454,27 +496,29 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
-Run the Streamlit dashboard:
-
-```bash
-streamlit run src/dashboard/app.py
-```
-
 Run the FastAPI backend:
 
 ```bash
 uvicorn src.api.main:app --reload
 ```
 
-Run the Next.js frontend, which needs the FastAPI backend running:
+Then run the Next.js frontend in a second terminal, which needs that backend up:
 
 ```bash
 cd frontend && npm install && npm run dev
 ```
 
-The frontend is served at `http://localhost:3000`. See
+The app is served at `http://localhost:3000`. See
 [frontend/README.md](frontend/README.md) for its architecture, routes, and
-environment variables.
+environment variables. Copy `frontend/.env.example` to `frontend/.env.local` to
+point at a backend on a non-default port.
+
+The original Streamlit dashboard still runs standalone if you want to compare
+the two interfaces:
+
+```bash
+streamlit run src/dashboard/app.py
+```
 
 Health check:
 
@@ -519,6 +563,18 @@ curl -X POST http://127.0.0.1:8000/analyze \
   }'
 ```
 
+### App Pages
+
+| Route | Purpose | Backing endpoint |
+| --- | --- | --- |
+| `/` | Role fit, skill gaps, and top matches for the current analysis | `POST /analyze` |
+| `/analyze` | Profile builder and search scope | `GET /filter-options`, `POST /analyze` |
+| `/jobs` | Browse and filter every posting | `GET /jobs` |
+| `/skills` | Skill demand, role importance, location and employer concentration | `POST /market-insights` |
+| `/history` | Saved analysis runs | `GET /analysis-runs` |
+| `/history/[id]` | One saved run | `GET /analysis-runs/{id}` |
+| `/datasets` | Upload a jobs CSV, rename or delete saved datasets | `GET`, `POST`, `PATCH`, `DELETE /datasets` |
+
 ### API Endpoints
 
 | Method | Endpoint | Purpose |
@@ -545,8 +601,8 @@ List endpoints support bounded pagination with `limit` and `offset`, plus
 
 JobLens AI can also be run locally with Docker Compose.
 
-Build and start the Next.js frontend, Streamlit dashboard, FastAPI backend,
-Django operations service, and PostgreSQL database:
+Build and start the Next.js frontend, FastAPI backend, Django operations service,
+Streamlit dashboard, and PostgreSQL database:
 
 ```bash
 docker compose up --build
@@ -554,23 +610,23 @@ docker compose up --build
 
 Once the services are running:
 
-- Next.js frontend: `http://localhost:3000`
-- Streamlit dashboard: `http://localhost:8501`
+- Next.js app: `http://localhost:3000`
 - FastAPI docs: `http://localhost:8000/docs`
 - FastAPI health check: `http://localhost:8000/health`
 - Django operations service: `http://localhost:8001/ops/`
 - Django health check: `http://localhost:8001/health/`
+- Streamlit dashboard: `http://localhost:8501`
 
 Initialize the PostgreSQL tables:
 
 ```bash
-docker compose exec dashboard alembic upgrade head
+docker compose exec api alembic upgrade head
 ```
 
 Seed the sample processed jobs dataset:
 
 ```bash
-docker compose exec dashboard python -m scripts.seed_database
+docker compose exec api python -m scripts.seed_database
 ```
 
 Initialize Django-owned auth and session tables:
@@ -696,8 +752,10 @@ migration ownership, deployment ordering, and current limitations.
 
 ## AWS Deployment Path
 
-JobLens AI includes a production-style [AWS deployment guide](docs/aws-deployment.md)
-for running the containerized dashboard and API with managed PostgreSQL.
+Alongside the single-server path above, JobLens AI includes a production-style
+[AWS deployment guide](docs/aws-deployment.md) for running the containerized app
+and API with managed PostgreSQL. It documents a heavier, more scalable shape than
+the Lightsail deployment currently serving the live site.
 
 The guide covers Amazon ECR image publishing, Amazon RDS for PostgreSQL,
 a cost-conscious Amazon ECS Fargate service running Streamlit and FastAPI,
@@ -712,9 +770,9 @@ provisioning, database seeding, and repeatable Fargate deployments.
 JobLens AI can run with the default Canada jobs snapshot, the bundled sample
 dataset, an uploaded session CSV, or a local PostgreSQL dataset.
 
-The PostgreSQL integration is optional. If the database is unavailable, the
-Streamlit dashboard continues using the selected local dataset. Turning
-PostgreSQL mode off returns to the Canada jobs snapshot.
+The PostgreSQL integration is optional. If the database is unavailable, the app
+falls back to the bundled datasets and the header status indicator turns red;
+uploads and saved analysis history are the only features that need the database.
 
 ### 1. Install PostgreSQL
 
@@ -743,7 +801,7 @@ Create a `.env` file in the project root:
 
 ```env
 DATABASE_URL=postgresql+psycopg://localhost:5432/joblens_ai
-JOBLENS_CORS_ORIGINS=http://localhost:8501,http://localhost:8502
+JOBLENS_CORS_ORIGINS=http://localhost:3000,http://localhost:8501
 JOBLENS_RATE_LIMIT_ENABLED=true
 JOBLENS_ANALYZE_RATE_LIMIT=60
 JOBLENS_RATE_LIMIT_WINDOW_SECONDS=60
@@ -785,24 +843,30 @@ Expected output:
 Seeded <number> processed jobs into PostgreSQL.
 ```
 
-### 6. Run the dashboard
+### 6. Run the app
+
+```bash
+uvicorn src.api.main:app --reload
+```
+
+```bash
+cd frontend && npm run dev
+```
+
+If PostgreSQL is connected and seeded correctly, the header dataset switcher
+lists the seeded datasets under "PostgreSQL datasets" alongside the bundled ones.
+The default seeded dataset is `sample_jobs`, and uploads from the datasets page
+appear there once persisted.
+
+If PostgreSQL is unavailable, the switcher shows only the bundled datasets and
+the status indicator beside it turns red.
+
+The legacy Streamlit dashboard reads the same database, with a
+"Use PostgreSQL database" toggle in its sidebar:
 
 ```bash
 streamlit run src/dashboard/app.py
 ```
-
-In the sidebar, turn on:
-
-```text
-Use PostgreSQL database
-```
-
-If PostgreSQL is connected and seeded correctly, the sidebar will show a PostgreSQL dataset selector. The default seeded dataset is `sample_jobs`. 
-
-Saved uploaded datasets will also appear in this selector after they are persisted to PostgreSQL.
-
-If PostgreSQL is unavailable, the app remains on the Canada jobs snapshot or
-the local dataset already selected by the user.
 
 ### Database tables
 
@@ -841,7 +905,7 @@ When PostgreSQL mode is enabled, a user can save an analysis run after generatin
 - recommended skills
 - saved role score breakdown
 
-Saved runs can be selected later from the sidebar and previewed in the dashboard. This currently acts as a saved summary view rather than a full automatic rerun of the dashboard filters.
+Saved runs are listed on the history page, where each one can be opened, renamed, or deleted. Opening a run renders its stored result rather than re-running the search, so history stays a record of what was analyzed at the time.
 
 This keeps the feature simple and local-first while demonstrating persistent analysis history with PostgreSQL.
 
@@ -898,16 +962,20 @@ validation, resume privacy, secret handling, and AWS hardening notes.
 
 JobLens AI is a portfolio-ready end-to-end system with deterministic analytics,
 optional AI-enriched ingestion, persistent PostgreSQL workflows, API access,
-containerized local development, and a verified AWS deployment.
+containerized local development, and a live single-server deployment with
+automatic HTTPS.
 
 Completed:
+
+- Next.js frontend with server-rendered pages, a dataset switcher, and saved analysis history
+- Live Amazon Lightsail deployment behind Caddy with a Let's Encrypt certificate
 
 - Data processing pipeline
 - Skill extraction
 - Role categorization
 - Weighted matching engine
 - Recommended skills logic
-- Streamlit dashboard
+- Streamlit dashboard, the original interface, now a standalone demo
 - Search presets
 - Candidate profile presets
 - Candidate fit summary
@@ -920,7 +988,7 @@ Completed:
 - PostgreSQL database schema
 - Alembic-managed database migrations
 - PostgreSQL seeding script for processed jobs
-- Optional PostgreSQL dashboard loading with CSV fallback
+- Optional PostgreSQL dataset loading with CSV fallback
 - pytest test suite
 - CI coverage reporting for the source package
 - GitHub Actions test workflow
@@ -928,12 +996,12 @@ Completed:
 - Canada refresh pipeline metrics and failure summaries
 - Streamlit Cloud deployment
 - Uploaded CSV persistence to PostgreSQL
-- PostgreSQL dataset selector in the dashboard
-- Saved analysis runs can be persisted to PostgreSQL and previewed later from the dashboard sidebar.
+- PostgreSQL dataset switcher available on every page
+- Saved analysis runs can be persisted to PostgreSQL, then listed, opened, renamed, and deleted from the history page
 - FastAPI backend with `/health` and `/analyze` endpoints
 - FastAPI endpoints for datasets and saved analysis runs
 - FastAPI CORS allowlist, request limits, safe exception responses, and `/analyze` rate limiting
-- Docker Compose setup for Streamlit, FastAPI, and PostgreSQL
+- Docker Compose setup for the Next.js frontend, FastAPI, Streamlit, and PostgreSQL
 - Production Compose stack with Caddy HTTPS routing and internal PostgreSQL networking
 - Server hardening runbook for host firewall, SSH, deployment user, and Docker log rotation
 - Manual production deployment workflow with SSH, migration ordering, health checks, and rollback
@@ -955,7 +1023,7 @@ Completed:
 - Structured AI skill extraction contract and offline quality evaluation
 - Semantic and hybrid job search modes with local deterministic embeddings
 - Privacy-conscious paste-in resume analysis with API and dashboard support
-- Dashboard upload security controls and safe database error messages
+- Upload security controls and safe database error messages
 - Verified AWS deployment with private RDS, Secrets Manager, ALB, and ECS Fargate
 
 Not built yet:
@@ -968,12 +1036,14 @@ Not built yet:
 
 ## Known Limitations
 
-- The dashboard uses a weekly committed snapshot rather than fetching live jobs at runtime.
+- JobLens serves a weekly committed snapshot rather than fetching live jobs at runtime.
 - Core runtime skill extraction is dictionary-based, so it may miss aliases or uncommon phrasing.
 - Role classification is rule-based and title-first, not ML-based yet.
 - Match scores are designed for explainability, not as a production hiring recommendation system.
 - Dataset management currently supports naming, renaming, and deleting uploaded CSV datasets, but not editing individual job posting rows.
-- Saved analysis run loading currently shows a preview only; it does not yet repopulate sidebar filters or automatically rerun the dashboard.
+- Opening a saved analysis run renders its stored result; it does not repopulate the analyze form so the same search can be re-run.
+- The live deployment runs on one small server with no redundancy, so a restart or a full disk means brief downtime.
+- FastAPI's per-client rate limiter sees the Next.js server rather than each visitor, because pages fetch server-side.
 - Resume analysis currently supports paste-in text, not PDF or DOCX uploads.
 - AWS provisioning is automated with shell helpers, but not yet managed as declarative infrastructure with Terraform, CloudFormation, or CDK.
 - The current AWS demo uses an HTTP ALB endpoint without a custom domain or TLS certificate.
@@ -1002,11 +1072,12 @@ Engineering highlights:
 - Building a data pipeline from raw job postings
 - Extracting structured skills from unstructured text
 - Designing role-specific scoring logic
-- Creating an interactive analytics dashboard
+- Exposing the analysis through a typed FastAPI backend
+- Building a server-rendered Next.js frontend that consumes that API without duplicating its logic
 - Building persistent dataset-management and saved-analysis workflows
-- Exposing the same analysis through a typed FastAPI backend
+- Running the whole stack on one server behind a reverse proxy with automatic HTTPS, scheduled backups, and health monitoring
 - Packaging and deploying a multi-process container on AWS ECS Fargate
 - Protecting private database credentials with AWS Secrets Manager
-- Testing the system with more than 130 automated tests
+- Testing the system with more than 400 automated tests
 - Turning raw data into useful product insights
 - Communicating technical results in a user-friendly way

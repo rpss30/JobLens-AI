@@ -22,12 +22,19 @@ const sizeStyles: Record<ButtonSize, string> = {
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
   size?: ButtonSize;
+  /**
+   * Use "default" when the button is disabled because the action is already
+   * done, rather than because it is unavailable. A not-allowed cursor on a
+   * completed action reads as an error.
+   */
+  disabledCursor?: "not-allowed" | "default";
   children: ReactNode;
 }
 
 export function Button({
   variant = "primary",
   size = "md",
+  disabledCursor = "not-allowed",
   className,
   children,
   ...props
@@ -36,7 +43,10 @@ export function Button({
     <button
       className={cn(
         "inline-flex items-center justify-center gap-2 rounded-lg border font-medium transition-colors",
-        "disabled:cursor-not-allowed disabled:opacity-55",
+        "disabled:opacity-55",
+        disabledCursor === "default"
+          ? "disabled:cursor-default"
+          : "disabled:cursor-not-allowed",
         variantStyles[variant],
         sizeStyles[size],
         className,

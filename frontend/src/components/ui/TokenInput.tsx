@@ -1,10 +1,18 @@
 "use client";
 
-import { useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import {
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type ClipboardEvent,
+  type KeyboardEvent,
+} from "react";
 
 import { controlClassName } from "@/components/ui/Field";
 
-const MAX_VISIBLE_SUGGESTIONS = 8;
+const MAX_VISIBLE_SUGGESTIONS = 50;
+const MAX_VALUE_LENGTH = 80;
 
 interface TokenInputProps {
   id: string;
@@ -14,18 +22,22 @@ interface TokenInputProps {
   values: string[];
   suggestions: string[];
   maxValues?: number;
+  /**
+   * When false, only values present in `suggestions` are accepted. Skills use
+   * this so a pasted paragraph cannot become one meaningless tag.
+   */
+  allowCustomValues?: boolean;
   onChange: (values: string[]) => void;
 }
 
-/**
- * Multi-value entry with a styled suggestion list.
- *
- * A native <datalist> was used first, but browsers render it as an unstyled
- * popup that ignores the design system and can appear detached from the field,
- * so this implements the combobox pattern directly: the list is owned by the
- * component, sits directly under the input, and is driven by arrow keys,
- * Enter, and Escape.
- */
+/** Splits pasted text on the separators people actually use in skill lists. */
+function splitPastedText(text: string): string[] {
+  return text
+    .split(/[,;\n\r\t|•]+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
 export function TokenInput({
   id,
   label,
@@ -34,27 +46,49 @@ export function TokenInput({
   values,
   suggestions,
   maxValues = 50,
+  allowCustomValues = true,
   onChange,
 }: TokenInputProps) {
   const [draftValue, setDraftValue] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [notice, setNotice] = useState("");
   const blurTimerRef = useRef<number | null>(null);
 
   const listId = useId();
   const hintId = hint ? `${id}-hint` : undefined;
 
+  // Duplicate checks are case-insensitive so "docker" and "Docker" cannot both
+  // end up in the list.
+  const selectedKeys = useMemo(
+    () => new Set(values.map((value) => value.toLowerCase())),
+    [values],
+  );
+
+  const suggestionByKey = useMemo(() => {
+    const lookup = new Map<string, string>();
+
+    suggestions.forEach((suggestion) => {
+      const key = suggestion.toLowerCase();
+
+      if (!lookup.has(key)) {
+        lookup.set(key, suggestion);
+      }
+    });
+
+    return lookup;
+  }, [suggestions]);
+
   const matches = useMemo(() => {
     const query = draftValue.trim().toLowerCase();
     const available = suggestions.filter(
-      (suggestion) => !values.includes(suggestion),
+      (suggestion) => !selectedKeys.has(suggestion.toLowerCase()),
     );
 
     if (!query) {
       return available.slice(0, MAX_VISIBLE_SUGGESTIONS);
     }
 
-    // Prefix matches first, since they are what the typist is most likely after.
     const prefixMatches = available.filter((suggestion) =>
       suggestion.toLowerCase().startsWith(query),
     );
@@ -68,26 +102,97 @@ export function TokenInput({
       0,
       MAX_VISIBLE_SUGGESTIONS,
     );
-  }, [draftValue, suggestions, values]);
+  }, [draftValue, suggestions, selectedKeys]);
 
   const isAtLimit = values.length >= maxValues;
 
-  function addValue(rawValue: string) {
-    const nextValue = rawValue.trim();
+  /** Adds several values at once so one paste cannot drop earlier entries. */
+  function addValues(rawValues: string[]) {
+    const accepted: string[] = [];
+    const rejected: string[] = [];
+    const seenKeys = new Set(selectedKeys);
 
-    setDraftValue("");
-    setActiveIndex(-1);
-    setIsOpen(false);
+    for (const rawValue of rawValues) {
+      const trimmed = rawValue.trim().slice(0, MAX_VALUE_LENGTH);
+      const key = trimmed.toLowerCase();
 
-    if (!nextValue || values.includes(nextValue) || isAtLimit) {
+      if (!trimmed || seenKeys.has(key)) {
+        continue;
+      }
+
+      if (values.length + accepted.length >= maxValues) {
+        break;
+      }
+
+      const knownSuggestion = suggestionByKey.get(key);
+
+      if (!knownSuggestion && !allowCustomValues) {
+        rejected.push(trimmed);
+        continue;
+      }
+
+      // Prefer the spelling from the dataset so casing stays consistent.
+      accepted.push(knownSuggestion ?? trimmed);
+      seenKeys.add(key);
+    }
+
+    if (accepted.length > 0) {
+      onChange([...values, ...accepted]);
+    }
+
+    return { accepted, rejected };
+  }
+
+  function commitDraft(rawValue: string) {
+    const { accepted, rejected } = addValues([rawValue]);
+
+    if (rejected.length > 0) {
+      setNotice(`"${rejected[0]}" is not in the list. Pick a suggestion below.`);
       return;
     }
 
-    onChange([...values, nextValue]);
+    if (accepted.length > 0) {
+      setNotice("");
+      setDraftValue("");
+      setActiveIndex(-1);
+      setIsOpen(false);
+    }
   }
 
   function removeValue(valueToRemove: string) {
+    setNotice("");
     onChange(values.filter((value) => value !== valueToRemove));
+  }
+
+  function handlePaste(event: ClipboardEvent<HTMLInputElement>) {
+    const pastedText = event.clipboardData.getData("text");
+    const parts = splitPastedText(pastedText);
+
+    // A single short word behaves like normal typing.
+    if (parts.length <= 1 && pastedText.length <= MAX_VALUE_LENGTH) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const { accepted, rejected } = addValues(parts);
+
+    setDraftValue("");
+    setIsOpen(false);
+    setActiveIndex(-1);
+
+    if (accepted.length === 0) {
+      setNotice(
+        "None of that text matched a skill in the list. Try picking skills one at a time.",
+      );
+      return;
+    }
+
+    setNotice(
+      rejected.length > 0
+        ? `Added ${accepted.length}. ${rejected.length} not recognised and skipped.`
+        : `Added ${accepted.length} skills.`,
+    );
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
@@ -100,23 +205,17 @@ export function TokenInput({
 
     if (event.key === "ArrowUp") {
       event.preventDefault();
-      setActiveIndex((index) =>
-        index <= 0 ? matches.length - 1 : index - 1,
-      );
+      setActiveIndex((index) => (index <= 0 ? matches.length - 1 : index - 1));
       return;
     }
 
-    if (event.key === "Enter") {
+    if (event.key === "Enter" || event.key === ",") {
       event.preventDefault();
-      addValue(
-        activeIndex >= 0 && matches[activeIndex] ? matches[activeIndex] : draftValue,
+      commitDraft(
+        activeIndex >= 0 && matches[activeIndex]
+          ? matches[activeIndex]
+          : draftValue,
       );
-      return;
-    }
-
-    if (event.key === "," ) {
-      event.preventDefault();
-      addValue(draftValue);
       return;
     }
 
@@ -155,14 +254,15 @@ export function TokenInput({
           disabled={isAtLimit}
           className={controlClassName}
           onChange={(event) => {
-            setDraftValue(event.target.value);
+            setDraftValue(event.target.value.slice(0, MAX_VALUE_LENGTH));
+            setNotice("");
             setIsOpen(true);
             setActiveIndex(-1);
           }}
+          onPaste={handlePaste}
           onFocus={() => setIsOpen(true)}
           onKeyDown={handleKeyDown}
           onBlur={() => {
-            // Delay so a click on an option lands before the list closes.
             blurTimerRef.current = window.setTimeout(() => {
               setIsOpen(false);
               setActiveIndex(-1);
@@ -175,7 +275,7 @@ export function TokenInput({
             id={listId}
             role="listbox"
             aria-label={`${label} suggestions`}
-            className="absolute left-0 right-0 top-full z-20 mt-1 max-h-64 overflow-y-auto rounded-lg border border-border bg-surface py-1 shadow-lg"
+            className="absolute left-0 right-0 top-full z-20 mt-1 max-h-72 overflow-y-auto rounded-lg border border-border bg-surface py-1 shadow-lg"
           >
             {matches.map((suggestion, index) => (
               <li key={suggestion}>
@@ -191,14 +291,13 @@ export function TokenInput({
                   }`}
                   onMouseEnter={() => setActiveIndex(index)}
                   onMouseDown={(event) => {
-                    // Prevent the input blurring before the click registers.
                     event.preventDefault();
 
                     if (blurTimerRef.current) {
                       window.clearTimeout(blurTimerRef.current);
                     }
                   }}
-                  onClick={() => addValue(suggestion)}
+                  onClick={() => commitDraft(suggestion)}
                 >
                   {suggestion}
                 </button>
@@ -208,13 +307,22 @@ export function TokenInput({
         ) : null}
       </div>
 
+      {notice ? (
+        <p role="status" className="text-xs text-text-muted">
+          {notice}
+        </p>
+      ) : null}
+
       {values.length > 0 ? (
         <>
           <div className="flex items-center justify-between gap-3 pt-1">
             <p className="text-xs text-text-subtle">{values.length} added</p>
             <button
               type="button"
-              onClick={() => onChange([])}
+              onClick={() => {
+                setNotice("");
+                onChange([]);
+              }}
               className="text-xs font-medium text-text-muted underline underline-offset-2 hover:text-text"
             >
               Clear all

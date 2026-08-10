@@ -54,10 +54,6 @@ export function LandingIntro({
               <Button variant="secondary">Just browse the jobs</Button>
             </Link>
           </div>
-
-          <p className="mt-4 text-xs text-text-subtle">
-            Free to use. No account needed.
-          </p>
         </CardBody>
       </Card>
 

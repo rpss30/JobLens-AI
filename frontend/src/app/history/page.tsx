@@ -1,10 +1,11 @@
 import Link from "next/link";
+import { Suspense } from "react";
 
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { EmptyState, ErrorState } from "@/components/ui/States";
+import { CardSkeleton, EmptyState, ErrorState } from "@/components/ui/States";
 import { ApiError } from "@/lib/api/client";
 import { getAnalysisRuns } from "@/lib/api/endpoints";
 import type { AnalysisRun } from "@/lib/api/types";
@@ -44,12 +45,7 @@ function AnalysisRunRow({ run }: { run: AnalysisRun }) {
   );
 }
 
-export default async function HistoryPage({
-  searchParams,
-}: PageProps<"/history">) {
-  const params = await searchParams;
-  const datasetName = resolveDataset(params.dataset);
-
+async function SavedRuns({ datasetName }: { datasetName: string }) {
   let runs: AnalysisRun[] = [];
   let loadError: string | null = null;
 
@@ -59,8 +55,48 @@ export default async function HistoryPage({
     loadError =
       error instanceof ApiError
         ? error.message
-        : "Saved analysis runs could not be loaded.";
+        : "Saved results could not be loaded.";
   }
+
+  if (loadError) {
+    return (
+      <ErrorState
+        title="Saved results are unavailable"
+        description={`${loadError} Saving results needs the database, which is not switched on right now.`}
+      />
+    );
+  }
+
+  if (runs.length === 0) {
+    return (
+      <EmptyState
+        title="Nothing saved yet"
+        description="Check your skills, then save the result to track how your match improves as you learn."
+        action={
+          <Link href={`/analyze?dataset=${encodeURIComponent(datasetName)}`}>
+            <Button>Check my skills</Button>
+          </Link>
+        }
+      />
+    );
+  }
+
+  return (
+    <Card>
+      <ul className="divide-y divide-border">
+        {runs.map((run) => (
+          <AnalysisRunRow key={run.id} run={run} />
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
+export default async function HistoryPage({
+  searchParams,
+}: PageProps<"/history">) {
+  const params = await searchParams;
+  const datasetName = resolveDataset(params.dataset);
 
   return (
     <>
@@ -69,35 +105,14 @@ export default async function HistoryPage({
         description="Results you have saved, newest first."
         action={
           <Link href={`/analyze?dataset=${encodeURIComponent(datasetName)}`}>
-            <Button>New analysis</Button>
+            <Button>Check my skills</Button>
           </Link>
         }
       />
 
-      {loadError ? (
-        <ErrorState
-          title="Saved results are unavailable"
-          description={`${loadError} Saving results needs the database, which is not switched on right now.`}
-        />
-      ) : runs.length === 0 ? (
-        <EmptyState
-          title="Nothing saved yet"
-          description="Check your skills, then save the result to track how your match improves as you learn."
-          action={
-            <Link href={`/analyze?dataset=${encodeURIComponent(datasetName)}`}>
-              <Button>Check my skills</Button>
-            </Link>
-          }
-        />
-      ) : (
-        <Card>
-          <ul className="divide-y divide-border">
-            {runs.map((run) => (
-              <AnalysisRunRow key={run.id} run={run} />
-            ))}
-          </ul>
-        </Card>
-      )}
+      <Suspense key={datasetName} fallback={<CardSkeleton rows={6} />}>
+        <SavedRuns datasetName={datasetName} />
+      </Suspense>
     </>
   );
 }

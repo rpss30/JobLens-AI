@@ -71,6 +71,30 @@ export function AnalyzeForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
+  /**
+   * Presets merge into the existing list rather than replacing it, so clicking
+   * one never silently discards skills the person already added.
+   */
+  function addPresetSkills(presetSkills: string[]) {
+    setCurrentSkills((existingSkills) => {
+      const seenKeys = new Set(
+        existingSkills.map((skill) => skill.toLowerCase()),
+      );
+      const additions = presetSkills.filter((skill) => {
+        const key = skill.toLowerCase();
+
+        if (seenKeys.has(key)) {
+          return false;
+        }
+
+        seenKeys.add(key);
+        return true;
+      });
+
+      return [...existingSkills, ...additions].slice(0, 50);
+    });
+  }
+
   const hasProfile = currentSkills.length > 0 || resumeText.trim().length > 0;
   const hasScope =
     searchQuery.trim().length > 0 ||
@@ -138,14 +162,17 @@ export function AnalyzeForm({
             id="current-skills"
             label="Skills you have"
             placeholder="Type a skill, for example Python"
-            hint={`Pick from ${filterOptions.skills.length} skills these employers ask for, or type your own. Up to 50.`}
+            hint={`Choose from ${filterOptions.skills.length} skills these employers ask for. Up to 50.`}
             values={currentSkills}
             suggestions={filterOptions.skills}
+            allowCustomValues={false}
             onChange={setCurrentSkills}
           />
 
           <div>
-            <p className="mb-2 text-sm font-medium text-text">Or start from a common profile</p>
+            <p className="mb-2 text-sm font-medium text-text">
+              Or start from a common profile
+            </p>
             <div className="flex flex-wrap gap-2">
               {Object.entries(PROFILE_PRESETS).map(([name, skills]) => (
                 <Button
@@ -153,12 +180,15 @@ export function AnalyzeForm({
                   type="button"
                   variant="secondary"
                   size="sm"
-                  onClick={() => setCurrentSkills(skills)}
+                  onClick={() => addPresetSkills(skills)}
                 >
                   {name}
                 </Button>
               ))}
             </div>
+            <p className="mt-2 text-xs text-text-subtle">
+              Presets add to your list, they do not replace it.
+            </p>
           </div>
 
           <Field

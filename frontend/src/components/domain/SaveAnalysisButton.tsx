@@ -15,10 +15,14 @@ export function SaveAnalysisButton() {
   const { analysis } = useAnalysis();
   const { showToast } = useToast();
   const [saveState, setSaveState] = useState<SaveState>("idle");
+  // Tracks which result was saved, so a new analysis re-enables the button.
+  const [savedCompletedAt, setSavedCompletedAt] = useState<string | null>(null);
 
   if (!analysis) {
     return null;
   }
+
+  const isAlreadySaved = savedCompletedAt === analysis.completedAt;
 
   async function handleSave() {
     if (!analysis) {
@@ -66,6 +70,7 @@ export function SaveAnalysisButton() {
         return;
       }
 
+      setSavedCompletedAt(analysis.completedAt);
       showToast("Saved to your history.");
       router.refresh();
     } catch {
@@ -75,16 +80,19 @@ export function SaveAnalysisButton() {
     }
   }
 
-  // The button stays enabled after saving so a second save is still possible
-  // and the cursor never sits in a not-allowed state.
   return (
     <Button
       variant="secondary"
       size="sm"
       onClick={handleSave}
-      disabled={saveState === "saving"}
+      disabled={saveState === "saving" || isAlreadySaved}
+      disabledCursor={isAlreadySaved ? "default" : "not-allowed"}
     >
-      {saveState === "saving" ? "Saving…" : "Save to history"}
+      {saveState === "saving"
+        ? "Saving…"
+        : isAlreadySaved
+          ? "Saved to history"
+          : "Save to history"}
     </Button>
   );
 }

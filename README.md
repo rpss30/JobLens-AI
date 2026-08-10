@@ -104,13 +104,7 @@ backend status indicator in the header.
 
 ![Role Fit Overview](assets/screenshots/role-fit-overview.png)
 
-The overview page summarizes the candidate's best-fit role, role skill fit, sample confidence, top skill gap, number of jobs analyzed, and current skill count.
-
-### Candidate Fit Summary
-
-![Candidate Fit Summary](assets/screenshots/candidate-fit-summary.png)
-
-JobLens AI generates a short natural-language summary explaining the candidate's strongest role fit, existing strengths, and highest-impact missing skills, alongside Markdown and PDF report downloads.
+The overview section summarizes the candidate's best-fit role, role skill fit, sample confidence, top skill gap, number of jobs analyzed, and current skill count.
 
 ### Top Matching Job Cards
 
@@ -122,7 +116,7 @@ The strongest individual job matches appear as cards with match score, company, 
 
 ![Market Insights](assets/screenshots/market-insights.png)
 
-The Skills & Market page shows market-level insights such as top required skills, role-specific skill importance, jobs by location, top hiring companies, and role distribution.
+The Skills & Market section  shows market-level insights such as top required skills, role-specific skill importance, jobs by location, top hiring companies, and role distribution.
 
 
 

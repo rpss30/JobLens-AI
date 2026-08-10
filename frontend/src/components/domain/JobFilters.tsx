@@ -41,14 +41,14 @@ export function JobFilters({
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <div className="xl:col-span-2">
-          <Field label="Search" htmlFor="job-search">
+          <Field label="Search jobs" htmlFor="job-search">
             <input
               id="job-search"
               type="search"
               name="q"
               maxLength={200}
               defaultValue={values.q}
-              placeholder="Title, skill, company, or description"
+              placeholder="Try a job title, skill, or company"
               className={controlClassName}
             />
           </Field>
@@ -70,7 +70,7 @@ export function JobFilters({
           </select>
         </Field>
 
-        <Field label="Experience" htmlFor="job-level">
+        <Field label="Experience level" htmlFor="job-level">
           <select
             id="job-level"
             name="level"

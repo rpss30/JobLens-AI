@@ -35,7 +35,7 @@ export function DatasetSwitcher({ datasets }: { datasets: DatasetOption[] }) {
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex min-w-0 items-center gap-2">
       <label
         htmlFor="dataset-switcher"
         className="hidden text-xs font-medium text-text-subtle sm:block"
@@ -47,7 +47,7 @@ export function DatasetSwitcher({ datasets }: { datasets: DatasetOption[] }) {
         value={activeDataset}
         disabled={isPending}
         onChange={(event) => handleChange(event.target.value)}
-        className="h-9 max-w-[13rem] rounded-lg border border-border bg-surface px-2.5 text-sm text-text disabled:opacity-60"
+        className="h-9 min-w-0 max-w-[8.5rem] rounded-lg border border-border bg-surface px-2.5 text-sm text-text disabled:opacity-60 sm:max-w-[13rem]"
       >
         {groups.map((group) => (
           <optgroup key={group} label={group}>

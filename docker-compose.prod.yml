@@ -32,7 +32,7 @@ services:
     networks:
       - edge
     depends_on:
-      dashboard:
+      frontend:
         condition: service_healthy
       api:
         condition: service_healthy
@@ -45,30 +45,30 @@ services:
       retries: 3
       start_period: 10s
 
-  dashboard:
-    build: *app-build
-    image: joblens-app:${JOBLENS_IMAGE_TAG:-latest}
-    command: >
-      streamlit run src/dashboard/app.py
-      --server.address=0.0.0.0
-      --server.port=8501
-      --server.headless=true
+  frontend:
+    build:
+      context: ./frontend
+    image: joblens-frontend:${JOBLENS_IMAGE_TAG:-latest}
     restart: unless-stopped
-    environment: *app-env
+    environment:
+      # Server-side only. The browser never sees this, so the API needs no
+      # public hostname and stays reachable over the Docker network.
+      JOBLENS_API_URL: ${JOBLENS_API_URL:-http://api:8000}
     expose:
-      - "8501"
+      - "3000"
+    # Only the edge network: the Node process reaches PostgreSQL through the
+    # API, never directly.
     networks:
       - edge
-      - database
     depends_on:
-      db:
+      api:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8501/_stcore/health || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:3000/proxy/health >/dev/null || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 30s
+      start_period: 20s
 
   api:
     build: *app-build

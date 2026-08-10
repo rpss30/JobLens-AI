@@ -51,7 +51,7 @@ export function SaveAnalysisButton() {
     };
 
     try {
-      const httpResponse = await fetch("/api/analysis-runs", {
+      const httpResponse = await fetch("/proxy/analysis-runs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

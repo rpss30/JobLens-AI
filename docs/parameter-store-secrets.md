@@ -35,8 +35,8 @@ Use one existing path per environment:
 
 The renderer uses the final path segment as the env key. Values not stored in
 Parameter Store can safely come from `.env.production.example` when they are
-non-secret defaults such as worker counts, root paths, rate-limit defaults, or
-cookie flags. Optional provider keys may remain blank.
+non-secret defaults such as worker counts, root paths, the internal API URL,
+rate-limit defaults, or cookie flags. Optional provider keys may remain blank.
 
 ## IAM Scope
 

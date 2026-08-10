@@ -3,7 +3,11 @@
  *
  * Import this from Server Components and route handlers only. The API base URL
  * stays on the server, and client components reach the backend through the
- * route handlers under app/api rather than calling FastAPI directly.
+ * route handlers under app/proxy rather than calling FastAPI directly.
+ *
+ * Those handlers live under /proxy rather than /api because in production the
+ * reverse proxy owns /api/* and forwards it to FastAPI, so an /api route here
+ * would never be reached by the browser.
  */
 
 const DEFAULT_API_BASE_URL = "http://127.0.0.1:8000";

@@ -55,7 +55,7 @@ if [[ "${SKIP_RESTORE_VERIFY}" != "true" ]]; then
 fi
 
 if [[ "${STOP_APP_SERVICES}" == "true" ]]; then
-  compose stop dashboard api django-ops
+  compose stop frontend api django-ops
 fi
 
 compose exec -T db sh -c \

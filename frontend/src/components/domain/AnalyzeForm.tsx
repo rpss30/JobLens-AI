@@ -119,7 +119,7 @@ export function AnalyzeForm({
     };
 
     try {
-      const response = await fetch("/api/analyze", {
+      const response = await fetch("/proxy/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(request),

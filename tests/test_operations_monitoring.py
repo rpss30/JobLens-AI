@@ -167,7 +167,7 @@ def test_operations_status_checks_compose_health_backup_and_disk_state() -> None
     script = read_file(STATUS_SCRIPT)
 
     assert "EXPECTED_SERVICES" in script
-    assert "caddy dashboard api django-ops db" in script
+    assert "caddy frontend api django-ops db" in script
     assert "compose ps --status running --services" in script
     assert "check_production_health.sh" in script
     assert "check_database_backup_status.sh" in script
@@ -191,7 +191,7 @@ def test_log_collection_captures_compose_logs_and_optional_systemd_context() -> 
     assert "compose ps >" in script
     assert "compose logs --timestamps --tail" in script
     assert "LOG_SERVICES" in script
-    assert "caddy dashboard api django-ops db" in script
+    assert "caddy frontend api django-ops db" in script
     assert "manifest.json" in script
     assert "INCLUDE_SYSTEMD_LOGS" in script
     assert "journalctl" in script
@@ -266,7 +266,7 @@ printf '2026-08-07T12:01:00+00:00 host %s ok\\n' "$unit"
     assert status["line_count"] == 8
     assert status["retention_days"] == 7
     assert {record["source"] for record in records} == {"compose", "systemd"}
-    assert {"caddy", "dashboard", "api", "django-ops", "db"} <= {
+    assert {"caddy", "frontend", "api", "django-ops", "db"} <= {
         record["name"] for record in records
     }
     assert "joblens-ingestion-refresh.service" in {
@@ -349,7 +349,7 @@ def test_log_aggregation_timer_runs_every_fifteen_minutes_with_server_defaults()
     assert "WorkingDirectory=/srv/joblens-ai" in service
     assert "LOG_AGGREGATION_DIR=/srv/joblens-logs" in service
     assert "LOG_AGGREGATION_STATUS_FILE=/srv/joblens-logs/latest_log_aggregation.json" in service
-    assert "LOG_AGGREGATION_SERVICES=caddy dashboard api django-ops db" in service
+    assert "LOG_AGGREGATION_SERVICES=caddy frontend api django-ops db" in service
     assert "LOG_AGGREGATION_LINES=400" in service
     assert "LOG_AGGREGATION_RETENTION_DAYS=14" in service
     assert "INCLUDE_SYSTEMD_LOGS=true" in service

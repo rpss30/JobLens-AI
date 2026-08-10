@@ -109,6 +109,7 @@ deploy:
 
 ```text
 /healthz
+/proxy/health
 /api/health
 /ops/login/
 ```

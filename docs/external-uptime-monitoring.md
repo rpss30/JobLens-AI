@@ -30,6 +30,7 @@ production deployment:
 | Path | Purpose |
 | --- | --- |
 | `/healthz` | Caddy edge health response |
+| `/proxy/health` | Next.js server liveness behind the reverse proxy |
 | `/api/health` | FastAPI health endpoint behind the reverse proxy |
 | `/ops/login/` | Django operations login route behind the reverse proxy |
 
@@ -52,7 +53,7 @@ Useful defaults:
 | --- | --- |
 | `JOBLENS_UPTIME_BASE_URL` | empty |
 | `JOBLENS_DOMAIN` | empty |
-| `UPTIME_PATHS` | `/healthz /api/health /ops/login/` |
+| `UPTIME_PATHS` | `/healthz /proxy/health /api/health /ops/login/` |
 | `UPTIME_RETRIES` | `2` |
 | `UPTIME_DELAY_SECONDS` | `5` |
 | `UPTIME_TIMEOUT_SECONDS` | `10` |

@@ -31,7 +31,7 @@ export function ReportDownloads() {
 
     try {
       const response = await fetch(
-        `/api/reports/candidate?format=${reportFormat}`,
+        `/proxy/reports/candidate?format=${reportFormat}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

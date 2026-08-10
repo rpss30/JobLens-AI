@@ -175,7 +175,7 @@ def test_lightsail_terraform_template_defines_bounded_resources() -> None:
     assert "203.0.113.10/32" in example_vars
     assert "terraform apply" in readme
 
-    for internal_port in ["5432", "8000", "8001", "8501"]:
+    for internal_port in ["3000", "5432", "8000", "8001"]:
         assert internal_port not in main_tf
 
 
@@ -191,7 +191,7 @@ def test_lightsail_terraform_readme_documents_validation_and_approval() -> None:
         "aws lightsail get-blueprints",
         "aws lightsail get-bundles",
         "ssh is limited",
-        "postgresql, fastapi, django operations, and streamlit ports stay private",
+        "postgresql, fastapi, django operations, and next.js ports stay private",
     ]
 
     for topic in expected_topics:

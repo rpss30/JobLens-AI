@@ -20,6 +20,8 @@
 
     redir /api /api/docs 308
 
+    # /api/* belongs to FastAPI, so the Next.js handlers the browser calls live
+    # under /proxy/* and reach the frontend through the catch-all below.
     handle_path /api/* {
         reverse_proxy api:8000 {
             header_up X-Forwarded-Prefix /api
@@ -35,6 +37,6 @@
     }
 
     handle {
-        reverse_proxy dashboard:8501
+        reverse_proxy frontend:3000
     }
 }

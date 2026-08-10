@@ -169,7 +169,7 @@ def test_restore_script_is_dry_run_gated_and_verifies_before_overwrite() -> None
     assert "Refusing to restore without CONFIRM_RESTORE=yes" in script
     assert "verify_database_backup.sh" in script
     assert "SKIP_RESTORE_VERIFY" in script
-    assert "compose stop dashboard api django-ops" in script
+    assert "compose stop frontend api django-ops" in script
     assert "pg_restore -U" in script
     assert "--clean --if-exists" in script
     assert "--exit-on-error" in script

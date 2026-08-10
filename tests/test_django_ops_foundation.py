@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+from django.conf import settings
 from django.contrib.auth.models import Group
 from django.contrib.auth.models import User
 from django.db import connection
@@ -132,6 +133,10 @@ def test_health_endpoint_checks_database(client):
         "service": "django-ops",
         "database": "ok",
     }
+
+    # The container healthcheck reaches this path over plain HTTP on the Docker
+    # network. Without the exemption it would answer 301 and never run the check.
+    assert r"^health/$" in settings.SECURE_REDIRECT_EXEMPT
 
 
 def test_operations_route_requires_staff(client):

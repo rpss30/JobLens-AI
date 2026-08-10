@@ -77,6 +77,16 @@ def test_production_compose_has_health_checks_and_persistent_database_volume():
     )
     assert "caddy_data:/data" in service_block(compose_text, "caddy")
 
+    # Django validates the Host header, so its healthcheck sends the real domain.
+    # Probing localhost instead would need loopback names in
+    # DJANGO_ALLOWED_HOSTS, which the secret audit rejects as placeholders.
+    django_ops_block = service_block(compose_text, "django-ops")
+
+    assert "JOBLENS_DOMAIN: ${JOBLENS_DOMAIN" in django_ops_block
+    assert "Host: $${JOBLENS_DOMAIN}" in django_ops_block
+    assert "http://127.0.0.1:8001/health/" in django_ops_block
+    assert "http://localhost:8001" not in compose_text
+
 
 def test_production_env_example_declares_required_runtime_settings():
     env_text = ENV_EXAMPLE_PATH.read_text()
@@ -101,6 +111,17 @@ def test_production_env_example_declares_required_runtime_settings():
 
     assert "localhost:5432" not in env_text
     assert "replace-with-a-long-random" in env_text
+
+    # Loopback entries here would fail the secret audit's placeholder check, so
+    # the healthcheck has to reach Django by its real hostname instead.
+    allowed_hosts_line = next(
+        line
+        for line in env_text.splitlines()
+        if line.startswith("DJANGO_ALLOWED_HOSTS=")
+    )
+
+    assert "localhost" not in allowed_hosts_line
+    assert "127.0.0.1" not in allowed_hosts_line
 
 
 def test_caddy_routes_api_ops_and_frontend_paths():

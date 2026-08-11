@@ -33,14 +33,35 @@ class SkillExtractionCaseResult:
     extracted_skills: list[str]
     matched_skills: list[str]
     missing_skills: list[str]
+    unexpected_skills: list[str]
     recall: float
+    precision: float
+
+    @property
+    def f1(self) -> float:
+        if not self.recall or not self.precision:
+            return 0.0
+
+        return (
+            2 * self.recall * self.precision / (self.recall + self.precision)
+        )
 
 
 @dataclass(frozen=True)
 class SkillExtractionEvalResult:
     case_count: int
     average_recall: float
+    average_precision: float
     case_results: list[SkillExtractionCaseResult]
+
+    @property
+    def average_f1(self) -> float:
+        if not self.case_results:
+            return 0.0
+
+        return sum(result.f1 for result in self.case_results) / len(
+            self.case_results
+        )
 
 
 def load_skill_extraction_eval_cases(
@@ -87,9 +108,17 @@ def evaluate_skill_extractor(
         extracted_set = set(extracted_skills)
         matched_skills = sorted(expected_set & extracted_set)
         missing_skills = sorted(expected_set - extracted_set)
+        unexpected_skills = sorted(extracted_set - expected_set)
         recall = (
             len(matched_skills) / len(case.expected_skills)
             if case.expected_skills
+            else 1.0
+        )
+        # Recall alone rewards an extractor that returns its whole vocabulary,
+        # so every case is scored for what it invented as well as what it found.
+        precision = (
+            len(matched_skills) / len(extracted_skills)
+            if extracted_skills
             else 1.0
         )
 
@@ -100,7 +129,9 @@ def evaluate_skill_extractor(
                 extracted_skills=extracted_skills,
                 matched_skills=matched_skills,
                 missing_skills=missing_skills,
+                unexpected_skills=unexpected_skills,
                 recall=recall,
+                precision=precision,
             )
         )
 
@@ -109,9 +140,15 @@ def evaluate_skill_extractor(
         if case_results
         else 0.0
     )
+    average_precision = (
+        sum(result.precision for result in case_results) / len(case_results)
+        if case_results
+        else 0.0
+    )
 
     return SkillExtractionEvalResult(
         case_count=len(case_results),
         average_recall=average_recall,
+        average_precision=average_precision,
         case_results=case_results,
     )

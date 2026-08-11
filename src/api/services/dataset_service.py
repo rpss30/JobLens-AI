@@ -7,7 +7,7 @@ import pandas as pd
 
 from src.api.errors import ApiError
 from src.api.services.listing import filter_items, paginate_items, sort_items
-from src.dashboard.services import (
+from src.analysis.job_services import (
     ALLOWED_UPLOAD_EXTENSIONS,
     MAX_UPLOADED_CSV_BYTES,
     read_uploaded_jobs_csv,

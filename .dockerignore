@@ -7,6 +7,14 @@ __pycache__
 .git
 .github
 
+# Terraform keeps provider binaries for the host platform under .terraform. They
+# are gitignored, so CI never sees them, but a local build would copy a macOS
+# provider binary into a Linux image: dead weight that also carries its own CVEs.
+**/.terraform
+**/.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+
 .env
 .env.*
 !.env.example

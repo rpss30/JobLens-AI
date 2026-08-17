@@ -39,7 +39,7 @@ commit `.env` files.
 ```env
 DATABASE_URL=postgresql+psycopg://localhost:5432/joblens_ai
 GROQ_API_KEY=
-GROQ_MODEL=llama-3.3-70b-versatile
+GROQ_MODEL=openai/gpt-oss-20b
 JOBLENS_CORS_ORIGINS=http://localhost:8501,http://localhost:8502,http://127.0.0.1:8501,http://127.0.0.1:8502
 JOBLENS_API_ROOT_PATH=
 JOBLENS_RATE_LIMIT_ENABLED=true

@@ -40,6 +40,33 @@ All extracted skills pass through the same taxonomy cleanup:
 - keeps explainable skill strings that the matching engine can show back to the
   candidate.
 
+## Model selection and model fallback
+
+`GROQ_MODEL` names the model to use, defaulting to `openai/gpt-oss-20b`, and
+`GROQ_MODEL_FALLBACKS` is a comma-separated list tried in order when that model
+is gone, defaulting to `openai/gpt-oss-120b`.
+
+This exists because providers retire models on their own schedule. On
+2026-08-17 the weekly refresh failed after Groq removed
+`llama-3.3-70b-versatile`; every posting needing fresh extraction answered 404
+`model_not_found` and dropped to dictionary extraction, and because unchanged
+descriptions reuse cached extractions the outage surfaced as coverage falling to
+76.7% rather than to zero. The quality gate caught it and no snapshot was
+published.
+
+Rules the failover follows:
+
+- only a retired model is skipped. A rate limit or timeout is a problem with
+  that call, not with the model, and is raised rather than disqualifying it
+- a model reported as retired is remembered for the rest of the process, so one
+  dead model costs one failed call per run instead of one per posting
+- the recorded `skill_extraction_model` is the model that answered, so a
+  snapshot shows which model produced each extraction
+- an explicitly passed model is never silently replaced, because a caller
+  pinning a model wants to hear that it is unavailable
+- when no configured model is available the run fails with the list it tried,
+  rather than quietly producing a dictionary-only snapshot
+
 ## Fallback behavior
 
 The Canada snapshot builder tries Groq first. If Groq fails or returns no

@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Suspense, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
-import { DatasetSwitcher, type DatasetOption } from "@/components/layout/DatasetSwitcher";
+import { LogoMark, MenuIcon } from "@/components/layout/NavIcons";
+import { SidebarFooter } from "@/components/layout/SidebarFooter";
 import { SidebarNav } from "@/components/layout/SidebarNav";
+import type { DatasetOption } from "@/components/layout/DatasetSwitcher";
 import { useAnalysis } from "@/context/AnalysisContext";
 
 interface AppShellProps {
@@ -27,8 +29,25 @@ export function AppShell({ datasets, statusSlot, children }: AppShellProps) {
     setIsMobileNavOpen(false);
   }
 
+  const footer = <SidebarFooter datasets={datasets} statusSlot={statusSlot} />;
+
+  // The wordmark is a way back to a clean start, so it clears the current
+  // result rather than returning to a stale one.
+  const wordmark = (
+    <Link
+      href="/"
+      onClick={clearAnalysis}
+      className="flex min-w-0 items-center gap-3"
+    >
+      <LogoMark className="shrink-0 text-text" />
+      <span className="truncate text-2xl font-semibold tracking-tight text-text">
+        JobLens
+      </span>
+    </Link>
+  );
+
   return (
-    <div className="min-h-dvh">
+    <div className="min-h-dvh lg:flex">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-surface focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-text focus:shadow-lg"
@@ -36,89 +55,46 @@ export function AppShell({ datasets, statusSlot, children }: AppShellProps) {
         Skip to main content
       </a>
 
-      <header className="sticky top-0 z-30 border-b border-border bg-surface/90 backdrop-blur">
-        <div className="flex h-14 items-center gap-3 px-4 sm:px-6">
+      {/* Below lg the sidebar head becomes a bar and the rest of it a drawer. */}
+      <header className="sticky top-0 z-30 border-b border-border bg-surface lg:hidden">
+        <div className="flex h-16 items-center gap-3 px-4">
           <button
             type="button"
             onClick={() => setIsMobileNavOpen((isOpen) => !isOpen)}
             aria-expanded={isMobileNavOpen}
             aria-controls="mobile-navigation"
-            className="-ml-1 rounded-lg p-2 text-text-muted hover:bg-surface-muted hover:text-text lg:hidden"
+            className="-ml-1 rounded-lg p-2 text-text-muted hover:bg-surface-muted hover:text-text"
           >
             <span className="sr-only">
               {isMobileNavOpen ? "Close navigation" : "Open navigation"}
             </span>
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 18 18"
-              fill="none"
-              aria-hidden="true"
-            >
-              <path
-                d="M2 4.5h14M2 9h14M2 13.5h14"
-                stroke="currentColor"
-                strokeWidth="1.6"
-                strokeLinecap="round"
-              />
-            </svg>
+            <MenuIcon />
           </button>
-
-          {/* The wordmark is a way back to a clean start, so it clears the
-              current result rather than returning to a stale one. */}
-          <Link
-            href="/"
-            onClick={clearAnalysis}
-            className="flex min-w-0 items-center"
-          >
-            <span className="truncate text-xl font-semibold tracking-tight text-text sm:text-2xl">
-              JobLens
-            </span>
-          </Link>
-
-          <div className="ml-auto flex min-w-0 items-center gap-2 sm:gap-3">
-            {/* The switcher reads the dataset from the URL, so it needs a
-                boundary while search params resolve. */}
-            <Suspense
-              fallback={
-                <div
-                  className="h-9 w-[9rem] rounded-lg border border-border bg-surface-muted"
-                  aria-hidden="true"
-                />
-              }
-            >
-              <DatasetSwitcher datasets={datasets} />
-            </Suspense>
-            <Link
-              href="/datasets"
-              className="hidden text-sm font-medium text-text-muted hover:text-text sm:block"
-            >
-              Manage
-              <span className="sr-only"> datasets</span>
-            </Link>
-            {statusSlot}
-          </div>
+          {wordmark}
         </div>
 
         {isMobileNavOpen ? (
-          <div
-            id="mobile-navigation"
-            className="border-t border-border bg-surface lg:hidden"
-          >
+          <div id="mobile-navigation" className="border-t border-border pb-1">
             <SidebarNav onNavigate={() => setIsMobileNavOpen(false)} />
+            {footer}
           </div>
         ) : null}
       </header>
 
-      <div className="flex">
-        <aside className="sticky top-14 hidden h-[calc(100dvh-3.5rem)] w-56 shrink-0 border-r border-border bg-surface lg:block">
+      <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r border-border bg-surface lg:flex">
+        <div className="px-4 py-5">{wordmark}</div>
+        <div className="flex-1 overflow-y-auto">
           <SidebarNav />
-        </aside>
+        </div>
+        {footer}
+      </aside>
 
-        <main id="main-content" className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-6xl space-y-8">{children}</div>
-        </main>
-      </div>
+      <main
+        id="main-content"
+        className="min-w-0 flex-1 px-5 py-8 sm:px-8 lg:px-10 lg:py-10"
+      >
+        <div className="mx-auto max-w-7xl space-y-8">{children}</div>
+      </main>
     </div>
   );
 }

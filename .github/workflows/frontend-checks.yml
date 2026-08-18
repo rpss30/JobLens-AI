@@ -7,12 +7,14 @@ on:
   pull_request:
     branches:
       - main
+      - feature/frontend-revamp
     paths:
       - "frontend/**"
       - ".github/workflows/frontend-checks.yml"
   push:
     branches:
       - main
+      - feature/frontend-revamp
     paths:
       - "frontend/**"
       - ".github/workflows/frontend-checks.yml"

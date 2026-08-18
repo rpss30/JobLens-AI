@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Nunito } from "next/font/google";
 
 import { ApiStatus } from "@/components/layout/ApiStatus";
 import { AppShell } from "@/components/layout/AppShell";
@@ -11,8 +11,14 @@ import { LOCAL_DATASETS } from "@/lib/datasets";
 
 import "./globals.css";
 
-const inter = Inter({
-  variable: "--font-inter",
+/*
+ * The design calls for SF Pro Rounded, which Apple licenses for its own
+ * platforms only and which cannot be shipped as a web font. --font-sans asks
+ * for it by keyword first, so Apple devices render the real face; Nunito is
+ * the closest freely licensable rounded fallback for everyone else.
+ */
+const roundedSans = Nunito({
+  variable: "--font-rounded",
   subsets: ["latin"],
 });
 
@@ -44,7 +50,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   const datasets = await loadDatasetOptions();
 
   return (
-    <html lang="en" className={`${inter.variable} h-full antialiased`}>
+    <html lang="en" className={`${roundedSans.variable} h-full antialiased`}>
       <body className="min-h-full font-sans">
         <ToastProvider>
           <AnalysisProvider>

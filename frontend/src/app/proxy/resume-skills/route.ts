@@ -9,10 +9,13 @@ import { extractResumeSkills } from "@/lib/api/endpoints";
  * here; FastAPI owns the extraction.
  */
 export async function POST(request: Request) {
-  let body: { resume_text?: unknown };
+  let body: { resume_text?: unknown; dataset_name?: unknown };
 
   try {
-    body = (await request.json()) as { resume_text?: unknown };
+    body = (await request.json()) as {
+      resume_text?: unknown;
+      dataset_name?: unknown;
+    };
   } catch {
     return NextResponse.json(
       { detail: "Request body must be valid JSON." },
@@ -28,7 +31,12 @@ export async function POST(request: Request) {
   }
 
   try {
-    return NextResponse.json(await extractResumeSkills(body.resume_text));
+    const datasetName =
+      typeof body.dataset_name === "string" ? body.dataset_name : undefined;
+
+    return NextResponse.json(
+      await extractResumeSkills(body.resume_text, datasetName),
+    );
   } catch (error) {
     if (error instanceof ApiError) {
       return NextResponse.json(

@@ -333,7 +333,9 @@ export function AnalyzeForm({
       const response = await fetch("/proxy/resume-skills", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ resume_text: text }),
+        // Scoped to the active dataset so the resume box recognises the
+        // same skills the list on this form offers.
+        body: JSON.stringify({ resume_text: text, dataset_name: datasetName }),
       });
 
       const payload = await response.json();

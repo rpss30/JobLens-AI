@@ -1,6 +1,10 @@
 import { Suspense } from "react";
 
 import { SkillBubbleChart } from "@/components/charts/SkillBubbleChart";
+import {
+  TotalPostingsBadge,
+  TotalPostingsBadgeSkeleton,
+} from "@/components/domain/TotalPostingsBadge";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardBody } from "@/components/ui/Card";
 import { CardSkeleton } from "@/components/ui/States";
@@ -91,12 +95,6 @@ async function SkillsDemand({ datasetName }: { datasetName: string }) {
   return (
     <Card>
       <CardBody className="space-y-5 p-5 sm:p-6">
-        <div className="flex justify-end">
-          <span className="rounded-full border border-border bg-surface-muted px-3 py-1 text-sm font-medium text-text">
-            {formatCount(insights.jobs_analyzed)} total postings
-          </span>
-        </div>
-
         <div className="grid items-start gap-5 lg:grid-cols-2">
           <section className="rounded-xl border border-border p-4">
             <h2 className="text-base font-medium text-text">
@@ -178,6 +176,11 @@ export default async function SkillsDemandPage({
       <PageHeader
         title="Skills Demand"
         description="How many postings in this snapshot ask for each skill."
+        action={
+          <Suspense fallback={<TotalPostingsBadgeSkeleton />}>
+            <TotalPostingsBadge datasetName={datasetName} />
+          </Suspense>
+        }
       />
 
       <Suspense key={datasetName} fallback={<CardSkeleton rows={10} />}>

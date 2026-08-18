@@ -220,6 +220,32 @@ export function TokenInput({
     return { accepted, rejected };
   }
 
+  /**
+   * What Enter should add.
+   *
+   * The highlighted suggestion wins. Failing that, when only listed values are
+   * allowed, the top suggestion is taken if what was typed is the start of it:
+   * typing "Postgres" showed "postgresql" in the list and then rejected it on
+   * Enter, because the raw text was committed instead of the match on screen.
+   * A merely-contains match is not enough, or "z" would silently add "azure".
+   */
+  function resolveEnterValue(): string {
+    if (activeIndex >= 0 && matches[activeIndex]) {
+      return matches[activeIndex];
+    }
+
+    const query = draftValue.trim().toLowerCase();
+    const topMatch = matches[0];
+
+    if (!allowCustomValues && query && topMatch) {
+      if (matches.length === 1 || topMatch.toLowerCase().startsWith(query)) {
+        return topMatch;
+      }
+    }
+
+    return draftValue;
+  }
+
   function commitDraft(rawValue: string) {
     const { accepted, rejected } = addValues([rawValue]);
 
@@ -295,11 +321,7 @@ export function TokenInput({
 
     if (event.key === "Enter" || event.key === ",") {
       event.preventDefault();
-      commitDraft(
-        activeIndex >= 0 && matches[activeIndex]
-          ? matches[activeIndex]
-          : draftValue,
-      );
+      commitDraft(resolveEnterValue());
       return;
     }
 

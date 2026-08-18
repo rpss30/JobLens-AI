@@ -5,9 +5,9 @@ from src.api.schemas import MarketInsightsRequest, MarketInsightsResponse
 from src.api.services.analysis_service import load_jobs_for_analysis
 from src.analysis.job_services import (
     filter_jobs,
-    get_jobs_by_location,
     get_top_companies,
 )
+from src.analysis.location_demand import summarize_location_demand
 from src.matching.match_engine import (
     build_role_skill_weights,
     get_role_weighted_top_skills,
@@ -128,7 +128,7 @@ def get_market_insights(request: MarketInsightsRequest) -> MarketInsightsRespons
         # Per role, or the busiest category crowds every other one out.
         per_role=True,
     )
-    jobs_by_location_df = get_jobs_by_location(filtered_jobs).head(request.top_n)
+    location_demand = summarize_location_demand(filtered_jobs, top_n=request.top_n)
     top_companies_df = get_top_companies(filtered_jobs, top_n=request.top_n)
 
     return MarketInsightsResponse(
@@ -145,13 +145,9 @@ def get_market_insights(request: MarketInsightsRequest) -> MarketInsightsRespons
             filtered_jobs,
             role_skill_importance_df,
         ),
-        jobs_by_location=[
-            {
-                "location": str(row["location"]),
-                "job_count": int(row["job_count"]),
-            }
-            for _, row in jobs_by_location_df.iterrows()
-        ],
+        jobs_by_location=location_demand.locations,
+        workplace_types=location_demand.workplace_types,
+        postings_without_location=location_demand.postings_without_location,
         top_companies=[
             {
                 "company": str(row["company"]),

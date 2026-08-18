@@ -297,6 +297,28 @@ def test_market_insights_summarize_demand_without_a_candidate_profile() -> None:
     assert first_skill["role_job_count"] >= first_skill["job_count"] > 0
 
     assert data["jobs_by_location"]
+    # Locations rank places only. "Hybrid" used to outrank every real city.
+    assert all(row["location"] for row in data["jobs_by_location"])
+    assert not {row["location"] for row in data["jobs_by_location"]} & {
+        "Hybrid",
+        "Remote",
+        "On-site",
+    }
+
+    # Every posting lands in exactly one workplace type, including the ones
+    # that never say which, so the rollup accounts for the whole slice.
+    assert {row["workplace_type"] for row in data["workplace_types"]} <= {
+        "Remote",
+        "Hybrid",
+        "On-site",
+        "Not stated",
+    }
+    assert (
+        sum(row["job_count"] for row in data["workplace_types"])
+        == data["jobs_analyzed"]
+    )
+    assert data["postings_without_location"] >= 0
+
     assert data["top_companies"]
     assert data["role_distribution"]
 

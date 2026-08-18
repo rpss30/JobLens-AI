@@ -101,6 +101,16 @@ export interface RoleSkillImportance {
 export interface LocationDemand {
   location: string;
   job_count: number;
+  /** The parts behind the label, so the page can group without re-parsing. */
+  city: string;
+  region: string;
+  country: string;
+}
+
+export interface WorkplaceTypeDemand {
+  /** Remote, Hybrid, On-site, or "Not stated" when the posting never says. */
+  workplace_type: string;
+  job_count: number;
 }
 
 export interface CompanyDemand {
@@ -119,6 +129,10 @@ export interface MarketInsights {
   skill_demand: SkillDemand[];
   role_skill_importance: RoleSkillImportance[];
   jobs_by_location: LocationDemand[];
+  /** How the work is done, kept out of the location ranking. */
+  workplace_types: WorkplaceTypeDemand[];
+  /** Postings whose location named no place, so counts read against a total. */
+  postings_without_location: number;
   top_companies: CompanyDemand[];
   role_distribution: RoleDistribution[];
 }

@@ -3,19 +3,24 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import {
+  AnalyzeIcon,
+  DatasetsIcon,
+  HistoryIcon,
+  JobsIcon,
+  OverviewIcon,
+  SkillsIcon,
+} from "@/components/layout/NavIcons";
 import { cn } from "@/lib/cn";
 
 const navigationItems = [
-  { href: "/", label: "Overview" },
-  { href: "/analyze", label: "Analyze" },
-  { href: "/jobs", label: "Jobs" },
-  { href: "/skills", label: "Skills & Market" },
-  { href: "/history", label: "History" },
+  { href: "/", label: "Overview", Icon: OverviewIcon },
+  { href: "/analyze", label: "Analyze", Icon: AnalyzeIcon },
+  { href: "/jobs", label: "Jobs", Icon: JobsIcon },
+  { href: "/skills", label: "Skills & Market", Icon: SkillsIcon },
+  { href: "/history", label: "History", Icon: HistoryIcon },
+  { href: "/datasets", label: "Datasets", Icon: DatasetsIcon },
 ];
-
-// Dataset management is reachable from the top bar on wider screens, so the
-// mobile drawer carries it instead of adding a sixth primary area.
-const secondaryItems = [{ href: "/datasets", label: "Datasets" }];
 
 function isActiveRoute(pathname: string, href: string): boolean {
   return href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -23,28 +28,28 @@ function isActiveRoute(pathname: string, href: string): boolean {
 
 export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
-  const items = [...navigationItems, ...secondaryItems];
 
   return (
-    <nav aria-label="Primary" className="p-3">
-      <ul className="space-y-0.5">
-        {items.map((item) => {
-          const isActive = isActiveRoute(pathname, item.href);
+    <nav aria-label="Primary" className="px-3 py-2">
+      <ul className="space-y-1">
+        {navigationItems.map(({ href, label, Icon }) => {
+          const isActive = isActiveRoute(pathname, href);
 
           return (
-            <li key={item.href}>
+            <li key={href}>
               <Link
-                href={item.href}
+                href={href}
                 onClick={onNavigate}
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
-                  "block rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                  "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors",
                   isActive
-                    ? "bg-accent-soft text-accent"
-                    : "text-text-muted hover:bg-surface-muted hover:text-text",
+                    ? "bg-accent-fill font-semibold text-on-accent"
+                    : "font-medium text-text-muted hover:bg-surface-muted hover:text-text",
                 )}
               >
-                {item.label}
+                <Icon className="shrink-0" />
+                {label}
               </Link>
             </li>
           );

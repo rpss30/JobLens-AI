@@ -55,7 +55,45 @@ TECH_SKILLS = [
     "monitoring",
     "machine learning",
     "model evaluation",
-    "mysql"
+    "mysql",
+    # Asked for by jobs in the shipped datasets but previously impossible to
+    # read off a resume, so anyone with them scored as if they had none.
+    "go",
+    "c#",
+    "kotlin",
+    "gcp",
+    "azure",
+    "kafka",
+    "mongodb",
+    "redis",
+    "snowflake",
+    "databricks",
+    "datadog",
+    "github actions",
+    "large language models",
+    "distributed systems",
+    "mlops",
+    # Frameworks and libraries that turn up constantly on resumes. The first
+    # eight are asked for by shipped datasets, so leaving them out cost real
+    # matches; the rest keep an extracted skill list from looking wrong.
+    "spring",
+    "dynamodb",
+    "react native",
+    "fastapi",
+    "flask",
+    "css",
+    "junit",
+    "hibernate",
+    "angular",
+    "next.js",
+    "django",
+    "html",
+    "tailwind css",
+    ".net",
+    "asp.net core",
+    "pytest",
+    "jest",
+    "playwright",
 ]
 
 BASE_SKILL_IMPORTANCE = {

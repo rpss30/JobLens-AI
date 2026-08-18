@@ -33,32 +33,63 @@ PRIVACY_NOTE = (
 )
 
 
+# Skills whose own name is ordinary English, so matching it bare turns "go to
+# standup" or "go the extra mile" into a Go developer. These are found through
+# their unambiguous spellings only; the skill list on the analyze form is still
+# the reliable way to claim one.
+AMBIGUOUS_SKILL_NAMES = {"go", "spring"}
+
+
 SKILL_ALIASES: dict[str, list[str]] = {
     "a/b testing": ["a/b testing", "ab testing", "experimentation"],
+    ".net": [".net", "dotnet", "dot net"],
     "airflow": ["airflow", "apache airflow"],
+    "angular": ["angular", "angularjs"],
+    "asp.net core": ["asp.net core", "asp.net", "aspnet core"],
+    "azure": ["azure", "microsoft azure"],
+    "c#": ["c#", "c sharp", "csharp"],
     "api gateway": ["api gateway", "aws api gateway"],
     "aws": ["aws", "amazon web services"],
     "ci/cd": ["ci/cd", "ci cd", "continuous integration", "continuous deployment"],
     "cloudwatch": ["cloudwatch", "amazon cloudwatch"],
     "data pipelines": ["data pipeline", "data pipelines", "etl pipeline", "etl pipelines"],
     "dbt": ["dbt", "data build tool"],
+    "distributed systems": ["distributed systems", "distributed computing"],
+    "django": ["django", "django rest framework"],
     "docker": ["docker", "containerization", "containers"],
+    "dynamodb": ["dynamodb", "dynamo db", "amazon dynamodb"],
     "ec2": ["ec2", "amazon ec2"],
     "embeddings": ["embeddings", "embedding search", "semantic search"],
+    "gcp": ["gcp", "google cloud", "google cloud platform"],
+    "fastapi": ["fastapi", "fast api"],
+    "github actions": ["github actions", "gh actions"],
+    "go": ["golang", "go lang", "go programming"],
+    "javascript": ["javascript", "js", "ecmascript"],
+    "hibernate": ["hibernate", "jpa hibernate"],
+    "html": ["html", "html5"],
+    "kafka": ["kafka", "apache kafka"],
     "kubernetes": ["kubernetes", "k8s"],
+    "large language models": ["large language models", "llm", "llms"],
     "lambda": ["lambda", "aws lambda"],
     "machine learning": ["machine learning", "ml"],
     "model deployment": ["model deployment", "model serving", "deploy models"],
     "model monitoring": ["model monitoring", "monitoring models"],
+    "mlops": ["mlops", "ml ops"],
+    "mongodb": ["mongodb", "mongo"],
     "mysql": ["mysql", "my sql"],
     "node.js": ["node.js", "nodejs", "node js", "node"],
     "postgresql": ["postgresql", "postgres", "postgre sql"],
+    "next.js": ["next.js", "nextjs", "next js"],
     "power bi": ["power bi", "powerbi"],
+    "react": ["react", "reactjs", "react.js"],
+    "react native": ["react native", "react-native"],
     "pyspark": ["pyspark", "py spark"],
     "rest apis": ["rest api", "rest apis", "api development", "api design"],
     "s3": ["s3", "amazon s3"],
     "scikit-learn": ["scikit-learn", "scikit learn", "sklearn"],
+    "spring": ["spring boot", "springboot", "spring framework", "spring mvc"],
     "tableau": ["tableau"],
+    "tailwind css": ["tailwind css", "tailwind", "tailwindcss"],
     "tensorflow": ["tensorflow", "tensor flow"],
     "typescript": ["typescript", "type script"],
     "vector databases": ["vector database", "vector databases", "pgvector"],
@@ -161,7 +192,10 @@ def build_alias_lookup() -> dict[str, list[str]]:
     alias_lookup: dict[str, list[str]] = {}
 
     for skill in get_resume_skill_taxonomy():
-        aliases = {skill, *SKILL_ALIASES.get(skill, [])}
+        aliases = set(SKILL_ALIASES.get(skill, []))
+
+        if skill not in AMBIGUOUS_SKILL_NAMES:
+            aliases.add(skill)
         normalized_aliases = {
             normalize_skill_text(alias)
             for alias in aliases

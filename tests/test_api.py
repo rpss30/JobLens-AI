@@ -272,6 +272,30 @@ def test_market_insights_summarize_demand_without_a_candidate_profile() -> None:
     assert 0 < len(data["skill_demand"]) <= 5
     assert data["skill_demand"][0]["job_count"] > 0
     assert data["role_skill_importance"]
+    # Skills are ranked per role. Taking the top rows across all roles at once
+    # let the busiest category crowd smaller ones out entirely.
+    roles_with_skills = {
+        row["role_category"] for row in data["role_skill_importance"]
+    }
+    # role_distribution is capped by top_n, so this is a subset check: the
+    # point is that no listed role comes back with nothing.
+    assert {
+        row["role_category"] for row in data["role_distribution"]
+    } <= roles_with_skills
+
+    first_skill = data["role_skill_importance"][0]
+
+    assert first_skill["demand_signal"] in {"leading", "common", "specialized"}
+    assert first_skill["requirement_signal"] in {
+        "required",
+        "preferred",
+        "mixed",
+        "unclear",
+    }
+    # The counts behind the labels travel with them, so the page can show its
+    # evidence rather than asking anyone to trust a hidden weighting.
+    assert first_skill["role_job_count"] >= first_skill["job_count"] > 0
+
     assert data["jobs_by_location"]
     assert data["top_companies"]
     assert data["role_distribution"]

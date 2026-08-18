@@ -29,6 +29,9 @@ import type {
   FilterOptions,
 } from "@/lib/api/types";
 
+/** Matches returned for the results view to filter by category. */
+const RESULT_LIMIT = 45;
+
 const EXPERIENCE_BUCKETS = [
   "0-1 years",
   "1-2 years",
@@ -39,16 +42,6 @@ const EXPERIENCE_BUCKETS = [
   "7-10 years",
   "10+ years",
 ];
-
-const MAX_TARGET_ROLES = 20;
-
-/** Splits typed roles on the separators people actually use in a list. */
-function splitRoles(text: string): string[] {
-  return text
-    .split(/[,;\n\r\t|]+/)
-    .map((part) => part.trim())
-    .filter(Boolean);
-}
 
 function StepHeading({ children }: { children: string }) {
   return (
@@ -85,9 +78,7 @@ function SingleSelectCombobox({
   const listId = useId();
 
   function openMenu() {
-    const currentIndex = options.findIndex(
-      (option) => option.value === value,
-    );
+    const currentIndex = options.findIndex((option) => option.value === value);
 
     setActiveIndex(currentIndex >= 0 ? currentIndex : 0);
     setIsOpen(true);
@@ -116,9 +107,7 @@ function SingleSelectCombobox({
         return;
       }
 
-      setActiveIndex((index) =>
-        index >= options.length - 1 ? 0 : index + 1,
-      );
+      setActiveIndex((index) => (index >= options.length - 1 ? 0 : index + 1));
       return;
     }
 
@@ -130,9 +119,7 @@ function SingleSelectCombobox({
         return;
       }
 
-      setActiveIndex((index) =>
-        index <= 0 ? options.length - 1 : index - 1,
-      );
+      setActiveIndex((index) => (index <= 0 ? options.length - 1 : index - 1));
       return;
     }
 
@@ -180,15 +167,9 @@ function SingleSelectCombobox({
       const preferredHeight = 288;
       const minimumUsefulHeight = 160;
 
-      const spaceBelow = Math.max(
-        0,
-        viewportBottom - rect.bottom - gap,
-      );
+      const spaceBelow = Math.max(0, viewportBottom - rect.bottom - gap);
 
-      const spaceAbove = Math.max(
-        0,
-        rect.top - viewportTop - gap,
-      );
+      const spaceAbove = Math.max(0, rect.top - viewportTop - gap);
 
       const shouldOpenUp =
         spaceBelow < minimumUsefulHeight && spaceAbove > spaceBelow;
@@ -196,9 +177,7 @@ function SingleSelectCombobox({
       const availableSpace = shouldOpenUp ? spaceAbove : spaceBelow;
 
       setMenuPlacement(shouldOpenUp ? "up" : "down");
-      setMenuMaxHeight(
-        Math.max(96, Math.min(preferredHeight, availableSpace)),
-      );
+      setMenuMaxHeight(Math.max(96, Math.min(preferredHeight, availableSpace)));
     }
 
     updateMenuPlacement();
@@ -222,9 +201,7 @@ function SingleSelectCombobox({
         className="relative"
         onBlur={(event) => {
           if (
-            !event.currentTarget.contains(
-              event.relatedTarget as Node | null,
-            )
+            !event.currentTarget.contains(event.relatedTarget as Node | null)
           ) {
             closeMenu();
           }
@@ -253,7 +230,8 @@ function SingleSelectCombobox({
           onKeyDown={handleKeyDown}
         >
           <span>
-            {options.find((option) => option.value === value)?.label || placeholder}
+            {options.find((option) => option.value === value)?.label ||
+              placeholder}
           </span>
         </button>
 
@@ -283,9 +261,7 @@ function SingleSelectCombobox({
             aria-label={`${label} options`}
             style={{ maxHeight: menuMaxHeight }}
             className={`absolute left-0 right-0 z-50 overflow-y-auto overscroll-contain rounded-lg border border-border bg-surface py-1 shadow-lg ${
-              menuPlacement === "up"
-                ? "bottom-full mb-1"
-                : "top-full mt-1"
+              menuPlacement === "up" ? "bottom-full mb-1" : "top-full mt-1"
             }`}
           >
             {options.map((option, index) => (
@@ -323,17 +299,12 @@ export function AnalyzeForm({
   const router = useRouter();
   const { setAnalysis } = useAnalysis();
 
-  const [step, setStep] = useState<1 | 2>(1);
-
   const [currentSkills, setCurrentSkills] = useState<string[]>([]);
   const [resumeText, setResumeText] = useState("");
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractNotice, setExtractNotice] = useState<Notice | null>(null);
   const [candidateExperience, setCandidateExperience] = useState("");
 
-  const [targetRoles, setTargetRoles] = useState<string[]>([]);
-  const [roleDraft, setRoleDraft] = useState("");
-  const [roleNotice, setRoleNotice] = useState<Notice | null>(null);
   const [location, setLocation] = useState("");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -428,88 +399,8 @@ export function AnalyzeForm({
     }
   }
 
-  /** Turns whatever is typed in the role box into tags. */
-  function commitRoleDraft() {
-    const parts = splitRoles(roleDraft);
-
-    if (parts.length === 0) {
-      setRoleNotice({
-        text: "Type a job title first, then add it.",
-        tone: "error",
-      });
-      return;
-    }
-
-    const seenKeys = new Set(targetRoles.map((role) => role.toLowerCase()));
-    const additions = parts.filter((role) => {
-      const key = role.toLowerCase();
-
-      if (seenKeys.has(key)) {
-        return false;
-      }
-
-      seenKeys.add(key);
-      return true;
-    });
-
-    if (additions.length > 0) {
-      setTargetRoles([...targetRoles, ...additions].slice(0, MAX_TARGET_ROLES));
-      setValidationMessage("");
-    }
-
-    setRoleNotice(
-      additions.length === 0
-        ? {
-            text: "Every role you typed was already on your list.",
-            tone: "error",
-          }
-        : null,
-    );
-    setRoleDraft("");
-  }
-
-  function handleRoleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key === "Enter" && !event.shiftKey) {
-      event.preventDefault();
-      commitRoleDraft();
-    }
-  }
-
-  function handleNext() {
-    if (currentSkills.length === 0) {
-      setValidationMessage(
-        resumeText.trim().length > 0
-          ? "Select Read skills from resume to turn your resume into skill tags, or pick skills from the list."
-          : "Add at least one skill from the list, or paste your resume and read the skills from it.",
-      );
-      return;
-    }
-
-    if (!candidateExperience) {
-      setValidationMessage("Choose how much experience you have.");
-      return;
-    }
-
-    setValidationMessage("");
-    setStep(2);
-  }
-
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
-    // Anything still sitting in the role box counts as entered.
-    const pendingRoles = splitRoles(roleDraft);
-    const allRoles = [...targetRoles, ...pendingRoles].slice(
-      0,
-      MAX_TARGET_ROLES,
-    );
-
-    if (allRoles.length === 0) {
-      setValidationMessage(
-        "Add at least one role you are aiming for, from the list or by typing it.",
-      );
-      return;
-    }
 
     if (!location) {
       setValidationMessage("Choose a location, or pick Any location.");
@@ -523,13 +414,15 @@ export function AnalyzeForm({
     const request: AnalyzeRequest = {
       current_skills: currentSkills,
       resume_text: resumeText,
-      target_roles: allRoles,
-      // Roles already filter by job title, and the match-mode control is gone,
-      // so no free-text query is sent and the mode stays at its default.
+      target_roles: [],
+      // No role or query narrows the search any more: skills and location
+      // define it, and the results view filters by category afterwards.
       search_query: "",
       search_mode: "tfidf",
       location,
       experience_level: "Any",
+      // Enough matches that a single category still has depth to show.
+      top_jobs: RESULT_LIMIT,
       candidate_experience: candidateExperience,
       dataset_name: datasetName,
     };
@@ -570,239 +463,147 @@ export function AnalyzeForm({
     <form onSubmit={handleSubmit} className="w-full">
       <Card className="overflow-visible">
         <CardBody className="overflow-visible p-5 sm:px-5 sm:py-7">
-          {step === 1 ? (
-            <div className="flex min-h-[440px] flex-col">
-              {/* Heading */}
-              <StepHeading>What do you bring?</StepHeading>
+          <div className="flex flex-col">
+            {/* Heading */}
+            <StepHeading>What do you bring?</StepHeading>
 
-              {/* Skills */}
-              <div className="mt-5">
-                <TokenInput
-                  id="current-skills"
-                  label="Skills"
-                  placeholder="Choose skill(s)"
-                  values={currentSkills}
-                  suggestions={filterOptions.skills}
-                  allowCustomValues={false}
-                  required
-                  formatValue={formatSkill}
-                  onChange={(skills) => {
-                    setValidationMessage("");
-                    setCurrentSkills(skills);
-                  }}
-                />
-              </div>
+            {/* Skills */}
+            <div className="mt-5">
+              <TokenInput
+                id="current-skills"
+                label="Skills"
+                placeholder="Choose skill(s)"
+                values={currentSkills}
+                suggestions={filterOptions.skills}
+                allowCustomValues={false}
+                required
+                formatValue={formatSkill}
+                onChange={(skills) => {
+                  setValidationMessage("");
+                  setCurrentSkills(skills);
+                }}
+              />
+            </div>
 
-              {/* Resume alternative */}
-              <div className="mt-3">
-                <p className="mb-2 pl-2 text-sm text-text-subtle">OR</p>
+            {/* Resume alternative */}
+            <div className="mt-3">
+              <p className="mb-2 pl-2 text-sm text-text-subtle">OR</p>
 
-                <textarea
-                  id="resume-text"
-                  aria-label="Paste your resume"
-                  rows={3}
-                  maxLength={12000}
-                  value={resumeText}
-                  onChange={(event) => {
-                    setResumeText(event.target.value);
-                    setExtractNotice(null);
-                  }}
-                  placeholder="Paste your resume"
-                  className={`${largeControlClassName} min-h-[84px] resize-y`}
-                />
+              <textarea
+                id="resume-text"
+                aria-label="Paste your resume"
+                rows={3}
+                maxLength={12000}
+                value={resumeText}
+                onChange={(event) => {
+                  setResumeText(event.target.value);
+                  setExtractNotice(null);
+                }}
+                placeholder="Paste your resume"
+                className={`${largeControlClassName} min-h-[84px] resize-y`}
+              />
 
-                <div className="mt-3 flex flex-wrap items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={handleExtractSkills}
-                    disabled={isExtracting}
-                    className={outlineControlButtonClassName}
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleExtractSkills}
+                  disabled={isExtracting}
+                  className={outlineControlButtonClassName}
+                >
+                  {isExtracting ? "Reading…" : "Read skills from resume"}
+                </button>
+
+                {extractNotice ? (
+                  <p
+                    role="status"
+                    className={noticeToneClassName[extractNotice.tone]}
                   >
-                    {isExtracting ? "Reading…" : "Read skills from resume"}
-                  </button>
-
-                  {extractNotice ? (
-                    <p
-                      role="status"
-                      className={noticeToneClassName[extractNotice.tone]}
-                    >
-                      {extractNotice.text}
-                    </p>
-                  ) : null}
-                </div>
-
-                <p className="mt-2 text-xs text-text-subtle">
-                  Your resume is only used to work out this result. It is never
-                  saved or shared.
-                </p>
+                    {extractNotice.text}
+                  </p>
+                ) : null}
               </div>
 
-              {/* Experience */}
-              <div className="mt-7">
-                <SingleSelectCombobox
-                  id="candidate-experience"
-                  label="Experience Level"
-                  value={candidateExperience}
-                  placeholder="Select experience"
-                  options={EXPERIENCE_BUCKETS.map((option) => ({
+              <p className="mt-2 text-xs text-text-subtle">
+                Your resume is only used to work out this result. It is never
+                saved or shared.
+              </p>
+            </div>
+
+            {/* Experience */}
+            <div className="mt-7">
+              <SingleSelectCombobox
+                id="candidate-experience"
+                label="Experience Level"
+                value={candidateExperience}
+                placeholder="Select experience"
+                options={EXPERIENCE_BUCKETS.map((option) => ({
+                  value: option,
+                  label: option,
+                }))}
+                onChange={(next) => {
+                  setValidationMessage("");
+                  setCandidateExperience(next);
+                }}
+              />
+            </div>
+
+            {validationMessage ? (
+              <p role="alert" className={`mt-3 ${noticeToneClassName.error}`}>
+                {validationMessage}
+              </p>
+            ) : null}
+
+            {errorMessage ? (
+              <div className="mt-4">
+                <ErrorState
+                  title="Analysis could not run"
+                  description={errorMessage}
+                />
+              </div>
+            ) : null}
+
+            {/* Location */}
+            <div className="mt-7">
+              <SingleSelectCombobox
+                id="location"
+                label="Location"
+                value={location}
+                placeholder="Select location"
+                options={[
+                  { value: "Any", label: "Any location" },
+                  ...filterOptions.locations.map((option) => ({
                     value: option,
                     label: option,
-                  }))}
-                  onChange={(next) => {
-                    setValidationMessage("");
-                    setCandidateExperience(next);
-                  }}
-                />
-              </div>
-
-              {validationMessage ? (
-                <p
-                  role="alert"
-                  className={`mt-3 ${noticeToneClassName.error}`}
-                >
-                  {validationMessage}
-                </p>
-              ) : null}
-
-              {errorMessage ? (
-                <div className="mt-4">
-                  <ErrorState
-                    title="Analysis could not run"
-                    description={errorMessage}
-                  />
-                </div>
-              ) : null}
-
-              {/* Bottom navigation */}
-              <div className="mt-auto flex justify-end pt-10">
-                <Button type="button" size="lg" onClick={handleNext}>
-                  Next
-                </Button>
-              </div>
+                  })),
+                ]}
+                onChange={(next) => {
+                  setValidationMessage("");
+                  setLocation(next);
+                }}
+              />
             </div>
-          ) : (
-            <div className="flex min-h-[440px] flex-col">
-              {/* Heading */}
-              <StepHeading>What you&rsquo;re looking for?</StepHeading>
 
-              {/* Target roles */}
-              <div className="mt-5">
-                <TokenInput
-                  id="target-roles"
-                  label="Target Roles"
-                  placeholder="Choose role(s)"
-                  values={targetRoles}
-                  suggestions={filterOptions.target_roles}
-                  allowCustomValues={false}
-                  maxValues={MAX_TARGET_ROLES}
-                  required
-                  formatValue={formatSkill}
-                  onChange={(roles) => {
-                    setValidationMessage("");
-                    setTargetRoles(roles);
-                  }}
+            {validationMessage ? (
+              <p role="alert" className={`mt-3 ${noticeToneClassName.error}`}>
+                {validationMessage}
+              </p>
+            ) : null}
+
+            {errorMessage ? (
+              <div className="mt-4">
+                <ErrorState
+                  title="Analysis could not run"
+                  description={errorMessage}
                 />
               </div>
+            ) : null}
 
-              {/* Manual role input */}
-              <div className="mt-3">
-                <p className="mb-2 pl-2 text-sm text-text-subtle">OR</p>
-
-                <textarea
-                  id="role-draft"
-                  aria-label="Enter a job title"
-                  rows={2}
-                  maxLength={200}
-                  value={roleDraft}
-                  onChange={(event) => {
-                    setRoleDraft(event.target.value);
-                    setRoleNotice(null);
-                  }}
-                  onKeyDown={handleRoleKeyDown}
-                  placeholder="Enter job, for example, Backend Developer"
-                  className={`${largeControlClassName} min-h-[84px] resize-y`}
-                />
-
-                <div className="mt-3 flex flex-wrap items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={commitRoleDraft}
-                    className={outlineControlButtonClassName}
-                  >
-                    Add role
-                  </button>
-                  {roleNotice ? (
-                    <p
-                      role="status"
-                      className={noticeToneClassName[roleNotice.tone]}
-                    >
-                      {roleNotice.text}
-                    </p>
-                  ) : null}
-                </div>
-                <p className="mt-2 text-xs text-text-subtle">
-                  Press Enter or select Add role. Separate several with commas.
-                </p>
-              </div>
-
-              {/* Location */}
-              <div className="mt-7">
-                <SingleSelectCombobox
-                  id="location"
-                  label="Location"
-                  value={location}
-                  placeholder="Select location"
-                  options={[
-                    { value: "Any", label: "Any location" },
-                    ...filterOptions.locations.map((option) => ({
-                      value: option,
-                      label: option,
-                    })),
-                  ]}
-                  onChange={(next) => {
-                    setValidationMessage("");
-                    setLocation(next);
-                  }}
-                />
-              </div>
-
-              {validationMessage ? (
-                <p
-                  role="alert"
-                  className={`mt-3 ${noticeToneClassName.error}`}
-                >
-                  {validationMessage}
-                </p>
-              ) : null}
-
-              {errorMessage ? (
-                <div className="mt-4">
-                  <ErrorState
-                    title="Analysis could not run"
-                    description={errorMessage}
-                  />
-                </div>
-              ) : null}
-
-              {/* Bottom navigation */}
-              <div className="mt-auto flex items-center justify-between pt-10">
-                <Button
-                  type="button"
-                  size="lg"
-                  onClick={() => {
-                    setValidationMessage("");
-                    setStep(1);
-                  }}
-                >
-                  Previous
-                </Button>
-
-                <Button type="submit" size="lg" disabled={isSubmitting}>
-                  {isSubmitting ? "Checking…" : "Submit"}
-                </Button>
-              </div>
+            <div className="mt-auto flex justify-end pt-10">
+              <Button type="submit" size="lg" disabled={isSubmitting}>
+                {isSubmitting ? "Checking…" : "Submit"}
+              </Button>
             </div>
-          )}
+          </div>
         </CardBody>
       </Card>
     </form>

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 
 import { JobMatchCard } from "@/components/domain/JobMatchCard";
 import { LandingIntro } from "@/components/domain/LandingIntro";
@@ -14,8 +15,107 @@ import { Button } from "@/components/ui/Button";
 import { StatTile } from "@/components/ui/StatTile";
 import { EmptyState } from "@/components/ui/States";
 import { useAnalysis } from "@/context/AnalysisContext";
-import type { DatasetSnapshotSummary } from "@/lib/api/types";
+import type { DatasetSnapshotSummary, JobMatch } from "@/lib/api/types";
 import { formatCount, formatPercent, formatSkill } from "@/lib/format";
+
+/** Best fit first, rather than the alphabetical order the data arrives in. */
+const EXPERIENCE_FIT_ORDER = ["Meets requirement", "Close match", "Stretch"];
+
+function countBy(jobs: JobMatch[], key: "role_category" | "experience_fit") {
+  const counts = new Map<string, number>();
+
+  for (const job of jobs) {
+    const value = job[key];
+
+    if (value) {
+      counts.set(value, (counts.get(value) ?? 0) + 1);
+    }
+  }
+
+  return counts;
+}
+
+function FilterChip({
+  label,
+  count,
+  isSelected,
+  isDisabled,
+  onSelect,
+}: {
+  label: string;
+  count: number;
+  isSelected: boolean;
+  isDisabled: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={isSelected}
+      disabled={isDisabled}
+      onClick={onSelect}
+      className={`rounded-full border px-3 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${
+        isSelected
+          ? "border-transparent bg-accent-fill text-on-accent"
+          : "border-border bg-surface text-text-muted hover:bg-surface-muted hover:text-text disabled:hover:bg-surface disabled:hover:text-text-muted"
+      }`}
+    >
+      {label}
+      <span className="ml-1.5 tabular-nums opacity-70">{count}</span>
+    </button>
+  );
+}
+
+function FilterChipRow({
+  label,
+  values,
+  counts,
+  allCount,
+  selected,
+  onSelect,
+}: {
+  label: string;
+  values: string[];
+  counts: Map<string, number>;
+  allCount: number;
+  selected: string | null;
+  onSelect: (value: string | null) => void;
+}) {
+  return (
+    <div
+      role="group"
+      aria-label={label}
+      className="flex flex-wrap items-center gap-2"
+    >
+      <span className="mr-1 text-xs font-medium uppercase tracking-wide text-text-subtle">
+        {label}
+      </span>
+      <FilterChip
+        label="All"
+        count={allCount}
+        isSelected={selected === null}
+        isDisabled={false}
+        onSelect={() => onSelect(null)}
+      />
+      {values.map((value) => {
+        const count = counts.get(value) ?? 0;
+
+        return (
+          <FilterChip
+            key={value}
+            label={value}
+            count={count}
+            isSelected={selected === value}
+            // Disabled rather than hidden: a zero still says something, and
+            // clicking through to an empty list would be a dead end.
+            isDisabled={count === 0 && selected !== value}
+            onSelect={() => onSelect(value)}
+          />
+        );
+      })}
+    </div>
+  );
+}
 
 interface OverviewContentProps {
   datasetName: string;
@@ -27,6 +127,8 @@ export function OverviewContent({
   summary,
 }: OverviewContentProps) {
   const { analysis } = useAnalysis();
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [activeFit, setActiveFit] = useState<string | null>(null);
   const analyzeHref = `/analyze?dataset=${encodeURIComponent(datasetName)}`;
 
   if (!analysis) {
@@ -34,8 +136,48 @@ export function OverviewContent({
   }
 
   const { response, request } = analysis;
-  const visibleJobs = response.top_matching_jobs.slice(0, 6);
-  const remainingJobs = response.top_matching_jobs.slice(6);
+
+  const allJobs = response.top_matching_jobs;
+
+  /*
+   * Both filters come from the matches themselves rather than fixed lists, so
+   * neither row can offer a value with no jobs behind it.
+   */
+  const categories = [...countBy(allJobs, "role_category").keys()].sort();
+  const fits = [...countBy(allJobs, "experience_fit").keys()].sort(
+    (first, second) =>
+      EXPERIENCE_FIT_ORDER.indexOf(first) -
+      EXPERIENCE_FIT_ORDER.indexOf(second),
+  );
+
+  /*
+   * A new analysis can drop whatever was selected. Falling back to all matches
+   * beats showing an empty list, and needs no effect to reset.
+   */
+  const selectedCategory =
+    activeCategory && categories.includes(activeCategory)
+      ? activeCategory
+      : null;
+  const selectedFit = activeFit && fits.includes(activeFit) ? activeFit : null;
+
+  const matchesCategory = (job: JobMatch) =>
+    !selectedCategory || job.role_category === selectedCategory;
+  const matchesFit = (job: JobMatch) =>
+    !selectedFit || job.experience_fit === selectedFit;
+
+  /*
+   * Each row counts against the other filter, so a number always describes
+   * what you would actually get by clicking it.
+   */
+  const categoryCounts = countBy(allJobs.filter(matchesFit), "role_category");
+  const fitCounts = countBy(allJobs.filter(matchesCategory), "experience_fit");
+
+  const matchedJobs = allJobs.filter(
+    (job) => matchesCategory(job) && matchesFit(job),
+  );
+
+  const visibleJobs = matchedJobs.slice(0, 6);
+  const remainingJobs = matchedJobs.slice(6);
 
   return (
     <div className="space-y-8">
@@ -62,7 +204,11 @@ export function OverviewContent({
             response.resume_analysis?.combined_skills.length ??
               request.current_skills.length,
           )}
-          hint={response.resume_analysis ? "Including skills found in your resume" : undefined}
+          hint={
+            response.resume_analysis
+              ? "Including skills found in your resume"
+              : undefined
+          }
         />
       </div>
 
@@ -88,6 +234,31 @@ export function OverviewContent({
           </Link>
         }
       >
+        {categories.length > 1 || fits.length > 1 ? (
+          <div className="mb-5 space-y-2.5">
+            {categories.length > 1 ? (
+              <FilterChipRow
+                label="Category"
+                values={categories}
+                counts={categoryCounts}
+                allCount={allJobs.filter(matchesFit).length}
+                selected={selectedCategory}
+                onSelect={setActiveCategory}
+              />
+            ) : null}
+            {fits.length > 1 ? (
+              <FilterChipRow
+                label="Experience fit"
+                values={fits}
+                counts={fitCounts}
+                allCount={allJobs.filter(matchesCategory).length}
+                selected={selectedFit}
+                onSelect={setActiveFit}
+              />
+            ) : null}
+          </div>
+        ) : null}
+
         {visibleJobs.length === 0 ? (
           <EmptyState
             title="No close matches yet"
@@ -141,11 +312,13 @@ export function OverviewContent({
             </p>
             {response.resume_analysis.resume_skills.length > 0 ? (
               <ul className="mt-4 flex flex-wrap gap-1.5">
-                {response.resume_analysis.resume_skills.slice(0, 18).map((skill) => (
-                  <li key={skill}>
-                    <Badge tone="accent">{formatSkill(skill)}</Badge>
-                  </li>
-                ))}
+                {response.resume_analysis.resume_skills
+                  .slice(0, 18)
+                  .map((skill) => (
+                    <li key={skill}>
+                      <Badge tone="accent">{formatSkill(skill)}</Badge>
+                    </li>
+                  ))}
               </ul>
             ) : null}
           </div>

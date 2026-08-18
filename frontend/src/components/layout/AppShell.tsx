@@ -40,7 +40,7 @@ export function AppShell({ datasets, statusSlot, children }: AppShellProps) {
       className="flex min-w-0 items-center gap-3"
     >
       <LogoMark className="shrink-0 text-text" />
-      <span className="truncate text-2xl font-semibold tracking-tight text-text">
+      <span className="truncate text-4xl font-semibold tracking-tight text-text">
         JobLens
       </span>
     </Link>

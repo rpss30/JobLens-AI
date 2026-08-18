@@ -49,8 +49,8 @@ export function SidebarFooter({ datasets, statusSlot }: SidebarFooterProps) {
       <div className="flex items-center gap-3 border-t border-border px-4 py-3.5">
         <AvatarIcon className="shrink-0 text-text-muted" />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-text">Username</p>
-          <p className="truncate text-xs text-text-muted">
+          <p className="truncate text-base font-medium text-text">Username</p>
+          <p className="truncate text-xs font-medium text-text-muted">
             user@something.com
           </p>
         </div>

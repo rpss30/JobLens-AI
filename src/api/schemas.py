@@ -415,11 +415,23 @@ class SkillDemand(BaseModel):
 
 
 class RoleSkillImportance(BaseModel):
+    """Role-specific demand, with the evidence behind each label.
+
+    role_weight and weighted_importance are internal scoring artifacts kept for
+    existing callers; the signals and counts beside them are what a reader can
+    actually interpret.
+    """
     role_category: str
     skill: str
     job_count: int
+    role_job_count: int = 0
     role_weight: int
     weighted_importance: float
+    demand_signal: str = "specialized"
+    required_count: int = 0
+    preferred_count: int = 0
+    unclear_count: int = 0
+    requirement_signal: str = "unclear"
 
 
 class LocationDemand(BaseModel):

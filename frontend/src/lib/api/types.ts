@@ -86,8 +86,16 @@ export interface RoleSkillImportance {
   role_category: string;
   skill: string;
   job_count: number;
+  /** Postings in this role, so a count can be shown against its total. */
+  role_job_count: number;
+  /** Internal scoring artifacts. Not shown: nobody can interpret them. */
   role_weight: number;
   weighted_importance: number;
+  demand_signal: "leading" | "common" | "specialized";
+  required_count: number;
+  preferred_count: number;
+  unclear_count: number;
+  requirement_signal: "required" | "preferred" | "mixed" | "unclear";
 }
 
 export interface LocationDemand {

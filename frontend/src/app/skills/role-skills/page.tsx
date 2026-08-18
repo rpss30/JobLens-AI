@@ -1,58 +1,53 @@
 import { Suspense } from "react";
 
+import {
+  RoleSkillsExplorer,
+  type RoleGroup,
+} from "@/components/charts/RoleSkillsExplorer";
+import {
+  TotalPostingsBadge,
+  TotalPostingsBadgeSkeleton,
+} from "@/components/domain/TotalPostingsBadge";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { Card } from "@/components/ui/Card";
-import { DataTable, type Column } from "@/components/ui/DataTable";
+import { Card, CardBody } from "@/components/ui/Card";
 import { CardSkeleton } from "@/components/ui/States";
 import { getMarketInsights } from "@/lib/api/endpoints";
-import type { RoleSkillImportance } from "@/lib/api/types";
 import { resolveDataset } from "@/lib/datasets";
-import { formatCount, formatSkill } from "@/lib/format";
-
-const columns: Column<RoleSkillImportance>[] = [
-  {
-    key: "skill",
-    header: "Skill",
-    render: (row) => (
-      <span className="font-medium">{formatSkill(row.skill)}</span>
-    ),
-  },
-  { key: "role_category", header: "Role", render: (row) => row.role_category },
-  {
-    key: "job_count",
-    header: "Postings",
-    align: "right",
-    render: (row) => formatCount(row.job_count),
-  },
-  {
-    key: "role_weight",
-    header: "Weight",
-    align: "right",
-    render: (row) => row.role_weight,
-  },
-  {
-    key: "weighted_importance",
-    header: "Importance",
-    align: "right",
-    render: (row) => row.weighted_importance.toFixed(0),
-  },
-];
 
 async function RoleSkills({ datasetName }: { datasetName: string }) {
-  const insights = await getMarketInsights({ datasetName, topN: 12 });
+  const insights = await getMarketInsights({ datasetName, topN: 6 });
 
-  return (
-    <Card>
-      <DataTable
-        columns={columns}
-        rows={insights.role_skill_importance}
-        getRowKey={(row) => `${row.role_category}-${row.skill}`}
-        caption="Skill importance weighted by role"
-        minWidthClassName="min-w-[38rem]"
-        emptyMessage="No role-specific skill weights were produced for this dataset."
-      />
-    </Card>
+  const byRole = new Map<string, RoleGroup>();
+
+  for (const row of insights.role_skill_importance) {
+    const group = byRole.get(row.role_category) ?? {
+      roleCategory: row.role_category,
+      rolePostings: row.role_job_count,
+      skills: [],
+    };
+
+    group.skills.push(row);
+    byRole.set(row.role_category, group);
+  }
+
+  // Busiest role first, so the panel opens on the one most postings sit in.
+  const roles = [...byRole.values()].sort(
+    (first, second) => second.rolePostings - first.rolePostings,
   );
+
+  if (roles.length === 0) {
+    return (
+      <Card>
+        <CardBody>
+          <p className="text-sm text-text-muted">
+            No role-specific skills were produced for this dataset.
+          </p>
+        </CardBody>
+      </Card>
+    );
+  }
+
+  return <RoleSkillsExplorer roles={roles} />;
 }
 
 export default async function RoleSkillsPage({
@@ -65,9 +60,15 @@ export default async function RoleSkillsPage({
     <>
       <PageHeader
         title="Role Specific Skills"
-        description="Skills ranked by how often a role asks for them and how much that role weights them."
+        description="The skills employers ask for most often in each role category."
+        action={
+          <Suspense fallback={<TotalPostingsBadgeSkeleton />}>
+            <TotalPostingsBadge datasetName={datasetName} />
+          </Suspense>
+        }
       />
-      <Suspense key={datasetName} fallback={<CardSkeleton rows={8} />}>
+
+      <Suspense key={datasetName} fallback={<CardSkeleton rows={10} />}>
         <RoleSkills datasetName={datasetName} />
       </Suspense>
     </>

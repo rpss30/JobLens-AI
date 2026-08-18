@@ -13,6 +13,71 @@ from src.matching.match_engine import (
     get_role_weighted_top_skills,
     get_top_skills,
 )
+from src.matching.skill_requirements import summarize_skill_requirement
+from src.skill_extraction.normalizer import normalize_skill_key
+
+
+# Rank within a role, not a share of its postings. Role categories are broad
+# and fragmented, so even a defining skill rarely reaches half the postings in
+# its own category; what matters is where it sits against its peers.
+LEADING_SIGNAL_RANK = 3
+COMMON_SIGNAL_RANK = 6
+
+
+def describe_demand_signal(rank: int) -> str:
+    if rank <= LEADING_SIGNAL_RANK:
+        return "leading"
+
+    if rank <= COMMON_SIGNAL_RANK:
+        return "common"
+
+    return "specialized"
+
+
+def build_role_skill_rows(
+    jobs_df: pd.DataFrame,
+    role_skill_importance_df: pd.DataFrame,
+) -> list[dict]:
+    """Turn internal weights into evidence a reader can check.
+
+    Each row carries the counts behind its labels, so the page can say "12 of
+    29 Software Engineering postings" rather than asking anyone to trust a
+    weighting formula they cannot see.
+    """
+    rows: list[dict] = []
+    rank_by_role: dict[str, int] = {}
+
+    for _, row in role_skill_importance_df.iterrows():
+        role_category = str(row["role_category"])
+        skill = str(row["skill"])
+        rank = rank_by_role.get(role_category, 0) + 1
+        rank_by_role[role_category] = rank
+
+        role_jobs = jobs_df[jobs_df["role_category"] == role_category]
+        skill_key = normalize_skill_key(skill)
+        descriptions = [
+            job_row.get("description")
+            for _, job_row in role_jobs.iterrows()
+            if any(
+                normalize_skill_key(str(entry)) == skill_key
+                for entry in (job_row.get("extracted_skills") or [])
+            )
+        ]
+
+        rows.append(
+            {
+                "role_category": role_category,
+                "skill": skill,
+                "job_count": int(row["count"]),
+                "role_job_count": int(len(role_jobs)),
+                "role_weight": int(row["role_weight"]),
+                "weighted_importance": float(row["weighted_importance"]),
+                "demand_signal": describe_demand_signal(rank),
+                **summarize_skill_requirement(skill, descriptions),
+            }
+        )
+
+    return rows
 
 
 def get_role_distribution(jobs_df: pd.DataFrame, top_n: int) -> list[dict]:
@@ -60,6 +125,8 @@ def get_market_insights(request: MarketInsightsRequest) -> MarketInsightsRespons
         filtered_jobs,
         role_skill_weights,
         top_n=request.top_n,
+        # Per role, or the busiest category crowds every other one out.
+        per_role=True,
     )
     jobs_by_location_df = get_jobs_by_location(filtered_jobs).head(request.top_n)
     top_companies_df = get_top_companies(filtered_jobs, top_n=request.top_n)
@@ -74,16 +141,10 @@ def get_market_insights(request: MarketInsightsRequest) -> MarketInsightsRespons
             }
             for _, row in top_skills_df.iterrows()
         ],
-        role_skill_importance=[
-            {
-                "role_category": str(row["role_category"]),
-                "skill": str(row["skill"]),
-                "job_count": int(row["count"]),
-                "role_weight": int(row["role_weight"]),
-                "weighted_importance": float(row["weighted_importance"]),
-            }
-            for _, row in role_skill_importance_df.iterrows()
-        ],
+        role_skill_importance=build_role_skill_rows(
+            filtered_jobs,
+            role_skill_importance_df,
+        ),
         jobs_by_location=[
             {
                 "location": str(row["location"]),

@@ -121,6 +121,14 @@ export function LandingIntro({
             with a column for title, company, location, description, and
             experience level.
           </p>
+
+          <div>
+            <Link href={`/datasets?dataset=${encodedDataset}`}>
+              <Button variant="secondary" size="lg">
+                Go to Datasets
+              </Button>
+            </Link>
+          </div>
         </CardBody>
       </Card>
     </div>

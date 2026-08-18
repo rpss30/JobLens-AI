@@ -206,6 +206,14 @@ export interface ResumeAnalysis {
   explanation: string;
 }
 
+export interface ResumeSkillsRequest {
+  resume_text: string;
+}
+
+export interface ResumeSkillsResponse {
+  skills: string[];
+}
+
 export interface AnalyzeRequest {
   current_skills: string[];
   resume_text: string;

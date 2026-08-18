@@ -11,6 +11,7 @@ import type {
   JobListResponse,
   MarketInsights,
   RenameDatasetResult,
+  ResumeSkillsResponse,
   SearchMode,
   SortOrder,
   UploadDatasetResult,
@@ -122,6 +123,15 @@ export function analyzeJobs(
   return apiFetch<AnalyzeResponse>("/analyze", {
     method: "POST",
     body: JSON.stringify(request),
+  });
+}
+
+export function extractResumeSkills(
+  resumeText: string,
+): Promise<ResumeSkillsResponse> {
+  return apiFetch<ResumeSkillsResponse>("/resume/skills", {
+    method: "POST",
+    body: JSON.stringify({ resume_text: resumeText }),
   });
 }
 

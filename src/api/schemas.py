@@ -174,6 +174,14 @@ class ResumeSkillsRequest(BaseModel):
             "the raw text is never persisted, logged, or returned."
         ),
     )
+    dataset_name: str | None = Field(
+        default=None,
+        max_length=120,
+        description=(
+            "Optional dataset to read skills from, so anything its jobs ask "
+            "for can be found in the resume. Omit for the curated taxonomy."
+        ),
+    )
 
 
 class ResumeSkillsResponse(BaseModel):

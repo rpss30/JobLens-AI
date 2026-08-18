@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import re
 from collections import Counter
+from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any
 
@@ -38,6 +39,25 @@ PRIVACY_NOTE = (
 # their unambiguous spellings only; the skill list on the analyze form is still
 # the reliable way to claim one.
 AMBIGUOUS_SKILL_NAMES = {"go", "spring"}
+
+
+# Words a technical resume says constantly in passing. A dataset can list them
+# as skills, but spotting one in prose says nothing: "Cloud & DevOps" as a
+# heading, or a github.com profile URL, is not a claim to a skill. They stay
+# selectable on the form, where choosing one is deliberate.
+NON_INFERRABLE_SKILL_NAMES = {
+    "api",
+    "apis",
+    "cloud",
+    "data",
+    "design",
+    "github",
+    "infrastructure",
+    "platform",
+    "rest",
+    "services",
+    "systems",
+}
 
 
 SKILL_ALIASES: dict[str, list[str]] = {
@@ -188,10 +208,32 @@ def get_resume_skill_taxonomy() -> list[str]:
     return sorted(preferred_names.values())
 
 
-def build_alias_lookup() -> dict[str, list[str]]:
-    alias_lookup: dict[str, list[str]] = {}
+def build_alias_lookup(
+    extra_skills: Iterable[str] | None = None,
+) -> dict[str, list[str]]:
+    """
+    Map every known skill to the spellings it can be found under.
 
-    for skill in get_resume_skill_taxonomy():
+    `extra_skills` carries the skills a dataset actually asks for. The curated
+    taxonomy alone covered barely half of real demand, so anything outside it
+    was unclaimable from a resume even though the skills list on the form
+    offered it.
+    """
+    alias_lookup: dict[str, list[str]] = {}
+    vocabulary = list(get_resume_skill_taxonomy())
+
+    if extra_skills:
+        known = {normalize_skill(skill) for skill in vocabulary}
+        vocabulary.extend(
+            str(skill).strip().lower()
+            for skill in extra_skills
+            if str(skill).strip() and normalize_skill(skill) not in known
+        )
+
+    for skill in vocabulary:
+        if normalize_skill(skill) in NON_INFERRABLE_SKILL_NAMES:
+            continue
+
         aliases = set(SKILL_ALIASES.get(skill, []))
 
         if skill not in AMBIGUOUS_SKILL_NAMES:
@@ -232,7 +274,10 @@ def phrase_in_text(phrase: str, normalized_text: str) -> bool:
     )
 
 
-def extract_resume_skills(resume_text: str) -> list[str]:
+def extract_resume_skills(
+    resume_text: str,
+    dataset_skills: Iterable[str] | None = None,
+) -> list[str]:
     """Extract known JobLens skills from pasted resume text."""
     normalized_text = normalize_resume_text(resume_text)
 
@@ -241,7 +286,7 @@ def extract_resume_skills(resume_text: str) -> list[str]:
 
     detected_skills = []
 
-    for skill, aliases in build_alias_lookup().items():
+    for skill, aliases in build_alias_lookup(dataset_skills).items():
         if any(phrase_in_text(alias, normalized_text) for alias in aliases):
             detected_skills.append(skill)
 

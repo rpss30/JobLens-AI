@@ -74,6 +74,29 @@ describe("TokenInput", () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
+  it("accepts the suggestion on screen when enter is pressed", async () => {
+    // Typing "mach" listed "machine learning" and then rejected it, because
+    // enter committed the raw text rather than the match being shown.
+    const user = userEvent.setup();
+    const { onChange, input } = renderTokenInput({ allowCustomValues: false });
+
+    await user.type(input, "mach{Enter}");
+
+    expect(onChange).toHaveBeenCalledWith(["machine learning"]);
+  });
+
+  it("does not guess when what was typed only appears mid-suggestion", async () => {
+    const user = userEvent.setup();
+    const { onChange, input } = renderTokenInput({ allowCustomValues: false });
+
+    // "o" appears inside python and docker but starts neither, so silently
+    // picking one would put a skill the reader never chose on their profile.
+    await user.type(input, "o{Enter}");
+
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByText(/is not in the list/i)).toBeInTheDocument();
+  });
+
   it("disables the input once the limit is reached", () => {
     const { input } = renderTokenInput({ values: ["python"], maxValues: 1 });
 

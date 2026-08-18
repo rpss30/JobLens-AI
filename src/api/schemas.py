@@ -162,15 +162,6 @@ class AnalyzeRequest(BaseModel):
                 "Provide at least one current skill or pasted resume text."
             )
 
-        if (
-            not self.resume_text.strip()
-            and not self.search_query.strip()
-            and not any(role.strip() for role in self.target_roles)
-        ):
-            raise ValueError(
-                "Provide a search query, at least one target role, or pasted resume text."
-            )
-
         return self
 
 
@@ -181,6 +172,14 @@ class ResumeSkillsRequest(BaseModel):
         description=(
             "Pasted resume text. Matched against the skill taxonomy in memory; "
             "the raw text is never persisted, logged, or returned."
+        ),
+    )
+    dataset_name: str | None = Field(
+        default=None,
+        max_length=120,
+        description=(
+            "Optional dataset to read skills from, so anything its jobs ask "
+            "for can be found in the resume. Omit for the curated taxonomy."
         ),
     )
 

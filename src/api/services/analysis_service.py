@@ -182,8 +182,8 @@ def compute_analysis_frames(request: AnalyzeRequest) -> AnalysisFrames:
         raise ApiError(
             status_code=404,
             detail=(
-                "No matching jobs found for the search query and selected "
-                "role, location, or experience filters."
+                "No jobs match the filters for this analysis. Try a "
+                "different location, or a dataset with more postings."
             ),
         )
 

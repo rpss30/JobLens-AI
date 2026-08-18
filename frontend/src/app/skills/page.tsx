@@ -217,7 +217,7 @@ export default async function SkillsPage({ searchParams }: PageProps<"/skills">)
   return (
     <>
       <PageHeader
-        title="Skills & Market"
+        title="Market Insights"
         description="What employers in this job market are hiring for right now, whatever your own skills are."
       />
 

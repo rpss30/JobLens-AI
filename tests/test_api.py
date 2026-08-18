@@ -357,6 +357,43 @@ def test_resume_skills_extracts_without_running_an_analysis() -> None:
     assert resume_text.strip() not in str(response.json())
 
 
+def test_resume_skills_reads_dataset_skills_beyond_the_curated_list() -> None:
+    """The curated taxonomy covered barely half of what jobs actually ask for.
+
+    Naming a dataset adds the skills its postings list, so the resume box and
+    the skills list on the analyze form recognise the same vocabulary.
+    """
+    resume_text = "Built pipelines with Delta Lake and Unity Catalog on Databricks."
+
+    curated = client.post("/resume/skills", json={"resume_text": resume_text})
+    with_dataset = client.post(
+        "/resume/skills",
+        json={"resume_text": resume_text, "dataset_name": "canada_snapshot"},
+    )
+
+    assert curated.status_code == 200
+    assert with_dataset.status_code == 200
+
+    found = with_dataset.json()["skills"]
+
+    assert "delta lake" in found
+    assert "delta lake" not in curated.json()["skills"]
+
+
+def test_resume_skills_ignores_words_too_generic_to_infer() -> None:
+    """A heading or a profile URL is not a claim to a skill."""
+    response = client.post(
+        "/resume/skills",
+        json={
+            "resume_text": "I work with data in the cloud and push to github.",
+            "dataset_name": "canada_snapshot",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["skills"] == []
+
+
 def test_resume_skills_returns_nothing_for_empty_text() -> None:
     response = client.post("/resume/skills", json={"resume_text": "   "})
 
@@ -414,7 +451,7 @@ def test_analyze_returns_404_when_no_jobs_match() -> None:
     )
 
     assert response.status_code == 404
-    assert "No matching jobs found" in response.json()["detail"]
+    assert "No jobs match the filters" in response.json()["detail"]
 
 
 def test_analyze_validates_required_skills_and_roles() -> None:
@@ -431,7 +468,8 @@ def test_analyze_validates_required_skills_and_roles() -> None:
     assert response.status_code == 422
 
 
-def test_analyze_requires_a_search_query_or_target_role() -> None:
+def test_analyze_accepts_skills_without_a_search_query_or_target_role() -> None:
+    """Skills alone are enough scope: the analyze form asks for nothing else."""
     response = client.post(
         "/analyze",
         json={
@@ -443,7 +481,13 @@ def test_analyze_requires_a_search_query_or_target_role() -> None:
         },
     )
 
-    assert response.status_code == 422
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["jobs_analyzed"] > 0
+    # Every match carries the category the results view filters on.
+    assert all(job["role_category"] for job in data["top_matching_jobs"])
 
 def make_api_processed_jobs_df() -> pd.DataFrame:
     return pd.DataFrame(

@@ -19,7 +19,7 @@ const navigationItems = [
   { href: "/", label: "Overview", Icon: OverviewIcon },
   { href: "/analyze", label: "Analyze", Icon: AnalyzeIcon },
   { href: "/jobs", label: "Jobs", Icon: JobsIcon },
-  { href: "/skills", label: "Skills & Market", Icon: SkillsIcon },
+  { href: "/skills", label: "Market Insights", Icon: SkillsIcon },
   { href: "/history", label: "History", Icon: HistoryIcon },
   { href: "/datasets", label: "Datasets", Icon: DatasetsIcon },
 ];

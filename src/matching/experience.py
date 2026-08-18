@@ -7,12 +7,21 @@ from dataclasses import dataclass
 
 
 NO_CANDIDATE_EXPERIENCE = "Not specified"
+# Unknown values normalize to NO_CANDIDATE_EXPERIENCE rather than raising, so
+# every bucket a client can offer has to appear here or the answer is silently
+# discarded and experience fit degrades to "Not specified".
 EXPERIENCE_BUCKETS: dict[str, tuple[int, int | None]] = {
     "0-1 years": (0, 1),
     "1-2 years": (1, 2),
+    "2-3 years": (2, 3),
+    "3-4 years": (3, 4),
     "3-5 years": (3, 5),
+    "4-5 years": (4, 5),
+    "5-7 years": (5, 7),
     "5-8 years": (5, 8),
+    "7-10 years": (7, 10),
     "8+ years": (8, None),
+    "10+ years": (10, None),
 }
 
 _YEAR_REQUIREMENT_PATTERN = re.compile(

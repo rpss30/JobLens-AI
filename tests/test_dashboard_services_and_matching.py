@@ -1010,3 +1010,32 @@ def test_generate_candidate_report_pdf_excludes_zero_score_top_jobs() -> None:
 
     assert "Machine Learning Engineer" in top_jobs_text
     assert "Data Scientist" not in top_jobs_text
+
+
+def test_every_offered_experience_bucket_is_recognised() -> None:
+    """Unknown buckets normalize to "Not specified" instead of raising.
+
+    That silent fallback means a bucket missing from the map would discard the
+    answer and flatten experience fit for every match, so the options the
+    analyze form offers are asserted against the map directly.
+    """
+    from src.matching.experience import (
+        NO_CANDIDATE_EXPERIENCE,
+        normalize_candidate_experience_bucket,
+    )
+
+    offered_buckets = [
+        "0-1 years",
+        "1-2 years",
+        "2-3 years",
+        "3-4 years",
+        "4-5 years",
+        "5-7 years",
+        "7-10 years",
+        "10+ years",
+    ]
+
+    for bucket in offered_buckets:
+        assert normalize_candidate_experience_bucket(bucket) == bucket
+
+    assert normalize_candidate_experience_bucket("banana") == NO_CANDIDATE_EXPERIENCE

@@ -414,7 +414,7 @@ def test_analyze_returns_404_when_no_jobs_match() -> None:
     )
 
     assert response.status_code == 404
-    assert "No matching jobs found" in response.json()["detail"]
+    assert "No jobs match the filters" in response.json()["detail"]
 
 
 def test_analyze_validates_required_skills_and_roles() -> None:
@@ -431,7 +431,8 @@ def test_analyze_validates_required_skills_and_roles() -> None:
     assert response.status_code == 422
 
 
-def test_analyze_requires_a_search_query_or_target_role() -> None:
+def test_analyze_accepts_skills_without_a_search_query_or_target_role() -> None:
+    """Skills alone are enough scope: the analyze form asks for nothing else."""
     response = client.post(
         "/analyze",
         json={
@@ -443,7 +444,13 @@ def test_analyze_requires_a_search_query_or_target_role() -> None:
         },
     )
 
-    assert response.status_code == 422
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["jobs_analyzed"] > 0
+    # Every match carries the category the results view filters on.
+    assert all(job["role_category"] for job in data["top_matching_jobs"])
 
 def make_api_processed_jobs_df() -> pd.DataFrame:
     return pd.DataFrame(

@@ -162,15 +162,6 @@ class AnalyzeRequest(BaseModel):
                 "Provide at least one current skill or pasted resume text."
             )
 
-        if (
-            not self.resume_text.strip()
-            and not self.search_query.strip()
-            and not any(role.strip() for role in self.target_roles)
-        ):
-            raise ValueError(
-                "Provide a search query, at least one target role, or pasted resume text."
-            )
-
         return self
 
 

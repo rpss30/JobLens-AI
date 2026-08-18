@@ -338,6 +338,32 @@ def test_analyze_supports_semantic_search_mode() -> None:
     ]
 
 
+def test_resume_skills_extracts_without_running_an_analysis() -> None:
+    """The analyze form needs the skills before the whole request is ready."""
+    resume_text = """
+    Built FastAPI REST APIs with Python, PostgreSQL, Docker, and AWS,
+    plus SQL-backed analytics dashboards.
+    """
+
+    response = client.post("/resume/skills", json={"resume_text": resume_text})
+
+    assert response.status_code == 200
+
+    skills = response.json()["skills"]
+
+    assert "python" in skills
+    assert "postgresql" in skills
+    # The pasted text is never echoed back to the caller.
+    assert resume_text.strip() not in str(response.json())
+
+
+def test_resume_skills_returns_nothing_for_empty_text() -> None:
+    response = client.post("/resume/skills", json={"resume_text": "   "})
+
+    assert response.status_code == 200
+    assert response.json()["skills"] == []
+
+
 def test_analyze_supports_resume_text_without_manual_skills_or_search_scope() -> None:
     resume_text = """
     Built FastAPI REST APIs with Python, PostgreSQL, Docker, AWS, CI/CD,

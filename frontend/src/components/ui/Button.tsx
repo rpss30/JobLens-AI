@@ -3,7 +3,7 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
 type ButtonVariant = "primary" | "secondary" | "ghost";
-type ButtonSize = "sm" | "md";
+type ButtonSize = "sm" | "md" | "lg";
 
 const variantStyles: Record<ButtonVariant, string> = {
   primary:
@@ -14,9 +14,12 @@ const variantStyles: Record<ButtonVariant, string> = {
     "bg-transparent text-text-muted border-transparent hover:bg-surface-muted hover:text-text",
 };
 
+/* Weight lives here rather than in the base classes: two font-weight
+   utilities on one element resolve by stylesheet order, not class order. */
 const sizeStyles: Record<ButtonSize, string> = {
-  sm: "h-8 px-3 text-sm",
-  md: "h-10 px-4 text-sm",
+  sm: "h-8 px-3 text-sm font-medium",
+  md: "h-10 px-4 text-sm font-medium",
+  lg: "h-11 px-5 text-lg font-normal",
 };
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -42,7 +45,7 @@ export function Button({
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-lg border font-medium transition-colors",
+        "inline-flex items-center justify-center gap-2 rounded-lg border transition-colors",
         "disabled:opacity-55",
         disabledCursor === "default"
           ? "disabled:cursor-default"

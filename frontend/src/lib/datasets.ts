@@ -24,3 +24,21 @@ export function resolveDataset(value: string | string[] | undefined): string {
 
   return value?.trim() || DEFAULT_DATASET;
 }
+
+/**
+ * Appends the active dataset to a link so a switched dataset survives
+ * navigation. The sidebar links are bare paths, but the separator is chosen
+ * rather than assumed so a href that already carries a query still works.
+ */
+export function withDataset(
+  href: string,
+  datasetName: string | null | undefined,
+): string {
+  if (!datasetName?.trim()) {
+    return href;
+  }
+
+  const separator = href.includes("?") ? "&" : "?";
+
+  return `${href}${separator}dataset=${encodeURIComponent(datasetName)}`;
+}

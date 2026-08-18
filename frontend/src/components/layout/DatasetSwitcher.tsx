@@ -1,8 +1,9 @@
 "use client";
 
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useId, useTransition } from "react";
 
+import { useShellSearchParams } from "@/components/layout/ShellSearchParams";
 import { DEFAULT_DATASET } from "@/lib/datasets";
 
 export interface DatasetOption {
@@ -21,16 +22,16 @@ export interface DatasetOption {
 export function DatasetSwitcher({ datasets }: { datasets: DatasetOption[] }) {
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const searchParams = useShellSearchParams();
   const [isPending, startTransition] = useTransition();
   const selectId = useId();
 
-  const activeDataset = searchParams.get("dataset") ?? DEFAULT_DATASET;
+  const activeDataset = searchParams?.get("dataset") ?? DEFAULT_DATASET;
 
   const groups = Array.from(new Set(datasets.map((dataset) => dataset.group)));
 
   function handleChange(nextDataset: string) {
-    const nextParams = new URLSearchParams(searchParams);
+    const nextParams = new URLSearchParams(searchParams ?? undefined);
     nextParams.set("dataset", nextDataset);
 
     startTransition(() => {

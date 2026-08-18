@@ -100,6 +100,17 @@ body {
   color: var(--color-text);
 }
 
+/*
+ * Tailwind v4 gives buttons the arrow cursor rather than the pointer v3 used.
+ * Restore it, in the base layer so utilities still win, and skip disabled
+ * buttons so the Button component's own not-allowed and default cursors hold.
+ */
+@layer base {
+  button:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
 /* Keyboard focus stays visible everywhere; pointer focus does not draw a ring. */
 :focus-visible {
   outline: 2px solid var(--color-accent);

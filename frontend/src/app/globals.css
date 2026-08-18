@@ -1,29 +1,37 @@
 @import "tailwindcss";
 
 /*
- * Warm neutral palette anchored on #000000, #D1D0D0, #988686, and #5C4E4E.
- * Intermediate tints are derived from those four so text keeps a WCAG AA
- * contrast ratio: #988686 clears 3:1 and is reserved for borders and large
- * text, while small text uses #5C4E4E or darker.
+ * Cool neutral palette on a near-white canvas, accented with a powder blue.
+ *
+ * The accent is split in two because one value cannot do both jobs: the
+ * powder blue reads well as a fill behind dark text, but fails contrast as
+ * text itself. --color-accent-fill paints buttons and the active nav pill,
+ * while --color-accent is the deeper teal used for links, icons, and any
+ * accented text. Anything sitting on the fill uses --color-on-accent, which
+ * holds its dark value in both themes because the fill does too. Small text
+ * uses --color-text-muted or darker; every pairing below clears WCAG AA.
  */
 :root {
-  --color-canvas: #f4f2f2;
+  --color-canvas: #f7f9fa;
   --color-surface: #ffffff;
-  --color-surface-muted: #eceaea;
-  --color-border: #d1d0d0;
-  --color-border-strong: #988686;
-  --color-text: #000000;
-  --color-text-muted: #5c4e4e;
-  --color-text-subtle: #7a6a6a;
-  --color-accent: #5c4e4e;
-  --color-accent-hover: #000000;
-  --color-accent-soft: #e9e5e5;
-  --color-positive: #5c4e4e;
-  --color-positive-soft: #5c4e4e;
-  --color-warning: #7a6a6a;
+  --color-surface-muted: #f1f4f5;
+  --color-border: #e3e8ea;
+  --color-border-strong: #c6ced1;
+  --color-text: #14181a;
+  --color-text-muted: #4c5559;
+  --color-text-subtle: #6e787c;
+  --color-accent: #11626f;
+  --color-accent-hover: #0c4b55;
+  --color-accent-fill: #b7dee8;
+  --color-accent-fill-hover: #a4d4e1;
+  --color-on-accent: #14181a;
+  --color-accent-soft: #e8f4f8;
+  --color-positive: #11626f;
+  --color-positive-soft: #11626f;
+  --color-warning: #6e787c;
   --color-warning-soft: transparent;
-  --color-danger: #000000;
-  --color-danger-soft: #eceaea;
+  --color-danger: #14181a;
+  --color-danger-soft: #f1f4f5;
 
   /* Status colours sit outside the brand palette on purpose: online and
      offline must be told apart at a glance, which shape alone does not do. */
@@ -33,23 +41,28 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-canvas: #000000;
-    --color-surface: #171414;
-    --color-surface-muted: #241f1f;
-    --color-border: #363030;
-    --color-border-strong: #5c4e4e;
-    --color-text: #d1d0d0;
-    --color-text-muted: #988686;
-    --color-text-subtle: #8a7a7a;
-    --color-accent: #988686;
-    --color-accent-hover: #d1d0d0;
-    --color-accent-soft: #2a2323;
-    --color-positive: #988686;
-    --color-positive-soft: #988686;
-    --color-warning: #988686;
+    --color-canvas: #0e1315;
+    --color-surface: #161c1f;
+    --color-surface-muted: #1e262a;
+    --color-border: #2a3438;
+    --color-border-strong: #47545a;
+    --color-text: #e6edef;
+    --color-text-muted: #a8b4b8;
+    --color-text-subtle: #8b989d;
+    --color-accent: #7fc8d9;
+    --color-accent-hover: #a4dbe8;
+    /* The fill and the text on it keep their light-theme values: the pairing
+       is what makes the accent legible, so inverting either half breaks it. */
+    --color-accent-fill: #b7dee8;
+    --color-accent-fill-hover: #cbe8ef;
+    --color-on-accent: #14181a;
+    --color-accent-soft: #1c2c31;
+    --color-positive: #7fc8d9;
+    --color-positive-soft: #7fc8d9;
+    --color-warning: #8b989d;
     --color-warning-soft: transparent;
-    --color-danger: #d1d0d0;
-    --color-danger-soft: #241f1f;
+    --color-danger: #e6edef;
+    --color-danger-soft: #1e262a;
     --color-status-online: #4ade80;
     --color-status-offline: #f28b82;
   }
@@ -66,6 +79,9 @@
   --color-text-subtle: var(--color-text-subtle);
   --color-accent: var(--color-accent);
   --color-accent-hover: var(--color-accent-hover);
+  --color-accent-fill: var(--color-accent-fill);
+  --color-accent-fill-hover: var(--color-accent-fill-hover);
+  --color-on-accent: var(--color-on-accent);
   --color-accent-soft: var(--color-accent-soft);
   --color-positive: var(--color-positive);
   --color-positive-soft: var(--color-positive-soft);
@@ -75,7 +91,8 @@
   --color-danger-soft: var(--color-danger-soft);
   --color-status-online: var(--color-status-online);
   --color-status-offline: var(--color-status-offline);
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: ui-rounded, "SF Pro Rounded", var(--font-rounded), ui-sans-serif,
+    system-ui, sans-serif;
 }
 
 body {

@@ -174,6 +174,21 @@ class AnalyzeRequest(BaseModel):
         return self
 
 
+class ResumeSkillsRequest(BaseModel):
+    resume_text: str = Field(
+        default="",
+        max_length=12_000,
+        description=(
+            "Pasted resume text. Matched against the skill taxonomy in memory; "
+            "the raw text is never persisted, logged, or returned."
+        ),
+    )
+
+
+class ResumeSkillsResponse(BaseModel):
+    skills: list[str]
+
+
 class DatasetSummary(BaseModel):
     name: str
     source_type: str

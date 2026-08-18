@@ -357,6 +357,43 @@ def test_resume_skills_extracts_without_running_an_analysis() -> None:
     assert resume_text.strip() not in str(response.json())
 
 
+def test_resume_skills_reads_dataset_skills_beyond_the_curated_list() -> None:
+    """The curated taxonomy covered barely half of what jobs actually ask for.
+
+    Naming a dataset adds the skills its postings list, so the resume box and
+    the skills list on the analyze form recognise the same vocabulary.
+    """
+    resume_text = "Built pipelines with Delta Lake and Unity Catalog on Databricks."
+
+    curated = client.post("/resume/skills", json={"resume_text": resume_text})
+    with_dataset = client.post(
+        "/resume/skills",
+        json={"resume_text": resume_text, "dataset_name": "canada_snapshot"},
+    )
+
+    assert curated.status_code == 200
+    assert with_dataset.status_code == 200
+
+    found = with_dataset.json()["skills"]
+
+    assert "delta lake" in found
+    assert "delta lake" not in curated.json()["skills"]
+
+
+def test_resume_skills_ignores_words_too_generic_to_infer() -> None:
+    """A heading or a profile URL is not a claim to a skill."""
+    response = client.post(
+        "/resume/skills",
+        json={
+            "resume_text": "I work with data in the cloud and push to github.",
+            "dataset_name": "canada_snapshot",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["skills"] == []
+
+
 def test_resume_skills_returns_nothing_for_empty_text() -> None:
     response = client.post("/resume/skills", json={"resume_text": "   "})
 

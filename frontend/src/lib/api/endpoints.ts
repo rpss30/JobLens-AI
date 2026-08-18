@@ -128,10 +128,14 @@ export function analyzeJobs(
 
 export function extractResumeSkills(
   resumeText: string,
+  datasetName?: string,
 ): Promise<ResumeSkillsResponse> {
   return apiFetch<ResumeSkillsResponse>("/resume/skills", {
     method: "POST",
-    body: JSON.stringify({ resume_text: resumeText }),
+    body: JSON.stringify({
+      resume_text: resumeText,
+      dataset_name: datasetName ?? null,
+    }),
   });
 }
 

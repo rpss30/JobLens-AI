@@ -208,6 +208,7 @@ export interface ResumeAnalysis {
 
 export interface ResumeSkillsRequest {
   resume_text: string;
+  dataset_name?: string | null;
 }
 
 export interface ResumeSkillsResponse {

@@ -441,6 +441,9 @@ class LocationDemand(BaseModel):
     city: str = ""
     region: str = ""
     country: str = ""
+    # Remote work is a place a posting can be done from, unlike hybrid or
+    # on-site, which only say how it happens.
+    remote: bool = False
 
 
 class WorkplaceTypeDemand(BaseModel):

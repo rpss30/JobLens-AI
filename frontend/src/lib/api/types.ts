@@ -105,6 +105,8 @@ export interface LocationDemand {
   city: string;
   region: string;
   country: string;
+  /** Remote work, which is a place a job is done from rather than a city. */
+  remote: boolean;
 }
 
 export interface WorkplaceTypeDemand {

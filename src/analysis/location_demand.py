@@ -182,6 +182,10 @@ class LocationParts:
     city: str
     region: str
     country: str
+    # Remote is a place a job can be done from, so a posting that names no
+    # city still lands somewhere the reader can pick out. Hybrid and on-site
+    # are not: they say how the work happens, never where.
+    remote: bool = False
 
     def __post_init__(self) -> None:
         if self.region and not self.country:
@@ -206,6 +210,12 @@ class LocationParts:
 
         if self.city:
             return self.city
+
+        if self.remote:
+            if self.region:
+                return f"Remote, {REGION_LABELS.get(self.region, self.region)}"
+
+            return f"Remote, {self.country}" if self.country else "Remote"
 
         if self.region:
             region_name = REGION_LABELS.get(self.region, self.region)
@@ -330,13 +340,22 @@ def parse_sites(fragment: str) -> list[LocationParts]:
         return []
 
     if len(parts) == 1:
-        only = strip_workplace_terms(parts[0]) if match_workplace_term(parts[0]) else parts[0]
+        term = match_workplace_term(parts[0])
+        only = strip_workplace_terms(parts[0]) if term else parts[0]
+        remote = term == "Remote"
 
         if not only or normalize_search_text(only) in MISSING_LOCATION_TERMS:
-            return []
+            return [LocationParts(city="", region="", country="", remote=True)] if remote else []
 
         if is_country(only):
-            return [LocationParts(city="", region="", country=resolve_country(only))]
+            return [
+                LocationParts(
+                    city="",
+                    region="",
+                    country=resolve_country(only),
+                    remote=remote,
+                )
+            ]
 
         city, trailing_region = split_trailing_region(only)
 
@@ -353,8 +372,13 @@ def parse_sites(fragment: str) -> list[LocationParts]:
     # in a state, so only an abbreviation may qualify there.
     allow_region_names = len(parts) - bool(is_country(parts[-1])) <= 2
 
+    remote = False
+
     for part in reversed(parts):
-        if match_workplace_term(part):
+        term = match_workplace_term(part)
+
+        if term:
+            remote = remote or term == "Remote"
             part = strip_workplace_terms(part)
 
         if not part or normalize_search_text(part) in MISSING_LOCATION_TERMS:
@@ -388,9 +412,12 @@ def parse_sites(fragment: str) -> list[LocationParts]:
         region = ""
         country = ""
 
-    if region or country:
-        # A qualification no city claimed, e.g. "Ontario, Canada".
-        places.append(LocationParts(city="", region=region, country=country))
+    if region or country or remote:
+        # A qualification no city claimed, e.g. "Ontario, Canada", or remote
+        # work scoped to one of them, e.g. "Remote, Canada".
+        places.append(
+            LocationParts(city="", region=region, country=country, remote=remote)
+        )
 
     return places
 
@@ -411,10 +438,10 @@ def dominant_value(totals: dict[str, int]) -> str:
     return value if count >= sum(totals.values()) * DOMINANT_QUALIFICATION_SHARE else ""
 
 
-def merge_location_spellings(
+def canonical_spellings(
     counts: dict[LocationParts, int],
-) -> dict[LocationParts, int]:
-    """Fold one city's spellings together when the slice leaves no doubt.
+) -> dict[LocationParts, LocationParts]:
+    """Map each spelling of a city to the single place they all mean.
 
     "Dublin" and "Dublin, Ireland" are one place, and so are
     "New York, New York, USA" and "New York City, NY". A city folds into the
@@ -458,12 +485,61 @@ def merge_location_spellings(
         for parts in spellings:
             canonical[parts] = merged
 
+    return canonical
+
+
+def merge_location_spellings(
+    counts: dict[LocationParts, int],
+) -> dict[LocationParts, int]:
+    """Total each place once its spellings have been folded together."""
+    canonical = canonical_spellings(counts)
     totals: dict[LocationParts, int] = defaultdict(int)
 
     for parts, count in counts.items():
         totals[canonical.get(parts, parts)] += count
 
     return dict(totals)
+
+
+def places_by_row(jobs_df: pd.DataFrame) -> list[list[LocationParts]]:
+    """Return the places each posting names, in row order."""
+    if jobs_df.empty or "location" not in jobs_df.columns:
+        return []
+
+    rows: list[list[LocationParts]] = []
+
+    for _, row in jobs_df.iterrows():
+        location = str(row.get("location") or "").strip()
+        places = [
+            parts
+            for fragment in split_sites(location)
+            for parts in parse_sites(fragment)
+            if parts.label
+        ]
+        # One posting should not count twice for a city it lists twice.
+        rows.append(list(dict.fromkeys(places)))
+
+    return rows
+
+
+def place_labels_by_row(jobs_df: pd.DataFrame) -> list[set[str]]:
+    """Return the place labels each posting is counted under, in row order.
+
+    The same parsing and folding the ranked list uses, so a filter built on
+    these labels selects exactly the postings a count promised. Matching on
+    words instead lets "Canada" pull in "Remote, Canada" and "Ontario,
+    Canada", and "Toronto, ON" pull in every location holding "on".
+    """
+    rows = places_by_row(jobs_df)
+    counts: dict[LocationParts, int] = defaultdict(int)
+
+    for places in rows:
+        for parts in places:
+            counts[parts] += 1
+
+    canonical = canonical_spellings(counts)
+
+    return [{canonical.get(parts, parts).label for parts in places} for places in rows]
 
 
 def resolve_workplace_type(
@@ -510,7 +586,7 @@ def summarize_location_demand(
     has_workplace_column = "workplace_type" in jobs_df.columns
     has_remote_column = "is_remote" in jobs_df.columns
 
-    for _, row in jobs_df.iterrows():
+    for (_, row), places in zip(jobs_df.iterrows(), places_by_row(jobs_df)):
         location = str(row.get("location") or "").strip()
 
         # The Canada snapshot carries these outright; the Greenhouse feeds
@@ -524,19 +600,11 @@ def summarize_location_demand(
         )
         workplace_counts[workplace_type] += 1
 
-        places = [
-            parts
-            for fragment in split_sites(location)
-            for parts in parse_sites(fragment)
-            if parts.label
-        ]
-
         if not places:
             summary.postings_without_location += 1
             continue
 
-        # One posting should not count twice for a city it lists twice.
-        for parts in dict.fromkeys(places):
+        for parts in places:
             place_counts[parts] += 1
 
     merged = merge_location_spellings(place_counts)
@@ -552,6 +620,7 @@ def summarize_location_demand(
             "city": parts.city,
             "region": parts.region,
             "country": parts.country,
+            "remote": parts.remote,
             "job_count": count,
         }
         for parts, count in ranked

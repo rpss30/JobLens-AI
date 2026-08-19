@@ -14,12 +14,14 @@ def counts(summary) -> dict[str, int]:
 
 def test_workplace_types_leave_the_location_ranking():
     # "Hybrid" outranked every real city while it was counted as a place.
+    # Remote is the exception: it is somewhere a job can be done from, so it
+    # stays a place, while hybrid only says how the work happens.
     summary = summarize(["Hybrid", "Hybrid", "Toronto, ON", "Remote, Canada"])
 
     assert "Hybrid" not in counts(summary)
     assert counts(summary)["Toronto, ON"] == 1
-    # Remote work in Canada is a Canadian posting, done remotely.
-    assert counts(summary)["Canada"] == 1
+    assert counts(summary)["Remote, Canada"] == 1
+    assert "Canada" not in counts(summary)
     assert summary.postings_without_location == 2
 
     workplace = {row["workplace_type"]: row["job_count"] for row in summary.workplace_types}
@@ -73,14 +75,15 @@ def test_contested_cities_are_left_apart():
     assert counts(summary)["London, United Kingdom"] == 2
 
 
-def test_a_country_survives_the_remote_wording_around_it():
+def test_remote_work_keeps_the_country_it_is_scoped_to():
     summary = summarize(["Remote - USA", "Remote: India", "Brazil - Remote", "Remote"])
 
-    assert counts(summary)["United States"] == 1
-    assert counts(summary)["India"] == 1
-    assert counts(summary)["Brazil"] == 1
-    # Only the bare "Remote" names no place at all.
-    assert summary.postings_without_location == 1
+    assert counts(summary)["Remote, United States"] == 1
+    assert counts(summary)["Remote, India"] == 1
+    assert counts(summary)["Remote, Brazil"] == 1
+    # Remote with no country named is still somewhere a job is done from.
+    assert counts(summary)["Remote"] == 1
+    assert summary.postings_without_location == 0
 
 
 def test_declared_workplace_columns_win_over_the_location_text():

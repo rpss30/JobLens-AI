@@ -56,6 +56,26 @@ function ListIcon() {
   );
 }
 
+function LaptopIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className="shrink-0 text-accent"
+    >
+      <path d="M4.25 4.75h11.5v8H4.25v-8Z" />
+      <path d="M2.25 15.25h15.5" />
+    </svg>
+  );
+}
+
 function GlobeIcon() {
   return (
     <svg
@@ -118,22 +138,23 @@ function PinOffIcon() {
 /**
  * Where a place's postings live on the Jobs page.
  *
- * That filter matches on any word in the value, so sending "Toronto, ON"
- * would also catch every location holding "on" — Montreal among them, 32
- * postings against the 18 Toronto actually has. The most specific single
- * word keeps the jobs on the other end the ones the count promised.
+ * The label is sent as it is counted here, because the Jobs filter resolves
+ * it through the same normalization. That is what makes the list on the
+ * other end exactly the postings behind the number beside it.
  */
 function jobsHref(row: LocationDemand, datasetName: string): string {
-  const term = row.city || row.location.split(",")[0].trim();
-
   return withDataset(
-    `/jobs?location=${encodeURIComponent(term)}`,
+    `/jobs?location=${encodeURIComponent(row.location)}`,
     datasetName,
   );
 }
 
 /** A place the map cannot pin, and why it cannot. */
 function unplaceableIcon(row: LocationDemand) {
+  if (row.remote) {
+    return <LaptopIcon />;
+  }
+
   if (!row.city && row.region) {
     return <FlagIcon />;
   }

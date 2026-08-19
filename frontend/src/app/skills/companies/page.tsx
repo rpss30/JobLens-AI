@@ -281,7 +281,16 @@ async function TopCompanies({ datasetName }: { datasetName: string }) {
             {
               key: "company",
               header: "Company",
-              render: (row: CompanyDemand) => row.company,
+              render: (row: CompanyDemand) => (
+                <span className="inline-flex items-center gap-2">
+                  <CompanyLogo
+                    name={row.company}
+                    domain={row.domain}
+                    size="sm"
+                  />
+                  {row.company}
+                </span>
+              ),
             },
             {
               key: "roles",

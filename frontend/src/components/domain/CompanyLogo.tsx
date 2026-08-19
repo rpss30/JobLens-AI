@@ -25,15 +25,24 @@ function tintFor(name: string): number {
   return hash;
 }
 
+/** Card tiles and the row beside a table cell want different weights. */
+const SIZES = {
+  md: { box: "h-10 w-10 rounded-xl text-base", pad: "p-1.5", pixels: 40 },
+  sm: { box: "h-6 w-6 rounded-md text-[0.6875rem]", pad: "p-0.5", pixels: 24 },
+} as const;
+
 export function CompanyLogo({
   name,
   domain,
+  size = "md",
 }: {
   name: string;
   domain: string;
+  size?: keyof typeof SIZES;
 }) {
   const [failed, setFailed] = useState(false);
   const initial = name.trim().charAt(0).toUpperCase() || "?";
+  const { box, pad, pixels } = SIZES[size];
 
   if (!domain || failed) {
     const tint = tintFor(name);
@@ -41,7 +50,7 @@ export function CompanyLogo({
     return (
       <span
         aria-hidden="true"
-        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-base font-semibold"
+        className={`inline-flex shrink-0 items-center justify-center font-semibold ${box}`}
         style={{
           backgroundColor: `hsl(${tint} 42% 92%)`,
           color: `hsl(${tint} 45% 32%)`,
@@ -60,13 +69,13 @@ export function CompanyLogo({
         domain,
       )}&sz=${LOGO_SIZE}`}
       alt=""
-      width={40}
-      height={40}
+      width={pixels}
+      height={pixels}
       loading="lazy"
       decoding="async"
       referrerPolicy="no-referrer"
       onError={() => setFailed(true)}
-      className="h-10 w-10 shrink-0 rounded-xl border border-border bg-surface object-contain p-1.5"
+      className={`shrink-0 border border-border bg-surface object-contain ${box} ${pad}`}
     />
   );
 }

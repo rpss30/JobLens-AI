@@ -48,6 +48,7 @@ export interface FilterOptions {
   role_categories: string[];
   skills: string[];
   locations: string[];
+  companies: string[];
   experience_levels: string[];
   summary: DatasetSnapshotSummary;
 }
@@ -118,6 +119,13 @@ export interface WorkplaceTypeDemand {
 export interface CompanyDemand {
   company: string;
   job_count: number;
+  /** What the card shows beside the name. */
+  role_categories: string[];
+  top_skills: string[];
+  location: string;
+  workplace_type: string;
+  /** Best-effort employer domain, used only to look up a logo. */
+  domain: string;
 }
 
 export interface RoleDistribution {

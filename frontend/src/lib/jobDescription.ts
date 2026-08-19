@@ -131,3 +131,53 @@ export function splitJobDescription(description: string): DescriptionBlock[] {
 
   return blocks.filter((block) => block.text.length > 0);
 }
+
+/*
+ * A description that kept its own line breaks needs no guessing: the blank
+ * lines are the paragraphs and the markers are the list items. A line is only
+ * read as a heading when it is short, does not end mid-thought, and has
+ * something under it, which is how a board writes one.
+ */
+const HEADING_MAX_LENGTH = 70;
+
+function blocksFromLineBreaks(text: string): DescriptionBlock[] {
+  const lines = text.split("\n").map((line) => line.trim());
+  const blocks: DescriptionBlock[] = [];
+
+  for (const [index, line] of lines.entries()) {
+    if (!line) {
+      continue;
+    }
+
+    if (LEADING_MARKER.test(line)) {
+      blocks.push({ kind: "bullet", text: line.replace(LEADING_MARKER, "") });
+      continue;
+    }
+
+    const hasMoreBelow = lines.slice(index + 1).some(Boolean);
+    const looksLikeHeading =
+      line.length <= HEADING_MAX_LENGTH && !/[.,]$/.test(line) && hasMoreBelow;
+
+    blocks.push({ kind: looksLikeHeading ? "heading" : "paragraph", text: line });
+  }
+
+  return blocks;
+}
+
+/**
+ * The blocks to render for one posting.
+ *
+ * Prefers the description the board actually wrote. Postings that closed
+ * before the dataset was filled in have only the flattened text, and fall
+ * back to the structure inferred from their wording.
+ */
+export function readJobDescription(
+  formatted: string,
+  flattened: string,
+): DescriptionBlock[] {
+  if (formatted.trim()) {
+    return blocksFromLineBreaks(formatted);
+  }
+
+  return splitJobDescription(flattened);
+}

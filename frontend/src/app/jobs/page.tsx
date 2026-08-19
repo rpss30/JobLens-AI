@@ -231,7 +231,10 @@ async function JobDetailPane({
             About the job
           </h3>
           <div className="mt-2">
-            <JobDescription description={job.description} />
+            <JobDescription
+              description={job.description}
+              formatted={job.description_formatted}
+            />
           </div>
         </div>
       </CardBody>

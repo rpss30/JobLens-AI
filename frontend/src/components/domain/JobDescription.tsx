@@ -1,4 +1,4 @@
-import { splitJobDescription } from "@/lib/jobDescription";
+import { readJobDescription } from "@/lib/jobDescription";
 
 /**
  * A posting's own words, with its sections and lists set out.
@@ -6,8 +6,14 @@ import { splitJobDescription } from "@/lib/jobDescription";
  * Runs of list items are gathered into one list so the markup says "list"
  * rather than leaving a reader to infer it from the bullets.
  */
-export function JobDescription({ description }: { description: string }) {
-  const blocks = splitJobDescription(description);
+export function JobDescription({
+  description,
+  formatted,
+}: {
+  description: string;
+  formatted: string;
+}) {
+  const blocks = readJobDescription(formatted, description);
 
   if (blocks.length === 0) {
     return (

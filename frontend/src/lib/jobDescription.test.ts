@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { splitJobDescription } from "./jobDescription";
+import { readJobDescription, splitJobDescription } from "./jobDescription";
 
 describe("splitJobDescription", () => {
   it("returns one block when the wording gives no signal", () => {
@@ -66,5 +66,37 @@ describe("splitJobDescription", () => {
 
   it("has nothing to say about an empty description", () => {
     expect(splitJobDescription("   ")).toEqual([]);
+  });
+});
+
+describe("readJobDescription", () => {
+  const formatted = [
+    "Who are we?",
+    "",
+    "We build tools for teams that ship.",
+    "",
+    "Requirements",
+    "- You have written Go before.",
+    "- You like small teams.",
+  ].join("\n");
+
+  it("uses the board's own breaks when the posting kept them", () => {
+    expect(readJobDescription(formatted, "ignored flattened text")).toEqual([
+      { kind: "heading", text: "Who are we?" },
+      { kind: "paragraph", text: "We build tools for teams that ship." },
+      { kind: "heading", text: "Requirements" },
+      { kind: "bullet", text: "You have written Go before." },
+      { kind: "bullet", text: "You like small teams." },
+    ]);
+  });
+
+  it("falls back to inference for a posting that lost them", () => {
+    // Postings that closed before the dataset was filled in have only the
+    // flattened text, so the wording is all there is to go on.
+    expect(readJobDescription("", "We ship weekly. Requirements You write Go.")).toEqual([
+      { kind: "paragraph", text: "We ship weekly." },
+      { kind: "heading", text: "Requirements" },
+      { kind: "paragraph", text: "You write Go." },
+    ]);
   });
 });

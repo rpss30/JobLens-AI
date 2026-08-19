@@ -76,6 +76,8 @@ export interface JobDetail extends JobListing {
   dataset_name: string;
   /** The posting's own words, fetched only for the one being read. */
   description: string;
+  /** The same words with the board's own paragraphs, where they survived. */
+  description_formatted: string;
 }
 
 export interface SavedJob {

@@ -41,6 +41,7 @@ function buildPageHref(
 interface JobFilterValues {
   q: string;
   location: string;
+  company: string;
   level: string;
   sort: string;
   order: string;
@@ -75,6 +76,7 @@ async function JobResults({
     searchMode: "tfidf" as SearchMode,
     location: values.location,
     experienceLevel: values.level,
+    company: values.company,
     sortBy: values.sort,
     sortOrder: values.order === "asc" ? "asc" : "desc",
     limit: PAGE_SIZE,
@@ -154,6 +156,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
   const values: JobFilterValues = {
     q: readParam(params.q, ""),
     location: readParam(params.location, "Any"),
+    company: readParam(params.company, "Any"),
     level: readParam(params.level, "Any"),
     sort: readParam(params.sort, "search_relevance"),
     order: readParam(params.order, "desc"),
@@ -181,7 +184,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
       />
 
       <Suspense
-        key={`${values.q}|${values.location}|${values.level}|${values.sort}|${values.order}|${offset}`}
+        key={`${values.q}|${values.location}|${values.company}|${values.level}|${values.sort}|${values.order}|${offset}`}
         fallback={<JobResultsSkeleton />}
       >
         <JobResults

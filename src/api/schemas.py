@@ -207,6 +207,7 @@ class FilterOptionsResponse(BaseModel):
     role_categories: list[str]
     skills: list[str]
     locations: list[str]
+    companies: list[str]
     experience_levels: list[str]
     summary: DatasetSnapshotSummary
 
@@ -415,21 +416,52 @@ class SkillDemand(BaseModel):
 
 
 class RoleSkillImportance(BaseModel):
+    """Role-specific demand, with the evidence behind each label.
+
+    role_weight and weighted_importance are internal scoring artifacts kept for
+    existing callers; the signals and counts beside them are what a reader can
+    actually interpret.
+    """
     role_category: str
     skill: str
     job_count: int
+    role_job_count: int = 0
     role_weight: int
     weighted_importance: float
+    demand_signal: str = "specialized"
+    required_count: int = 0
+    preferred_count: int = 0
+    unclear_count: int = 0
+    requirement_signal: str = "unclear"
 
 
 class LocationDemand(BaseModel):
     location: str
+    job_count: int
+    # The parts behind the label, so the page can group without re-parsing.
+    city: str = ""
+    region: str = ""
+    country: str = ""
+    # Remote work is a place a posting can be done from, unlike hybrid or
+    # on-site, which only say how it happens.
+    remote: bool = False
+
+
+class WorkplaceTypeDemand(BaseModel):
+    workplace_type: str
     job_count: int
 
 
 class CompanyDemand(BaseModel):
     company: str
     job_count: int
+    # What the card shows beside the name.
+    role_categories: list[str] = Field(default_factory=list)
+    top_skills: list[str] = Field(default_factory=list)
+    location: str = ""
+    workplace_type: str = ""
+    # Best-effort employer domain, used only to look up a logo.
+    domain: str = ""
 
 
 class RoleDistribution(BaseModel):
@@ -443,6 +475,12 @@ class MarketInsightsResponse(BaseModel):
     skill_demand: list[SkillDemand]
     role_skill_importance: list[RoleSkillImportance]
     jobs_by_location: list[LocationDemand]
+    # How the work is done is its own dimension. Left in the location field it
+    # ranked "Hybrid" above every real city.
+    workplace_types: list[WorkplaceTypeDemand]
+    # Postings whose location named no place at all, so the counts above can
+    # be read against the right total.
+    postings_without_location: int
     top_companies: list[CompanyDemand]
     role_distribution: list[RoleDistribution]
 

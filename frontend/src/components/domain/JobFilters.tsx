@@ -5,6 +5,7 @@ import type { FilterOptions } from "@/lib/api/types";
 export interface JobFilterValues {
   q: string;
   location: string;
+  company: string;
   level: string;
   sort: string;
   order: string;
@@ -62,7 +63,34 @@ export function JobFilters({
             className={controlClassName}
           >
             <option value="Any">Any location</option>
+            {/* Market Insights links here with a single word, such as
+                "Toronto", which is rarely one of the dataset's own strings.
+                Listing it keeps the control showing the filter in force. */}
+            {values.location !== "Any" &&
+            !filterOptions.locations.includes(values.location) ? (
+              <option value={values.location}>{values.location}</option>
+            ) : null}
             {filterOptions.locations.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </Field>
+
+        <Field label="Company" htmlFor="job-company">
+          <select
+            id="job-company"
+            name="company"
+            defaultValue={values.company}
+            className={controlClassName}
+          >
+            <option value="Any">Any company</option>
+            {values.company !== "Any" &&
+            !filterOptions.companies.includes(values.company) ? (
+              <option value={values.company}>{values.company}</option>
+            ) : null}
+            {filterOptions.companies.map((option) => (
               <option key={option} value={option}>
                 {option}
               </option>

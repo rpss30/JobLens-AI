@@ -67,6 +67,7 @@ export interface JobQuery {
   searchMode?: SearchMode;
   location?: string;
   experienceLevel?: string;
+  company?: string;
   sortBy?: string;
   sortOrder?: SortOrder;
   limit?: number;
@@ -82,6 +83,7 @@ export function getJobs(query: JobQuery = {}): Promise<JobListResponse> {
       search_mode: query.searchMode,
       location: query.location,
       experience_level: query.experienceLevel,
+      company: query.company,
       sort_by: query.sortBy,
       sort_order: query.sortOrder,
       limit: query.limit,

@@ -1,18 +1,191 @@
+import re
+from collections import Counter
+from urllib.parse import urlparse
+
 import pandas as pd
 
 from src.api.errors import ApiError
 from src.api.schemas import MarketInsightsRequest, MarketInsightsResponse
 from src.api.services.analysis_service import load_jobs_for_analysis
-from src.analysis.job_services import (
-    filter_jobs,
-    get_jobs_by_location,
-    get_top_companies,
+from src.analysis.job_services import filter_jobs
+from src.analysis.job_services import parse_extracted_skills_value
+from src.analysis.location_demand import (
+    places_by_row,
+    resolve_workplace_type,
+    summarize_location_demand,
 )
 from src.matching.match_engine import (
     build_role_skill_weights,
     get_role_weighted_top_skills,
     get_top_skills,
 )
+from src.matching.skill_requirements import summarize_skill_requirement
+from src.skill_extraction.normalizer import normalize_skill_key
+
+
+# Rank within a role, not a share of its postings. Role categories are broad
+# and fragmented, so even a defining skill rarely reaches half the postings in
+# its own category; what matters is where it sits against its peers.
+LEADING_SIGNAL_RANK = 3
+COMMON_SIGNAL_RANK = 6
+
+
+def describe_demand_signal(rank: int) -> str:
+    if rank <= LEADING_SIGNAL_RANK:
+        return "leading"
+
+    if rank <= COMMON_SIGNAL_RANK:
+        return "common"
+
+    return "specialized"
+
+
+def build_role_skill_rows(
+    jobs_df: pd.DataFrame,
+    role_skill_importance_df: pd.DataFrame,
+) -> list[dict]:
+    """Turn internal weights into evidence a reader can check.
+
+    Each row carries the counts behind its labels, so the page can say "12 of
+    29 Software Engineering postings" rather than asking anyone to trust a
+    weighting formula they cannot see.
+    """
+    rows: list[dict] = []
+    rank_by_role: dict[str, int] = {}
+
+    for _, row in role_skill_importance_df.iterrows():
+        role_category = str(row["role_category"])
+        skill = str(row["skill"])
+        rank = rank_by_role.get(role_category, 0) + 1
+        rank_by_role[role_category] = rank
+
+        role_jobs = jobs_df[jobs_df["role_category"] == role_category]
+        skill_key = normalize_skill_key(skill)
+        descriptions = [
+            job_row.get("description")
+            for _, job_row in role_jobs.iterrows()
+            if any(
+                normalize_skill_key(str(entry)) == skill_key
+                for entry in (job_row.get("extracted_skills") or [])
+            )
+        ]
+
+        rows.append(
+            {
+                "role_category": role_category,
+                "skill": skill,
+                "job_count": int(row["count"]),
+                "role_job_count": int(len(role_jobs)),
+                "role_weight": int(row["role_weight"]),
+                "weighted_importance": float(row["weighted_importance"]),
+                "demand_signal": describe_demand_signal(rank),
+                **summarize_skill_requirement(skill, descriptions),
+            }
+        )
+
+    return rows
+
+
+# Applicant tracking hosts. A posting served from one of these says where the
+# employer advertises, not who the employer is, so the domain has to come from
+# the company name instead.
+ATS_HOSTS = {
+    "greenhouse.io",
+    "lever.co",
+    "ashbyhq.com",
+    "myworkdayjobs.com",
+    "workable.com",
+    "smartrecruiters.com",
+    "bamboohr.com",
+    "icims.com",
+    "taleo.net",
+    "breezy.hr",
+    "recruitee.com",
+}
+
+
+def company_domain(company: str, source_urls: list[object]) -> str:
+    """Best guess at an employer's own domain, used to look up a logo.
+
+    A posting hosted on the employer's own careers page names the domain
+    outright. Everything else is a guess from the name, which is right often
+    enough to be worth showing and wrong quietly enough to fall back to a
+    monogram when the logo does not resolve.
+    """
+    for url in source_urls:
+        host = urlparse(str(url or "")).netloc.lower()
+        host = host.removeprefix("www.")
+
+        if not host:
+            continue
+
+        if any(host == ats or host.endswith(f".{ats}") for ats in ATS_HOSTS):
+            continue
+
+        return host
+
+    slug = re.sub(r"[^a-z0-9]", "", company.lower())
+
+    return f"{slug}.com" if slug else ""
+
+
+def build_company_rows(jobs_df: pd.DataFrame, top_n: int) -> list[dict]:
+    """Describe the employers with the most postings in a slice.
+
+    Each row carries what the card shows: the roles they are hiring for, the
+    skills those postings ask for, where the work is, and how it is done.
+    """
+    if jobs_df.empty or "company" not in jobs_df.columns:
+        return []
+
+    counts = jobs_df["company"].value_counts().head(top_n)
+    rows: list[dict] = []
+
+    for company, job_count in counts.items():
+        group = jobs_df[jobs_df["company"] == company]
+
+        categories = (
+            [str(name) for name, _ in Counter(group["role_category"]).most_common(2)]
+            if "role_category" in group.columns
+            else []
+        )
+
+        skills: Counter[str] = Counter()
+
+        if "extracted_skills" in group.columns:
+            for value in group["extracted_skills"]:
+                skills.update(parse_extracted_skills_value(value))
+
+        workplace = Counter(
+            resolve_workplace_type(
+                str(row.get("location") or ""),
+                declared_type=str(row.get("workplace_type") or ""),
+                is_remote=bool(row.get("is_remote")),
+            )
+            for _, row in group.iterrows()
+        )
+
+        # A city says more on a card than "Canada" does, so a real place wins
+        # over a country-wide or remote-only one where the company has both.
+        places = [parts for row in places_by_row(group) for parts in row]
+        cities = Counter(parts.label for parts in places if parts.city)
+        anywhere = Counter(parts.label for parts in places)
+        located = cities.most_common(1) or anywhere.most_common(1)
+
+        rows.append({
+            "company": str(company),
+            "job_count": int(job_count),
+            "role_categories": categories,
+            "top_skills": [str(skill) for skill, _ in skills.most_common(3)],
+            "location": located[0][0] if located else "",
+            "workplace_type": workplace.most_common(1)[0][0] if workplace else "",
+            "domain": company_domain(
+                str(company),
+                list(group["source_url"]) if "source_url" in group.columns else [],
+            ),
+        })
+
+    return rows
 
 
 def get_role_distribution(jobs_df: pd.DataFrame, top_n: int) -> list[dict]:
@@ -60,9 +233,10 @@ def get_market_insights(request: MarketInsightsRequest) -> MarketInsightsRespons
         filtered_jobs,
         role_skill_weights,
         top_n=request.top_n,
+        # Per role, or the busiest category crowds every other one out.
+        per_role=True,
     )
-    jobs_by_location_df = get_jobs_by_location(filtered_jobs).head(request.top_n)
-    top_companies_df = get_top_companies(filtered_jobs, top_n=request.top_n)
+    location_demand = summarize_location_demand(filtered_jobs, top_n=request.top_n)
 
     return MarketInsightsResponse(
         dataset_name=dataset_name,
@@ -74,29 +248,13 @@ def get_market_insights(request: MarketInsightsRequest) -> MarketInsightsRespons
             }
             for _, row in top_skills_df.iterrows()
         ],
-        role_skill_importance=[
-            {
-                "role_category": str(row["role_category"]),
-                "skill": str(row["skill"]),
-                "job_count": int(row["count"]),
-                "role_weight": int(row["role_weight"]),
-                "weighted_importance": float(row["weighted_importance"]),
-            }
-            for _, row in role_skill_importance_df.iterrows()
-        ],
-        jobs_by_location=[
-            {
-                "location": str(row["location"]),
-                "job_count": int(row["job_count"]),
-            }
-            for _, row in jobs_by_location_df.iterrows()
-        ],
-        top_companies=[
-            {
-                "company": str(row["company"]),
-                "job_count": int(row["job_count"]),
-            }
-            for _, row in top_companies_df.iterrows()
-        ],
+        role_skill_importance=build_role_skill_rows(
+            filtered_jobs,
+            role_skill_importance_df,
+        ),
+        jobs_by_location=location_demand.locations,
+        workplace_types=location_demand.workplace_types,
+        postings_without_location=location_demand.postings_without_location,
+        top_companies=build_company_rows(filtered_jobs, request.top_n),
         role_distribution=get_role_distribution(filtered_jobs, request.top_n),
     )

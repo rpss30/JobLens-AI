@@ -34,6 +34,27 @@
   --color-danger-soft: #f1f4f5;
   --color-required: #d93025;
 
+  /*
+   * Sequential chart ramp, dark to light, derived from the accent. Fixed
+   * across themes like --color-accent-fill, because each step is paired with
+   * a text colour that has to keep working: 1-3 carry light text, 4-5 dark.
+   */
+  --color-chart-1: #0b4650;
+  --color-chart-2: #11626f;
+  --color-chart-3: #1c7d8d;
+  --color-chart-4: #6fbccb;
+  --color-chart-5: #b7dee8;
+
+  /*
+   * Requirement signals sit outside the brand ramp on purpose. They are four
+   * unordered states, and shades of one hue were near-impossible to tell apart
+   * at the size of a dot or a thin bar.
+   */
+  --color-signal-required: #157f4a;
+  --color-signal-preferred: #1d5fd0;
+  --color-signal-mixed: #b45309;
+  --color-signal-unclear: #8b989d;
+
   /* Status colours sit outside the brand palette on purpose: online and
      offline must be told apart at a glance, which shape alone does not do. */
   --color-status-online: #1a7f4b;
@@ -65,6 +86,16 @@
     --color-danger: #e6edef;
     --color-danger-soft: #1e262a;
     --color-required: #f28b82;
+    --color-chart-1: #0b4650;
+    --color-chart-2: #11626f;
+    --color-chart-3: #1c7d8d;
+    --color-chart-4: #6fbccb;
+    --color-chart-5: #b7dee8;
+    /* Lifted for a dark background; the light values go muddy on one. */
+    --color-signal-required: #4ade80;
+    --color-signal-preferred: #8ab4ff;
+    --color-signal-mixed: #f0b357;
+    --color-signal-unclear: #97a4a9;
     --color-status-online: #4ade80;
     --color-status-offline: #f28b82;
   }
@@ -92,6 +123,15 @@
   --color-danger: var(--color-danger);
   --color-danger-soft: var(--color-danger-soft);
   --color-required: var(--color-required);
+  --color-chart-1: var(--color-chart-1);
+  --color-chart-2: var(--color-chart-2);
+  --color-chart-3: var(--color-chart-3);
+  --color-chart-4: var(--color-chart-4);
+  --color-chart-5: var(--color-chart-5);
+  --color-signal-required: var(--color-signal-required);
+  --color-signal-preferred: var(--color-signal-preferred);
+  --color-signal-mixed: var(--color-signal-mixed);
+  --color-signal-unclear: var(--color-signal-unclear);
   --color-status-online: var(--color-status-online);
   --color-status-offline: var(--color-status-offline);
   --font-sans: ui-rounded, "SF Pro Rounded", var(--font-rounded), ui-sans-serif,
@@ -112,6 +152,37 @@ body {
   button:not(:disabled) {
     cursor: pointer;
   }
+}
+
+@keyframes panel-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(1rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Marks the detail panel as newly swapped, so switching role reads as a move
+   rather than a redraw. */
+.animate-panel-in {
+  animation: panel-slide-in 240ms ease-out;
+}
+
+@keyframes ring-fill {
+  from {
+    stroke-dashoffset: var(--ring-circumference);
+  }
+}
+
+/* Draws each workplace ring on from empty. There is no `to`: the implicit one
+   is the element's own stroke-dashoffset, so the ring lands on its real share
+   without the figure being repeated in CSS. */
+.animate-ring-fill {
+  animation: ring-fill 900ms ease-out;
 }
 
 /* Keyboard focus stays visible everywhere; pointer focus does not draw a ring. */

@@ -58,6 +58,7 @@ def list_jobs(
     search_mode: str = "tfidf",
     location: str = "Any",
     experience_level: str = "Any",
+    company: str = "Any",
     sort_by: JobSortBy = "search_relevance",
     sort_order: str = "desc",
     limit: int = 20,
@@ -73,6 +74,7 @@ def list_jobs(
         experience_level=experience_level,
         search_query=search_query,
         search_mode=search_mode,
+        company=company,
     )
 
     jobs = [build_job_listing_row(row) for _, row in filtered_jobs.iterrows()]

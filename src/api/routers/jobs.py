@@ -63,6 +63,15 @@ def get_jobs(
             description="Experience level filter. Use 'Any' to disable filtering.",
         ),
     ] = "Any",
+    company: Annotated[
+        str,
+        Query(
+            max_length=200,
+            description=(
+                "Employer filter, matched in full. Use 'Any' to disable it."
+            ),
+        ),
+    ] = "Any",
     sort_by: Annotated[
         JobSortBy,
         Query(description="Job field to sort by."),
@@ -75,6 +84,7 @@ def get_jobs(
         search_mode=search_mode,
         location=location,
         experience_level=experience_level,
+        company=company,
         sort_by=sort_by,
         sort_order=query.sort_order,
         limit=query.limit,

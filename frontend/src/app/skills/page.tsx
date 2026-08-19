@@ -1,228 +1,190 @@
 import { Suspense } from "react";
 
-import { DemandBarChart } from "@/components/charts/DemandBarChart";
-import { PageHeader, Section } from "@/components/layout/PageHeader";
-import { Card, CardBody, CardHeader } from "@/components/ui/Card";
-import { DataTable, type Column } from "@/components/ui/DataTable";
-import { CardSkeleton, Skeleton } from "@/components/ui/States";
-import { TableDisclosure } from "@/components/ui/TableDisclosure";
+import { SkillBubbleChart } from "@/components/charts/SkillBubbleChart";
+import {
+  TotalPostingsBadge,
+  TotalPostingsBadgeSkeleton,
+} from "@/components/domain/TotalPostingsBadge";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { Card, CardBody } from "@/components/ui/Card";
+import { CardSkeleton } from "@/components/ui/States";
 import { getMarketInsights } from "@/lib/api/endpoints";
-import type {
-  CompanyDemand,
-  LocationDemand,
-  RoleSkillImportance,
-} from "@/lib/api/types";
 import { resolveDataset } from "@/lib/datasets";
-import { formatCount, formatDatasetLabel, formatSkill } from "@/lib/format";
+import { formatCount, formatSkill } from "@/lib/format";
 
-const locationColumns: Column<LocationDemand>[] = [
-  { key: "location", header: "Location", render: (row) => row.location },
-  {
-    key: "job_count",
-    header: "Postings",
-    align: "right",
-    render: (row) => formatCount(row.job_count),
-  },
-];
+/** How many rows are shown before the full ranking is revealed. */
+const VISIBLE_RANK_COUNT = 12;
 
-const companyColumns: Column<CompanyDemand>[] = [
-  { key: "company", header: "Company", render: (row) => row.company },
-  {
-    key: "job_count",
-    header: "Postings",
-    align: "right",
-    render: (row) => formatCount(row.job_count),
-  },
-];
+function LightbulbIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 18 18"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className="shrink-0"
+    >
+      <path d="M7 14.5h4M7.5 16.5h3" />
+      <path d="M9 1.75a4.75 4.75 0 0 0-2.75 8.62c.4.3.65.75.7 1.25l.05.38h4l.05-.38c.05-.5.3-.95.7-1.25A4.75 4.75 0 0 0 9 1.75Z" />
+    </svg>
+  );
+}
 
-const importanceColumns: Column<RoleSkillImportance>[] = [
-  {
-    key: "skill",
-    header: "Skill",
-    render: (row) => (
-      <span className="font-medium">{formatSkill(row.skill)}</span>
-    ),
-  },
-  { key: "role_category", header: "Role", render: (row) => row.role_category },
-  {
-    key: "job_count",
-    header: "Postings",
-    align: "right",
-    render: (row) => formatCount(row.job_count),
-  },
-  {
-    key: "role_weight",
-    header: "Weight",
-    align: "right",
-    render: (row) => row.role_weight,
-  },
-  {
-    key: "weighted_importance",
-    header: "Importance",
-    align: "right",
-    render: (row) => row.weighted_importance.toFixed(0),
-  },
-];
+function RankRow({
+  rank,
+  label,
+  value,
+  share,
+}: {
+  rank: number;
+  label: string;
+  value: number;
+  share: number;
+}) {
+  return (
+    <li className="flex items-center gap-2 py-2 sm:gap-3">
+      <span className="w-5 shrink-0 text-xs tabular-nums text-text-subtle">
+        {rank}
+      </span>
+      {/* Takes the spare room on a narrow screen, where the bar is hidden. */}
+      <span
+        className="min-w-0 flex-1 truncate text-sm text-text sm:w-40 sm:flex-none"
+        title={label}
+      >
+        {label}
+      </span>
+      {/* The counts beside it already carry the comparison, so the bar is the
+          first thing to go when there is no room for it. */}
+      <span className="hidden h-2 min-w-0 rounded-full bg-surface-muted sm:block sm:flex-1">
+        <span
+          className="block h-2 rounded-full bg-chart-2"
+          style={{ width: `${Math.max(share * 100, 2)}%` }}
+        />
+      </span>
+      <span className="w-10 shrink-0 text-right text-sm tabular-nums text-text">
+        {formatCount(value)}
+      </span>
+      <span className="w-10 shrink-0 text-right text-sm tabular-nums text-accent">
+        {Math.round(share * 100)}%
+      </span>
+    </li>
+  );
+}
 
-async function MarketSections({ datasetName }: { datasetName: string }) {
-  const insights = await getMarketInsights({ datasetName, topN: 12 });
+async function SkillsDemand({ datasetName }: { datasetName: string }) {
+  // 25 is the API's ceiling for this call, and enough to rank meaningfully.
+  const insights = await getMarketInsights({ datasetName, topN: 25 });
 
-  const skillDemandData = insights.skill_demand.map((item) => ({
+  const ranked = insights.skill_demand.map((item) => ({
     label: formatSkill(item.skill),
     value: item.job_count,
+    // Postings can ask for several skills, so this is the share of postings
+    // mentioning the skill, not a slice of a whole.
+    share: insights.jobs_analyzed > 0 ? item.job_count / insights.jobs_analyzed : 0,
   }));
 
-  const roleDistributionData = insights.role_distribution.map((item) => ({
-    label: item.role_category,
-    value: item.job_count,
-  }));
+  const visible = ranked.slice(0, VISIBLE_RANK_COUNT);
+  const remaining = ranked.slice(VISIBLE_RANK_COUNT);
+  const leader = ranked[0];
 
   return (
-    <>
-      <p className="text-sm text-text-muted">
-        Based on {formatCount(insights.jobs_analyzed)} jobs in{" "}
-        {formatDatasetLabel(insights.dataset_name)}.
-      </p>
+    <Card>
+      <CardBody className="space-y-5 p-5 sm:p-6">
+        <div className="grid items-start gap-5 lg:grid-cols-2">
+          <section className="rounded-xl border border-border p-4">
+            <h2 className="text-base font-medium text-text">
+              Skills ranked by number of postings
+            </h2>
 
-      {/* items-start keeps each card at its natural height when the two charts
-          have different row counts. */}
-      <div className="grid items-start gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader
-            title="Skill demand"
-            description="How many postings in this snapshot ask for each skill."
-          />
-          <CardBody>
-            <DemandBarChart data={skillDemandData} valueLabel="postings" />
-          </CardBody>
-          <TableDisclosure>
-            <DataTable
-              columns={[
-                { key: "label", header: "Skill", render: (row) => row.label },
-                {
-                  key: "value",
-                  header: "Postings",
-                  align: "right",
-                  render: (row) => formatCount(row.value),
-                },
-              ]}
-              rows={skillDemandData}
-              getRowKey={(row) => row.label}
-              caption="Skill demand by posting count"
-            />
-          </TableDisclosure>
-        </Card>
+            <div className="mt-3 flex items-center gap-2 border-b border-border pb-2 text-[0.6875rem] font-medium uppercase tracking-wide text-text-subtle sm:gap-3 sm:text-xs">
+              <span className="w-5 shrink-0">#</span>
+              <span className="min-w-0 flex-1 sm:w-40 sm:flex-none">Skill</span>
+              <span className="hidden min-w-0 sm:block sm:flex-1" />
+              <span className="w-10 shrink-0 text-right">Jobs</span>
+              <span className="w-10 shrink-0 text-right">Share</span>
+            </div>
 
-        <Card>
-          <CardHeader
-            title="Role distribution"
-            description="How the postings break down across role categories."
-          />
-          <CardBody>
-            <DemandBarChart
-              data={roleDistributionData}
-              valueLabel="postings"
-              categoryWidth={130}
-            />
-          </CardBody>
-          <TableDisclosure>
-            <DataTable
-              columns={[
-                { key: "label", header: "Role", render: (row) => row.label },
-                {
-                  key: "value",
-                  header: "Postings",
-                  align: "right",
-                  render: (row) => formatCount(row.value),
-                },
-              ]}
-              rows={roleDistributionData}
-              getRowKey={(row) => row.label}
-              caption="Postings by role category"
-            />
-          </TableDisclosure>
-        </Card>
-      </div>
+            <ul className="divide-y divide-border">
+              {visible.map((item, index) => (
+                <RankRow key={item.label} rank={index + 1} {...item} />
+              ))}
+            </ul>
 
-      <Section
-        title="Role-specific skill importance"
-        description="Skills ranked by how often a role asks for them and how much that role weights them."
-      >
-        <Card>
-          <DataTable
-            columns={importanceColumns}
-            rows={insights.role_skill_importance}
-            getRowKey={(row) => `${row.role_category}-${row.skill}`}
-            caption="Skill importance weighted by role"
-            minWidthClassName="min-w-[38rem]"
-            emptyMessage="No role-specific skill weights were produced for this dataset."
-          />
-        </Card>
-      </Section>
+            {remaining.length > 0 ? (
+              <details className="mt-3">
+                <summary className="inline-flex cursor-pointer list-none items-center rounded-lg border border-border bg-surface px-3 py-2 text-sm font-medium text-accent transition-colors hover:bg-surface-muted">
+                  View full skill ranking ({remaining.length} more)
+                </summary>
+                <ul className="mt-2 divide-y divide-border">
+                  {remaining.map((item, index) => (
+                    <RankRow
+                      key={item.label}
+                      rank={VISIBLE_RANK_COUNT + index + 1}
+                      {...item}
+                    />
+                  ))}
+                </ul>
+              </details>
+            ) : null}
+          </section>
 
-      <div className="grid items-start gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader
-            title="Where the jobs are"
-            description="Posting concentration by location."
-          />
-          <DataTable
-            columns={locationColumns}
-            rows={insights.jobs_by_location}
-            getRowKey={(row) => row.location}
-            caption="Postings by location"
-          />
-        </Card>
+          <section className="rounded-xl border border-border p-4">
+            <h2 className="text-base font-medium text-text">
+              Skills at a glance
+            </h2>
+            <p className="mt-1 text-sm text-text-muted">
+              Circle size represents number of postings.
+            </p>
+            <div className="mt-3">
+              <SkillBubbleChart data={visible} valueLabel="postings" />
+            </div>
+          </section>
+        </div>
 
-        <Card>
-          <CardHeader
-            title="Top hiring companies"
-            description="Employers with the most postings in this snapshot."
-          />
-          <DataTable
-            columns={companyColumns}
-            rows={insights.top_companies}
-            getRowKey={(row) => row.company}
-            caption="Postings by company"
-          />
-        </Card>
-      </div>
-
-      <p className="text-sm text-text-subtle">
-        These counts describe the jobs in this dataset right now. JobLens does
-        not keep older copies of the job market, so this is a snapshot of
-        current demand rather than a trend over time.
-      </p>
-    </>
+        {leader ? (
+          <div className="flex items-start gap-2.5 rounded-xl border border-border bg-surface-muted px-4 py-3 text-sm text-text-muted">
+            <span className="mt-0.5 text-accent">
+              <LightbulbIcon />
+            </span>
+            <p>
+              <strong className="font-medium text-text">
+                {leader.label} is the most in-demand skill
+              </strong>
+              , appearing in {Math.round(leader.share * 100)}% of all job
+              postings in this snapshot.
+            </p>
+          </div>
+        ) : null}
+      </CardBody>
+    </Card>
   );
 }
 
-function MarketSectionsSkeleton() {
-  return (
-    <>
-      <Skeleton className="h-5 w-64" />
-      <div className="grid items-start gap-6 lg:grid-cols-2">
-        <CardSkeleton rows={8} />
-        <CardSkeleton rows={8} />
-      </div>
-      <CardSkeleton rows={6} />
-    </>
-  );
-}
-
-export default async function SkillsPage({ searchParams }: PageProps<"/skills">) {
+export default async function SkillsDemandPage({
+  searchParams,
+}: PageProps<"/skills">) {
   const params = await searchParams;
   const datasetName = resolveDataset(params.dataset);
 
   return (
     <>
       <PageHeader
-        title="Market Insights"
-        description="What employers in this job market are hiring for right now, whatever your own skills are."
+        title="Skills Demand"
+        description="How many postings in this snapshot ask for each skill."
+        action={
+          <Suspense fallback={<TotalPostingsBadgeSkeleton />}>
+            <TotalPostingsBadge datasetName={datasetName} />
+          </Suspense>
+        }
       />
 
-      <Suspense key={datasetName} fallback={<MarketSectionsSkeleton />}>
-        <MarketSections datasetName={datasetName} />
+      <Suspense key={datasetName} fallback={<CardSkeleton rows={10} />}>
+        <SkillsDemand datasetName={datasetName} />
       </Suspense>
     </>
   );

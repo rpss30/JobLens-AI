@@ -203,3 +203,33 @@ def test_canada_software_fit_is_monotonic_and_stable_when_linux_is_added() -> No
     assert expanded_best["weighted_match_score"] > base_best["weighted_match_score"]
     assert linux_best["weighted_match_score"] >= expanded_best["weighted_match_score"]
     assert expanded_best["weighted_match_score"] - base_best["weighted_match_score"] >= 10
+
+
+def test_skill_requirement_summary_hedges_when_postings_are_unreadable() -> None:
+    """The classifier finds no cue words far more often than it finds them.
+
+    Reporting "required" off one readable posting out of five would dress a
+    guess up as a finding, so the rollup only commits when the classified
+    mentions agree and outnumber the unreadable ones.
+    """
+    from src.matching.skill_requirements import summarize_skill_requirement
+
+    clearly_required = summarize_skill_requirement(
+        "python",
+        ["Requirements: strong experience with Python.", "You must have Python."],
+    )
+    split = summarize_skill_requirement(
+        "python",
+        ["Requirements: Python.", "Python is a plus."],
+    )
+    unreadable = summarize_skill_requirement(
+        "python",
+        ["We use Python here.", "Python codebase.", "Python throughout."],
+    )
+
+    assert clearly_required["requirement_signal"] == "required"
+    assert clearly_required["required_count"] == 2
+    assert split["requirement_signal"] == "mixed"
+    assert unreadable["requirement_signal"] == "unclear"
+    assert unreadable["unclear_count"] == 3
+    assert summarize_skill_requirement("python", [])["requirement_signal"] == "unclear"

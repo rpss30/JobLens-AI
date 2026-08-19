@@ -282,8 +282,13 @@ async function JobLocations({ datasetName }: { datasetName: string }) {
   return (
     <Card>
       <CardBody className="space-y-5 p-5 sm:p-6">
-        <div className="grid gap-5 lg:grid-cols-[3fr_2fr]">
-          <section className="flex h-full flex-col gap-4 rounded-xl border border-border p-4">
+        {/*
+         * The map reads second from lg up and first when the columns stack.
+         * Ordering rather than reordering the markup keeps the narrow layout
+         * exactly as it was, with the map above the list it belongs to.
+         */}
+        <div className="grid gap-5 lg:grid-cols-[2fr_3fr]">
+          <section className="flex h-full flex-col gap-4 rounded-xl border border-border p-4 lg:order-2">
             <h2 className="flex items-center gap-2 text-base font-medium text-text">
               <MapIcon />
               Map view
@@ -321,7 +326,7 @@ async function JobLocations({ datasetName }: { datasetName: string }) {
             </div>
           </section>
 
-          <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-5 lg:order-1">
             <section className="rounded-xl border border-border p-4">
               <h2 className="flex items-center gap-2 text-base font-medium text-text">
                 <ListIcon />

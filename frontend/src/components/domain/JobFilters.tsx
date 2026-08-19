@@ -62,6 +62,13 @@ export function JobFilters({
             className={controlClassName}
           >
             <option value="Any">Any location</option>
+            {/* Market Insights links here with a single word, such as
+                "Toronto", which is rarely one of the dataset's own strings.
+                Listing it keeps the control showing the filter in force. */}
+            {values.location !== "Any" &&
+            !filterOptions.locations.includes(values.location) ? (
+              <option value={values.location}>{values.location}</option>
+            ) : null}
             {filterOptions.locations.map((option) => (
               <option key={option} value={option}>
                 {option}

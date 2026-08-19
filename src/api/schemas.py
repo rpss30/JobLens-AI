@@ -437,6 +437,18 @@ class RoleSkillImportance(BaseModel):
 class LocationDemand(BaseModel):
     location: str
     job_count: int
+    # The parts behind the label, so the page can group without re-parsing.
+    city: str = ""
+    region: str = ""
+    country: str = ""
+    # Remote work is a place a posting can be done from, unlike hybrid or
+    # on-site, which only say how it happens.
+    remote: bool = False
+
+
+class WorkplaceTypeDemand(BaseModel):
+    workplace_type: str
+    job_count: int
 
 
 class CompanyDemand(BaseModel):
@@ -455,6 +467,12 @@ class MarketInsightsResponse(BaseModel):
     skill_demand: list[SkillDemand]
     role_skill_importance: list[RoleSkillImportance]
     jobs_by_location: list[LocationDemand]
+    # How the work is done is its own dimension. Left in the location field it
+    # ranked "Hybrid" above every real city.
+    workplace_types: list[WorkplaceTypeDemand]
+    # Postings whose location named no place at all, so the counts above can
+    # be read against the right total.
+    postings_without_location: int
     top_companies: list[CompanyDemand]
     role_distribution: list[RoleDistribution]
 

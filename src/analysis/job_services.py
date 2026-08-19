@@ -41,6 +41,7 @@ from src.matching.skill_requirements import (
     classify_job_skill_requirements,
     requirement_weight_multiplier,
 )
+from src.analysis.location_demand import place_labels_by_row
 from src.processing.job_processor import process_jobs
 from src.search.semantic_search import (
     HYBRID_SEARCH_MODE,
@@ -596,27 +597,44 @@ def filter_jobs(
             return filtered_df
 
     if location and location != "Any":
-        location_lower = location.strip().lower()
+        wanted = location.strip()
+        row_labels = place_labels_by_row(filtered_df)
 
-        # "Toronto, ON" should still match "Toronto" or "Toronto ON"
-        location_parts = [
-            part.strip()
-            for part in location_lower.replace(",", " ").split()
-            if part.strip()
-        ]
-
-        location_mask = (
-            filtered_df["location"]
-            .astype(str)
-            .str.lower()
-            .apply(
-                lambda job_location: any(
-                    part in job_location
-                    for part in location_parts
-                )
+        # Market Insights links here with the label it counted a place under,
+        # and the filter's own options are dataset strings that normalize to
+        # one. Matching that label exactly returns precisely the postings
+        # behind the number. Matching on words instead let "Canada" pull in
+        # "Remote, Canada" and "Ontario, Canada", and "Toronto, ON" pull in
+        # every location holding "on", Montreal included.
+        if any(wanted in labels for labels in row_labels):
+            location_mask = pd.Series(
+                [wanted in labels for labels in row_labels],
+                index=filtered_df.index,
             )
-            .astype(bool)
-        )
+        else:
+            # Anything else is free text, where the older, looser match is
+            # the more forgiving answer.
+            location_lower = wanted.lower()
+
+            # "Toronto, ON" should still match "Toronto" or "Toronto ON"
+            location_parts = [
+                part.strip()
+                for part in location_lower.replace(",", " ").split()
+                if part.strip()
+            ]
+
+            location_mask = (
+                filtered_df["location"]
+                .astype(str)
+                .str.lower()
+                .apply(
+                    lambda job_location: any(
+                        part in job_location
+                        for part in location_parts
+                    )
+                )
+                .astype(bool)
+            )
 
         filtered_df = filtered_df[location_mask]
 

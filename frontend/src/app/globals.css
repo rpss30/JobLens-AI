@@ -172,6 +172,19 @@ body {
   animation: panel-slide-in 240ms ease-out;
 }
 
+@keyframes ring-fill {
+  from {
+    stroke-dashoffset: var(--ring-circumference);
+  }
+}
+
+/* Draws each workplace ring on from empty. There is no `to`: the implicit one
+   is the element's own stroke-dashoffset, so the ring lands on its real share
+   without the figure being repeated in CSS. */
+.animate-ring-fill {
+  animation: ring-fill 900ms ease-out;
+}
+
 /* Keyboard focus stays visible everywhere; pointer focus does not draw a ring. */
 :focus-visible {
   outline: 2px solid var(--color-accent);

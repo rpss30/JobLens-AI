@@ -166,7 +166,15 @@ export function SkillBubbleChart({
         const showLabel = bubble.radius >= 30;
 
         return (
-          <g key={bubble.label}>
+          <g
+            key={bubble.label}
+            /*
+             * fill-box makes the circle grow about its own centre; without it
+             * an SVG transform pivots on the viewBox origin and the bubble
+             * slides across the chart instead of swelling in place.
+             */
+            className="origin-center [transform-box:fill-box] motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-out motion-safe:hover:scale-[1.06]"
+          >
             <circle
               cx={bubble.x}
               cy={bubble.y}

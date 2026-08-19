@@ -1334,6 +1334,34 @@ def test_rename_dataset_returns_503_when_database_unavailable(monkeypatch) -> No
     assert "PostgreSQL is unavailable" in response.json()["detail"]
 
 
+def test_reading_one_job_returns_its_description() -> None:
+    """The list leaves descriptions out; the detail carries exactly one.
+
+    Also pins the route under /jobs. Mounted at the root it was a catch-all
+    that answered /saved-jobs and everything else beside it.
+    """
+    listing = client.get("/jobs", params={"dataset_name": "canada_snapshot", "limit": 1})
+
+    assert listing.status_code == 200
+
+    first = listing.json()["jobs"][0]
+
+    assert "description" not in first
+    # The employer's mark is looked up from this, so the list carries it.
+    assert first["company_domain"]
+
+    detail = client.get(
+        f"/jobs/{first['job_id']}",
+        params={"dataset_name": "canada_snapshot"},
+    )
+
+    assert detail.status_code == 200
+    assert detail.json()["job_id"] == first["job_id"]
+    assert len(detail.json()["description"]) > 0
+
+    assert client.get("/jobs/does-not-exist").status_code == 404
+
+
 def test_saving_a_job_twice_keeps_one_copy(monkeypatch) -> None:
     """A second click on the bookmark is not an error, and changes nothing.
 

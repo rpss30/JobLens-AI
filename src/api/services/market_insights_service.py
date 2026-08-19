@@ -1,6 +1,4 @@
-import re
 from collections import Counter
-from urllib.parse import urlparse
 
 import pandas as pd
 
@@ -8,6 +6,7 @@ from src.api.errors import ApiError
 from src.api.schemas import MarketInsightsRequest, MarketInsightsResponse
 from src.api.services.analysis_service import load_jobs_for_analysis
 from src.analysis.job_services import filter_jobs
+from src.analysis.companies import company_domain
 from src.analysis.job_services import parse_extracted_skills_value
 from src.analysis.location_demand import (
     places_by_row,
@@ -84,49 +83,6 @@ def build_role_skill_rows(
         )
 
     return rows
-
-
-# Applicant tracking hosts. A posting served from one of these says where the
-# employer advertises, not who the employer is, so the domain has to come from
-# the company name instead.
-ATS_HOSTS = {
-    "greenhouse.io",
-    "lever.co",
-    "ashbyhq.com",
-    "myworkdayjobs.com",
-    "workable.com",
-    "smartrecruiters.com",
-    "bamboohr.com",
-    "icims.com",
-    "taleo.net",
-    "breezy.hr",
-    "recruitee.com",
-}
-
-
-def company_domain(company: str, source_urls: list[object]) -> str:
-    """Best guess at an employer's own domain, used to look up a logo.
-
-    A posting hosted on the employer's own careers page names the domain
-    outright. Everything else is a guess from the name, which is right often
-    enough to be worth showing and wrong quietly enough to fall back to a
-    monogram when the logo does not resolve.
-    """
-    for url in source_urls:
-        host = urlparse(str(url or "")).netloc.lower()
-        host = host.removeprefix("www.")
-
-        if not host:
-            continue
-
-        if any(host == ats or host.endswith(f".{ats}") for ats in ATS_HOSTS):
-            continue
-
-        return host
-
-    slug = re.sub(r"[^a-z0-9]", "", company.lower())
-
-    return f"{slug}.com" if slug else ""
 
 
 def build_company_rows(jobs_df: pd.DataFrame, top_n: int) -> list[dict]:

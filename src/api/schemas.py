@@ -352,6 +352,8 @@ class JobListing(BaseModel):
     job_id: str = ""
     title: str
     company: str
+    # Best-effort employer domain, used only to look up a logo.
+    company_domain: str = ""
     location: str
     experience_level: str
     role_category: str
@@ -363,6 +365,12 @@ class JobListing(BaseModel):
     source_url: str = ""
     skills: list[str] = Field(default_factory=list)
     search_relevance: float = 0.0
+
+
+class JobDetail(JobListing):
+    dataset_name: str = ""
+    # The posting's own words, carried only for the one being read.
+    description: str = ""
 
 
 class JobListResponse(BaseModel):

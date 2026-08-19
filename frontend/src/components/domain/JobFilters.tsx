@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/Button";
 import { Field, controlClassName } from "@/components/ui/Field";
+import { FilterCombobox } from "@/components/domain/FilterCombobox";
 import type { FilterOptions } from "@/lib/api/types";
 
 export interface JobFilterValues {
@@ -10,14 +11,6 @@ export interface JobFilterValues {
   sort: string;
   order: string;
 }
-
-const SORT_OPTIONS = [
-  { value: "search_relevance", label: "Relevance" },
-  { value: "date_posted", label: "Date posted" },
-  { value: "title", label: "Title" },
-  { value: "company", label: "Company" },
-  { value: "location", label: "Location" },
-];
 
 /**
  * A plain GET form: filters live in the URL, so results are shareable and the
@@ -39,6 +32,10 @@ export function JobFilters({
       className="rounded-xl border border-border bg-surface p-5"
     >
       <input type="hidden" name="dataset" value={datasetName} />
+      {/* Chosen beside the heading rather than in here, but it still has to
+          survive a filter change. */}
+      <input type="hidden" name="sort" value={values.sort} />
+      <input type="hidden" name="order" value={values.order} />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <div className="xl:col-span-2">
@@ -56,77 +53,61 @@ export function JobFilters({
         </div>
 
         <Field label="Location" htmlFor="job-location">
-          <select
+          <FilterCombobox
             id="job-location"
             name="location"
-            defaultValue={values.location}
-            className={controlClassName}
-          >
-            <option value="Any">Any location</option>
-            {/* Market Insights links here with a single word, such as
-                "Toronto", which is rarely one of the dataset's own strings.
-                Listing it keeps the control showing the filter in force. */}
-            {values.location !== "Any" &&
-            !filterOptions.locations.includes(values.location) ? (
-              <option value={values.location}>{values.location}</option>
-            ) : null}
-            {filterOptions.locations.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </Field>
-
-        <Field label="Company" htmlFor="job-company">
-          <select
-            id="job-company"
-            name="company"
-            defaultValue={values.company}
-            className={controlClassName}
-          >
-            <option value="Any">Any company</option>
-            {values.company !== "Any" &&
-            !filterOptions.companies.includes(values.company) ? (
-              <option value={values.company}>{values.company}</option>
-            ) : null}
-            {filterOptions.companies.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
+            placeholder="Any location"
+            value={values.location}
+            options={[
+              { value: "Any", label: "Any location" },
+              // Market Insights links here with a place it counted under,
+              // which is rarely one of the dataset's own strings.
+              ...(values.location !== "Any" &&
+              !filterOptions.locations.includes(values.location)
+                ? [{ value: values.location, label: values.location }]
+                : []),
+              ...filterOptions.locations.map((option) => ({
+                value: option,
+                label: option,
+              })),
+            ]}
+          />
         </Field>
 
         <Field label="Experience level" htmlFor="job-level">
-          <select
+          <FilterCombobox
             id="job-level"
             name="level"
-            defaultValue={values.level}
-            className={controlClassName}
-          >
-            <option value="Any">Any level</option>
-            {filterOptions.experience_levels.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
+            placeholder="Any level"
+            value={values.level}
+            options={[
+              { value: "Any", label: "Any level" },
+              ...filterOptions.experience_levels.map((option) => ({
+                value: option,
+                label: option,
+              })),
+            ]}
+          />
         </Field>
 
-        <Field label="Sort by" htmlFor="job-sort">
-          <select
-            id="job-sort"
-            name="sort"
-            defaultValue={values.sort}
-            className={controlClassName}
-          >
-            {SORT_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+        <Field label="Company" htmlFor="job-company">
+          <FilterCombobox
+            id="job-company"
+            name="company"
+            placeholder="Any company"
+            value={values.company}
+            options={[
+              { value: "Any", label: "Any company" },
+              ...(values.company !== "Any" &&
+              !filterOptions.companies.includes(values.company)
+                ? [{ value: values.company, label: values.company }]
+                : []),
+              ...filterOptions.companies.map((option) => ({
+                value: option,
+                label: option,
+              })),
+            ]}
+          />
         </Field>
       </div>
 

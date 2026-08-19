@@ -468,6 +468,7 @@ def filter_jobs(
     experience_level: str,
     search_query: str = "",
     search_mode: str = TFIDF_SEARCH_MODE,
+    company: str = "Any",
 ) -> pd.DataFrame:
     """
     Filter jobs based on user input.
@@ -637,6 +638,23 @@ def filter_jobs(
             )
 
         filtered_df = filtered_df[location_mask]
+
+        if filtered_df.empty:
+            return filtered_df
+
+    if company and company != "Any" and "company" in filtered_df.columns:
+        # Matched whole, not searched for. Several employers here are named
+        # after the tools other postings ask for, so a free-text search for
+        # "MongoDB" or "Stripe" returns their competitors' jobs as well.
+        wanted_company = company.strip().casefold()
+
+        filtered_df = filtered_df[
+            filtered_df["company"]
+            .astype(str)
+            .str.strip()
+            .str.casefold()
+            == wanted_company
+        ]
 
         if filtered_df.empty:
             return filtered_df

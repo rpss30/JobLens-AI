@@ -5,6 +5,7 @@ import type { FilterOptions } from "@/lib/api/types";
 export interface JobFilterValues {
   q: string;
   location: string;
+  company: string;
   level: string;
   sort: string;
   order: string;
@@ -70,6 +71,26 @@ export function JobFilters({
               <option value={values.location}>{values.location}</option>
             ) : null}
             {filterOptions.locations.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </Field>
+
+        <Field label="Company" htmlFor="job-company">
+          <select
+            id="job-company"
+            name="company"
+            defaultValue={values.company}
+            className={controlClassName}
+          >
+            <option value="Any">Any company</option>
+            {values.company !== "Any" &&
+            !filterOptions.companies.includes(values.company) ? (
+              <option value={values.company}>{values.company}</option>
+            ) : null}
+            {filterOptions.companies.map((option) => (
               <option key={option} value={option}>
                 {option}
               </option>

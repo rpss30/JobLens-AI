@@ -125,6 +125,39 @@ def test_filter_jobs_matches_a_place_exactly_not_by_word() -> None:
     assert locations_for("Toronto") == ["Toronto, ON"]
 
 
+def test_filter_jobs_matches_an_employer_in_full() -> None:
+    """Several employers are named after tools other postings ask for.
+
+    Searching for the name returns those other postings too, so the employer
+    filter matches the company column whole instead.
+    """
+    jobs_df = pd.DataFrame(
+        [
+            {"title": "A", "company": "MongoDB", "description": "databases"},
+            {"title": "B", "company": "MongoDB", "description": "databases"},
+            {"title": "C", "company": "Global Relay", "description": "uses MongoDB"},
+            {"title": "D", "company": "Float", "description": "billing with Stripe"},
+        ]
+    )
+
+    def companies_for(company: str) -> list[str]:
+        return sorted(
+            filter_jobs(
+                df=jobs_df,
+                target_roles=[],
+                location="Any",
+                experience_level="Any",
+                company=company,
+            )["company"]
+        )
+
+    assert companies_for("MongoDB") == ["MongoDB", "MongoDB"]
+    assert companies_for("Global Relay") == ["Global Relay"]
+    # Matched whole and without regard to case.
+    assert companies_for("float") == ["Float"]
+    assert companies_for("Any") == sorted(jobs_df["company"])
+
+
 def test_filter_jobs_allows_any_location_and_experience() -> None:
     jobs_df = make_sample_jobs_df()
 

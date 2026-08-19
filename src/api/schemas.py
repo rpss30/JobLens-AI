@@ -207,6 +207,7 @@ class FilterOptionsResponse(BaseModel):
     role_categories: list[str]
     skills: list[str]
     locations: list[str]
+    companies: list[str]
     experience_levels: list[str]
     summary: DatasetSnapshotSummary
 
@@ -454,6 +455,13 @@ class WorkplaceTypeDemand(BaseModel):
 class CompanyDemand(BaseModel):
     company: str
     job_count: int
+    # What the card shows beside the name.
+    role_categories: list[str] = Field(default_factory=list)
+    top_skills: list[str] = Field(default_factory=list)
+    location: str = ""
+    workplace_type: str = ""
+    # Best-effort employer domain, used only to look up a logo.
+    domain: str = ""
 
 
 class RoleDistribution(BaseModel):

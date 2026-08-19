@@ -320,6 +320,25 @@ def test_market_insights_summarize_demand_without_a_candidate_profile() -> None:
     assert data["postings_without_location"] >= 0
 
     assert data["top_companies"]
+
+    # Each employer carries what its card shows, so the page does not have to
+    # go back to the dataset for any of it.
+    leading_employer = data["top_companies"][0]
+
+    assert leading_employer["job_count"] > 0
+    assert leading_employer["role_categories"]
+    assert leading_employer["top_skills"]
+    assert leading_employer["location"]
+    assert leading_employer["workplace_type"] in {
+        "Remote",
+        "Hybrid",
+        "On-site",
+        "Not stated",
+    }
+    # A guess at the employer's own site, never the job board it advertises on.
+    assert "greenhouse.io" not in leading_employer["domain"]
+    assert "ashbyhq.com" not in leading_employer["domain"]
+
     assert data["role_distribution"]
 
     no_match_response = client.post(

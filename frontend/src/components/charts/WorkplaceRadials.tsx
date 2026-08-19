@@ -5,6 +5,8 @@
  * the three read against the same whole rather than against each other.
  */
 
+import type { CSSProperties } from "react";
+
 import { formatCount } from "@/lib/format";
 
 export interface WorkplaceDatum {
@@ -84,6 +86,12 @@ export function WorkplaceRadials({
                     strokeLinecap="round"
                     strokeDasharray={CIRCUMFERENCE}
                     strokeDashoffset={CIRCUMFERENCE * (1 - share)}
+                    className="animate-ring-fill"
+                    style={
+                      {
+                        "--ring-circumference": CIRCUMFERENCE,
+                      } as CSSProperties
+                    }
                   />
                 </g>
                 <text

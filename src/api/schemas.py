@@ -212,6 +212,33 @@ class FilterOptionsResponse(BaseModel):
     summary: DatasetSnapshotSummary
 
 
+class SaveJobRequest(BaseModel):
+    job_id: str = Field(min_length=1, max_length=255)
+    dataset_name: str = Field(min_length=1, max_length=255)
+    # Copied in so a kept posting still reads correctly after the dataset
+    # behind it is refreshed.
+    title: str = Field(default="", max_length=500)
+    company: str = Field(default="", max_length=255)
+    location: str = Field(default="", max_length=255)
+    source_url: str = Field(default="", max_length=2000)
+
+
+class SavedJobResponse(BaseModel):
+    id: int
+    job_id: str
+    dataset_name: str
+    title: str
+    company: str
+    location: str
+    source_url: str
+    created_at: datetime | None = None
+
+
+class DeleteSavedJobResponse(BaseModel):
+    job_id: str
+    deleted: bool
+
+
 class UploadDatasetResponse(BaseModel):
     dataset_name: str
     job_count: int

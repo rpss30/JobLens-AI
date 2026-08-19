@@ -200,6 +200,38 @@ class AnalysisRun(Base):
     )
 
 
+class SavedJob(Base):
+    """A posting someone kept, so it survives a filter change or a reload.
+
+    The posting's own details are copied in rather than referenced. Datasets
+    are replaced wholesale when they are refreshed, and a saved job should
+    still say what it was even once the posting behind it has gone.
+    """
+
+    __tablename__ = "saved_jobs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+
+    job_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    dataset_name: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    title: Mapped[str] = mapped_column(String(500), nullable=False, default="")
+    company: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    location: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    source_url: Mapped[str] = mapped_column(Text, nullable=False, default="")
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=lambda: datetime.now(UTC),
+    )
+
+    __table_args__ = (
+        # Saving twice is the same as saving once.
+        UniqueConstraint("dataset_name", "job_id", name="uq_saved_jobs_dataset_job"),
+        Index("ix_saved_jobs_dataset_created_at", "dataset_name", "created_at"),
+    )
+
+
 class IngestionRun(Base):
     __tablename__ = "ingestion_runs"
 

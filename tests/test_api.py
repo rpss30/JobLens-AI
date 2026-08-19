@@ -7,7 +7,12 @@ import sys
 
 import pandas as pd
 
-from src.api.services import analysis_run_service, analysis_service, dataset_service
+from src.api.services import (
+    analysis_run_service,
+    analysis_service,
+    dataset_service,
+    saved_job_service,
+)
 
 client = TestClient(app)
 
@@ -1327,3 +1332,81 @@ def test_rename_dataset_returns_503_when_database_unavailable(monkeypatch) -> No
 
     assert response.status_code == 503
     assert "PostgreSQL is unavailable" in response.json()["detail"]
+
+
+def test_saving_a_job_twice_keeps_one_copy(monkeypatch) -> None:
+    """A second click on the bookmark is not an error, and changes nothing.
+
+    The answer describes the row that is held rather than what the click
+    sent, so a re-save cannot appear to blank out the details.
+    """
+    stored: dict[str, dict] = {}
+
+    def fake_save_job(**kwargs):
+        key = (kwargs["dataset_name"], kwargs["job_id"])
+
+        if key not in stored:
+            stored[key] = {"id": len(stored) + 1, "created_at": None, **kwargs}
+
+        return stored[key]
+
+    monkeypatch.setattr(
+        saved_job_service.database_repository,
+        "check_database_connection",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        saved_job_service.database_repository,
+        "save_job",
+        fake_save_job,
+    )
+
+    payload = {
+        "job_id": "job-1",
+        "dataset_name": "canada_snapshot",
+        "title": "Applied AI Engineer",
+        "company": "Cohere",
+    }
+
+    first = client.post("/saved-jobs", json=payload)
+    second = client.post("/saved-jobs", json={**payload, "title": "", "company": ""})
+
+    assert first.status_code == 201
+    assert second.status_code == 201
+    assert first.json()["id"] == second.json()["id"]
+    assert second.json()["title"] == "Applied AI Engineer"
+    assert len(stored) == 1
+
+
+def test_unsaving_a_job_that_was_never_saved_is_a_404(monkeypatch) -> None:
+    monkeypatch.setattr(
+        saved_job_service.database_repository,
+        "check_database_connection",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        saved_job_service.database_repository,
+        "delete_saved_job",
+        lambda **kwargs: False,
+    )
+
+    response = client.delete("/saved-jobs/missing?dataset_name=canada_snapshot")
+
+    assert response.status_code == 404
+
+
+def test_saved_jobs_return_503_when_database_unavailable(monkeypatch) -> None:
+    monkeypatch.setattr(
+        saved_job_service.database_repository,
+        "check_database_connection",
+        lambda: False,
+    )
+
+    assert client.get("/saved-jobs").status_code == 503
+    assert (
+        client.post(
+            "/saved-jobs",
+            json={"job_id": "job-1", "dataset_name": "canada_snapshot"},
+        ).status_code
+        == 503
+    )

@@ -43,7 +43,9 @@ export function TreemapTile({
 
   return (
     <div
-      className="relative h-full w-full"
+      // Lifted while hovered so the tile that grows sits over its neighbours
+      // rather than under whichever happens to be drawn later.
+      className="relative h-full w-full hover:z-10"
       onMouseEnter={() => setIsOpen(true)}
       onMouseLeave={() => setIsOpen(false)}
     >
@@ -53,7 +55,7 @@ export function TreemapTile({
         onFocus={() => setIsOpen(true)}
         onBlur={() => setIsOpen(false)}
         onClick={() => setIsOpen((open) => !open)}
-        className={`flex h-full w-full flex-col overflow-hidden rounded-xl p-3 text-left sm:p-4 ${
+        className={`flex h-full w-full flex-col overflow-hidden rounded-xl p-3 text-left motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-out motion-safe:hover:scale-[1.03] sm:p-4 ${
           step <= 3 ? "text-white" : "text-on-accent"
         }`}
         style={{ backgroundColor: `var(--color-chart-${step})` }}

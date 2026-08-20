@@ -7,6 +7,9 @@
  * produces the same picture rather than shuffling between renders.
  */
 
+import Link from "next/link";
+import { Fragment } from "react";
+
 export interface BubbleDatum {
   label: string;
   value: number;
@@ -130,9 +133,12 @@ function layout(data: BubbleDatum[]): PlacedBubble[] {
 export function SkillBubbleChart({
   data,
   valueLabel,
+  hrefFor,
 }: {
   data: BubbleDatum[];
   valueLabel: string;
+  /** Given when a bubble leads somewhere, such as the postings behind it. */
+  hrefFor?: (label: string) => string;
 }) {
   const bubbles = layout(data);
 
@@ -148,7 +154,7 @@ export function SkillBubbleChart({
     <svg
       viewBox={`0 0 ${VIEWBOX} ${VIEWBOX}`}
       className="h-auto w-full"
-      role="img"
+      role={hrefFor ? "group" : "img"}
       aria-label={`Skill demand by ${valueLabel}. ${bubbles
         .map((bubble) => `${bubble.label}, ${bubble.value}`)
         .join(". ")}`}
@@ -165,9 +171,8 @@ export function SkillBubbleChart({
             : [bubble.label];
         const showLabel = bubble.radius >= 30;
 
-        return (
+        const bubbleShape = (
           <g
-            key={bubble.label}
             /*
              * fill-box makes the circle grow about its own centre; without it
              * an SVG transform pivots on the viewBox origin and the bubble
@@ -210,6 +215,21 @@ export function SkillBubbleChart({
               </text>
             ) : null}
           </g>
+        );
+
+        if (!hrefFor) {
+          return <Fragment key={bubble.label}>{bubbleShape}</Fragment>;
+        }
+
+        return (
+          <Link
+            key={bubble.label}
+            href={hrefFor(bubble.label)}
+            aria-label={`${bubble.label}, ${bubble.value} ${valueLabel}`}
+            className="cursor-pointer"
+          >
+            {bubbleShape}
+          </Link>
         );
       })}
     </svg>

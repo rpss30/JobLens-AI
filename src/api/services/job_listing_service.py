@@ -153,6 +153,7 @@ def list_jobs(
     location: str = "Any",
     experience_level: str = "Any",
     company: str = "Any",
+    role_category: str = "Any",
     sort_by: JobSortBy = "search_relevance",
     sort_order: str = "desc",
     limit: int = 20,
@@ -178,6 +179,7 @@ def list_jobs(
         search_query=search_query,
         search_mode=search_mode,
         company=company,
+        role_category=role_category,
     )
 
     jobs = [build_job_listing_row(row) for _, row in filtered_jobs.iterrows()]

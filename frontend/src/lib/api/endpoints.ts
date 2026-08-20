@@ -71,6 +71,7 @@ export interface JobQuery {
   location?: string;
   experienceLevel?: string;
   company?: string;
+  roleCategory?: string;
   sortBy?: string;
   sortOrder?: SortOrder;
   limit?: number;
@@ -89,6 +90,7 @@ export function getJobs(query: JobQuery = {}): Promise<JobListResponse> {
       location: query.location,
       experience_level: query.experienceLevel,
       company: query.company,
+      role_category: query.roleCategory,
       sort_by: query.sortBy,
       sort_order: query.sortOrder,
       limit: query.limit,

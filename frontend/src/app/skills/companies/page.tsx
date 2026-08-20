@@ -111,11 +111,12 @@ function Pill({ children }: { children: React.ReactNode }) {
  *
  * The employer is named rather than searched for: several here share a name
  * with a tool other postings ask for, and searching "MongoDB" or "Stripe"
- * returns their competitors' jobs alongside their own.
+ * returns their competitors' jobs alongside their own. The Jobs filters show
+ * categories rather than employers now, so this one rides along hidden.
  */
 function jobsHref(company: string, datasetName: string): string {
   return withDataset(
-    `/jobs?company=${encodeURIComponent(company)}`,
+    `/jobs?company=${encodeURIComponent(company)}&filters=open`,
     datasetName,
   );
 }
@@ -229,7 +230,7 @@ async function TopCompanies({ datasetName }: { datasetName: string }) {
               Companies hiring now
             </h2>
             <p className="text-sm text-text-muted">
-              Employers with the most open roles in this snapshot.
+              Employers with the most open roles
             </p>
           </div>
         </div>

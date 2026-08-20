@@ -32,6 +32,7 @@ const SORT_OPTIONS = [
 interface JobFilterValues {
   q: string;
   location: string;
+  category: string;
   company: string;
   level: string;
   sort: string;
@@ -272,7 +273,7 @@ async function JobDetailPane({
   }
 
   return (
-    <div className="flex min-h-0 flex-col gap-4 lg:h-full lg:rounded-xl lg:border lg:border-border lg:bg-surface lg:shadow-[0_1px_2px_rgba(16,21,31,0.04)]">
+    <div className="flex min-h-0 flex-col gap-4 lg:h-full">
       {/* Outside the scrolling part, so which posting is open stays readable
           however far down the description you are. */}
       <div className="shrink-0 space-y-4 border-b border-border pb-4 pt-1 lg:px-6 lg:pt-6">
@@ -380,6 +381,7 @@ async function JobResults({
     searchMode: "tfidf" as SearchMode,
     location: values.location,
     experienceLevel: values.level,
+    roleCategory: values.category,
     company: values.company,
     sortBy: values.sort,
     sortOrder: values.order === "asc" ? "asc" : "desc",
@@ -421,11 +423,11 @@ async function JobResults({
      * of the posting beside it. overscroll-contain stops a column that has
      * reached either end from handing the remaining scroll to the page.
      */
-    <div className="grid gap-5 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+    <div className="grid gap-5 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:gap-0 lg:overflow-hidden lg:rounded-xl lg:border lg:border-border lg:bg-surface lg:shadow-[0_1px_2px_rgba(16,21,31,0.04)]">
       <Card
         // Narrow screens show one at a time: the list, or the posting it
         // opened. Both columns are side by side once there is room.
-        className={`flex min-h-0 flex-col lg:h-full ${
+        className={`flex min-h-0 flex-col lg:h-full lg:rounded-none lg:border-0 lg:shadow-none ${
           requestedJobId ? "hidden lg:flex" : ""
         }`}
       >
@@ -548,8 +550,8 @@ async function JobResults({
           requestedJobId
             ? // Bleeds past the page padding so the posting sits on white
               // rather than the page's own ground.
-              "-mx-5 -my-8 min-h-[calc(100dvh-4rem)] bg-surface px-5 py-6 sm:-mx-8 sm:px-8 lg:mx-0 lg:my-0 lg:min-h-0 lg:bg-transparent lg:p-0"
-            : "hidden lg:block"
+              "-mx-5 -my-8 min-h-[calc(100dvh-4rem)] bg-surface px-5 py-6 sm:-mx-8 sm:px-8 lg:mx-0 lg:my-0 lg:min-h-0 lg:border-l lg:border-border lg:bg-transparent lg:p-0"
+            : "hidden lg:block lg:border-l lg:border-border"
         }`}
       >
         {/* Rides under the shell's own bar, and bleeds to both edges so the
@@ -586,6 +588,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
   const values: JobFilterValues = {
     q: readParam(params.q, ""),
     location: readParam(params.location, "Any"),
+    category: readParam(params.category, "Any"),
     company: readParam(params.company, "Any"),
     level: readParam(params.level, "Any"),
     sort: readParam(params.sort, "search_relevance"),
@@ -606,6 +609,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
   const activeFilterCount = [
     values.q.trim(),
     values.location === "Any" ? "" : values.location,
+    values.category === "Any" ? "" : values.category,
     values.company === "Any" ? "" : values.company,
     values.level === "Any" ? "" : values.level,
   ].filter(Boolean).length;
@@ -748,7 +752,11 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
         // Closed on arrival so the list gets the height instead. A posting
         // opened on a narrow screen is still a page of its own.
         className={`shrink-0 ${
-          filtersOpen ? (requestedJobId ? "hidden lg:block" : "block") : "hidden"
+          filtersOpen
+            ? `animate-filters-in ${
+                requestedJobId ? "hidden lg:block" : "block"
+              }`
+            : "hidden"
         }`}
       >
         <JobFilters
@@ -762,7 +770,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
         // The opened posting is deliberately not part of this key. Including
         // it threw the whole results area back to a skeleton on every click,
         // list and all, when only the panel beside it was changing.
-        key={`${values.q}|${values.location}|${values.company}|${values.level}|${values.sort}|${values.order}|${offset}|${savedOnly}`}
+        key={`${values.q}|${values.location}|${values.category}|${values.company}|${values.level}|${values.sort}|${values.order}|${offset}|${savedOnly}`}
         fallback={<JobResultsSkeleton />}
       >
         <JobResults

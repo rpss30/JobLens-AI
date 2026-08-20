@@ -184,6 +184,25 @@ body {
   animation: panel-slide-in 240ms ease-out;
 }
 
+/* The jobs filter panel drops in rather than appearing outright. It only
+   runs when the panel is opened: navigating with it already open keeps the
+   same element and the same class, so nothing restarts. */
+@keyframes filters-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.5rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-filters-in {
+  animation: filters-slide-in 220ms ease-out;
+}
+
 @keyframes ring-fill {
   from {
     stroke-dashoffset: var(--ring-circumference);

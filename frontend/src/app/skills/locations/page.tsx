@@ -144,7 +144,7 @@ function PinOffIcon() {
  */
 function jobsHref(row: LocationDemand, datasetName: string): string {
   return withDataset(
-    `/jobs?location=${encodeURIComponent(row.location)}`,
+    `/jobs?location=${encodeURIComponent(row.location)}&filters=open`,
     datasetName,
   );
 }

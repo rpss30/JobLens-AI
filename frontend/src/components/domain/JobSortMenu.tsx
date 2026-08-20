@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useRef } from "react";
 
 export interface JobSortOption {
   value: string;
@@ -20,13 +23,45 @@ export function JobSortMenu({
   options: JobSortOption[];
   value: string;
 }) {
+  const menuRef = useRef<HTMLDetailsElement | null>(null);
+
+  /*
+   * A details element only closes from its own summary, so a menu left open
+   * follows the reader around the page. Closing it here rather than holding
+   * the open state in React keeps the markup working before hydration, which
+   * is the reason the menu is a details element in the first place.
+   */
+  useEffect(() => {
+    const closeFromOutside = (event: Event) => {
+      const menu = menuRef.current;
+
+      if (menu?.open && !menu.contains(event.target as Node)) {
+        menu.open = false;
+      }
+    };
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && menuRef.current?.open) {
+        menuRef.current.open = false;
+      }
+    };
+
+    document.addEventListener("pointerdown", closeFromOutside);
+    document.addEventListener("keydown", closeOnEscape);
+
+    return () => {
+      document.removeEventListener("pointerdown", closeFromOutside);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, []);
+
   const selected = options.find((option) => option.value === value) ?? options[0];
   // The first option is the order the list arrives in, so anything else is a
   // choice someone made and worth marking as one.
   const isReordered = Boolean(options[0]) && value !== options[0].value;
 
   return (
-    <details className="group relative">
+    <details ref={menuRef} className="group relative">
       <summary
         className={`inline-flex cursor-pointer list-none items-center gap-2 rounded-lg border px-3.5 py-2 text-sm transition-colors [&::-webkit-details-marker]:hidden ${
           isReordered

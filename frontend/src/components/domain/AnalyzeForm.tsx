@@ -210,6 +210,10 @@ export function AnalyzeForm({
         setValidationMessage("");
       }
 
+      // Read, so the box is done with: leaving the text sitting there reads
+      // as though it still has to be submitted.
+      setResumeText("");
+
       setExtractNotice(
         additions.length === 0
           ? {
@@ -233,6 +237,18 @@ export function AnalyzeForm({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (currentSkills.length === 0 && !resumeText.trim()) {
+      setValidationMessage(
+        "Choose at least one skill, or paste your resume below.",
+      );
+      return;
+    }
+
+    if (!candidateExperience) {
+      setValidationMessage("Choose how much experience you have.");
+      return;
+    }
 
     if (!location) {
       setValidationMessage("Choose a location, or pick Any location.");

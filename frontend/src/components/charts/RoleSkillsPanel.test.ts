@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { fitLabel, textWidth } from "./RoleSkillsExplorer";
+import { fitLabel, textWidth } from "./RoleSkillsPanel";
 
 /*
  * jsdom has no canvas, so textWidth falls back to its estimate. That is the

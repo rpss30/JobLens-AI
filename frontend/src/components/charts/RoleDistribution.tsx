@@ -6,7 +6,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   RoleSkillsPanel,
   type RoleGroup,
-} from "@/components/charts/RoleSkillsExplorer";
+} from "@/components/charts/RoleSkillsPanel";
 import { layoutTreemap } from "@/components/charts/RoleTreemap";
 import { TreemapTile } from "@/components/charts/TreemapTile";
 

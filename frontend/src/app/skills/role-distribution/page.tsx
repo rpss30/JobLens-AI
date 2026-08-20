@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 
 import { RoleDistribution } from "@/components/charts/RoleDistribution";
-import type { RoleGroup } from "@/components/charts/RoleSkillsExplorer";
+import type { RoleGroup } from "@/components/charts/RoleSkillsPanel";
 import {
   TotalPostingsBadge,
   TotalPostingsBadgeSkeleton,

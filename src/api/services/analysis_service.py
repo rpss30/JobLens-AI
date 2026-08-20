@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from src.analysis.companies import company_domain
 from src.api.errors import ApiError
 from src.api.schemas import AnalyzeRequest, AnalyzeResponse
 from src.analysis.job_services import (
@@ -342,6 +343,10 @@ def build_analyze_response(
             "job_id": clean_optional_text(row.get("job_id", "")),
             "title": str(row["title"]),
             "company": str(row["company"]),
+            "company_domain": company_domain(
+                str(row["company"]),
+                [row.get("source_url", "")],
+            ),
             "location": str(row["location"]),
             "experience_level": str(row["experience_level"]),
             "role_category": str(row["role_category"]),

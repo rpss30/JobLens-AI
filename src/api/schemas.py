@@ -567,6 +567,8 @@ class JobMatch(BaseModel):
     job_id: str = ""
     title: str
     company: str
+    """Best-effort employer domain, used only to look up a logo."""
+    company_domain: str = ""
     location: str
     experience_level: str
     role_category: str

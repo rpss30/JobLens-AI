@@ -215,6 +215,8 @@ export interface JobMatch {
   job_id: string;
   title: string;
   company: string;
+  /** Best-effort employer domain, used only to look up a logo. */
+  company_domain: string;
   location: string;
   experience_level: string;
   role_category: string;

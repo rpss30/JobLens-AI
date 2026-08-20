@@ -74,5 +74,8 @@ export function JobDescription({
 
   flushBullets();
 
-  return <div className="max-w-[70ch]">{rendered}</div>;
+  // Postings carry raw URLs and long identifiers. Without a break they push
+  // the page wider than the screen, which on a narrow viewport drags the
+  // whole layout sideways under the chrome that is meant to stay put.
+  return <div className="max-w-[70ch] break-words">{rendered}</div>;
 }

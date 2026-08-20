@@ -231,8 +231,10 @@ async function JobDetailPane({
   }
 
   return (
-    <div className="flex min-h-0 flex-col lg:h-full lg:rounded-xl lg:border lg:border-border lg:bg-surface lg:shadow-[0_1px_2px_rgba(16,21,31,0.04)]">
-      <div className="min-h-0 space-y-4 overflow-y-auto py-1 lg:p-6">
+    <div className="flex min-h-0 flex-col gap-4 lg:h-full lg:rounded-xl lg:border lg:border-border lg:bg-surface lg:shadow-[0_1px_2px_rgba(16,21,31,0.04)]">
+      {/* Outside the scrolling part, so which posting is open stays readable
+          however far down the description you are. */}
+      <div className="shrink-0 space-y-4 border-b border-border pb-4 pt-1 lg:px-6 lg:pt-6">
         {/* The buttons drop to their own row rather than squeezing the title
             into a column a few words wide. */}
         <div className="flex flex-wrap items-start gap-3">
@@ -280,17 +282,20 @@ async function JobDetailPane({
           {job.employment_type ? <Pill>{job.employment_type}</Pill> : null}
           {job.experience_level ? <Pill>{job.experience_level}</Pill> : null}
         </div>
+      </div>
 
-        <div className="border-t border-border pt-4">
-          <h3 className="text-[0.6875rem] font-medium uppercase tracking-wide text-text-subtle">
-            About the job
-          </h3>
-          <div className="mt-2">
-            <JobDescription
-              description={job.description}
-              formatted={job.description_formatted}
-            />
-          </div>
+      {/* Only a scroller once there is a height to scroll in: overscroll-contain
+          swallows a touch even with nothing to scroll, which below lg left the
+          page stuck unless the drag started outside the description. */}
+      <div className="min-h-0 pb-1 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain lg:px-6 lg:pb-6">
+        <h3 className="text-[0.6875rem] font-medium uppercase tracking-wide text-text-subtle">
+          About the job
+        </h3>
+        <div className="mt-2">
+          <JobDescription
+            description={job.description}
+            formatted={job.description_formatted}
+          />
         </div>
       </div>
     </div>
@@ -300,8 +305,8 @@ async function JobDetailPane({
 function JobResultsSkeleton() {
   return (
     <>
-      <Skeleton className="h-5 w-56" />
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+      <Skeleton className="h-5 w-56 lg:shrink-0" />
+      <div className="grid gap-5 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
         <CardSkeleton rows={6} />
         <CardSkeleton rows={8} />
       </div>
@@ -355,27 +360,28 @@ async function JobResults({
 
   return (
     /*
-     * Both columns share the row's height from lg up and scroll inside it, so
-     * the description ends level with the list rather than running past the
-     * bottom of it.
+     * The pair takes whatever height the page has left and each column
+     * scrolls inside its own box, so a long list never runs past the bottom
+     * of the posting beside it. overscroll-contain stops a column that has
+     * reached either end from handing the remaining scroll to the page.
      */
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+    <div className="grid gap-5 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
       <Card
         // Narrow screens show one at a time: the list, or the posting it
         // opened. Both columns are side by side once there is room.
-        className={`flex min-h-0 flex-col ${
+        className={`flex min-h-0 flex-col lg:h-full ${
           requestedJobId ? "hidden lg:flex" : ""
         }`}
       >
         <p
-          className="border-b border-border px-4 py-3 text-sm text-text-muted"
+          className="shrink-0 border-b border-border px-4 py-3 text-sm text-text-muted"
           aria-live="polite"
         >
           Showing {formatCount(shownFrom)}–{formatCount(shownTo)} of{" "}
           {formatCount(jobList.total)} jobs
         </p>
 
-        <ul className="divide-y divide-border">
+        <ul className="divide-y divide-border lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain">
           {jobList.jobs.map((job, index) => (
             <JobRow
               key={job.job_id || `${job.title}-${job.company}-${index}`}
@@ -389,7 +395,7 @@ async function JobResults({
         {hasPrevious || hasNext ? (
           <nav
             aria-label="Job list pages"
-            className="flex items-center justify-between border-t border-border px-4 py-3"
+            className="flex shrink-0 items-center justify-between border-t border-border px-4 py-3"
           >
             {hasPrevious ? (
               <Link
@@ -421,10 +427,9 @@ async function JobResults({
       </Card>
 
       <div
-        // A floor as well as a ceiling: the list caps the height once it is
-        // long enough, but two results must not squeeze a posting into a
-        // couple of visible lines.
-        className={`min-w-0 lg:relative lg:min-h-[34rem] ${
+        // The grid row already carries the viewport height, so the posting
+        // fills it rather than setting a height of its own.
+        className={`min-w-0 lg:relative lg:h-full ${
           requestedJobId
             ? // Bleeds past the page padding so the posting sits on white
               // rather than the page's own ground.
@@ -432,9 +437,11 @@ async function JobResults({
             : "hidden lg:block"
         }`}
       >
+        {/* Rides under the shell's own bar, and bleeds to both edges so the
+            description passes behind it rather than beside it. */}
         <Link
           href={buildJobsHref(datasetName, values, offset)}
-          className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-text-muted transition-colors hover:text-text lg:hidden"
+          className="sticky top-16 z-20 -mx-5 mb-3 flex items-center gap-2 bg-surface px-5 py-3 text-sm font-medium text-text-muted transition-colors hover:text-text sm:-mx-8 sm:px-8 lg:hidden"
         >
           <BackIcon />
           Back to postings
@@ -473,12 +480,43 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
    * needs no state of its own.
    */
   const filtersOpen = readParam(params.filters, "") === "open";
+  const activeFilterCount = [
+    values.q.trim(),
+    values.location === "Any" ? "" : values.location,
+    values.company === "Any" ? "" : values.company,
+    values.level === "Any" ? "" : values.level,
+  ].filter(Boolean).length;
   const filtersToggleHref = buildJobsHref(
     datasetName,
     values,
     offset,
     requestedJobId,
     filtersOpen ? "" : "open",
+  );
+
+  const filtersToggle = (
+    <Link
+      href={filtersToggleHref}
+      aria-expanded={filtersOpen}
+      aria-label={filtersOpen ? "Hide filters" : "Show filters"}
+      // Square, and the same 2.375rem height as the sort control beside it.
+      // Carries the accent while the panel is open, the way every other
+      // control in this interface shows that it is the one doing something.
+      className={`relative inline-flex size-[2.375rem] shrink-0 items-center justify-center rounded-lg border transition-colors ${
+        filtersOpen
+          ? "border-transparent bg-accent-fill text-on-accent hover:bg-accent-fill-hover"
+          : "border-border bg-surface text-text hover:bg-surface-muted"
+      }`}
+    >
+      <SlidersIcon />
+      {/* Only worth counting while the panel is shut: open, the filters
+          speak for themselves. */}
+      {!filtersOpen && activeFilterCount > 0 ? (
+        <span className="absolute -right-1.5 -top-1.5 min-w-[1.125rem] rounded-full bg-accent-fill px-1 text-center text-[0.6875rem] font-medium leading-[1.125rem] text-on-accent">
+          {activeFilterCount}
+        </span>
+      ) : null}
+    </Link>
   );
 
   const sortMenu = (
@@ -499,14 +537,20 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
   );
 
   return (
-    <>
+    /*
+     * From lg up the page is exactly as tall as the viewport and does not
+     * scroll: the heading and filters take what they need and the results
+     * take the rest. Anything that hangs below the fold is unreachable once
+     * the columns stop passing their scroll on to the page.
+     */
+    <div className="space-y-8 lg:flex lg:h-[calc(100dvh-5rem)] lg:flex-col">
       {/*
        * Not PageHeader: the toggle has to sit level with the heading on a
        * narrow screen, and that component wraps its action below the
        * description instead.
        */}
       <header
-        className={`items-start justify-between gap-4 ${
+        className={`items-start justify-between gap-4 lg:shrink-0 ${
           // A posting opened on a narrow screen is a page of its own.
           requestedJobId ? "hidden lg:flex" : "flex"
         }`}
@@ -526,6 +570,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
             {formatDatasetLabel(filterOptions.dataset_name)}
           </Badge>
           {sortMenu}
+          {filtersToggle}
         </div>
       </header>
 
@@ -536,21 +581,15 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
         }`}
       >
         {sortMenu}
-
-        <Link
-          href={filtersToggleHref}
-          aria-expanded={filtersOpen}
-          aria-label={filtersOpen ? "Hide filters" : "Show filters"}
-          className="inline-flex shrink-0 items-center rounded-lg border border-border bg-surface p-2.5 text-text transition-colors hover:bg-surface-muted"
-        >
-          <SlidersIcon />
-        </Link>
+        {filtersToggle}
       </div>
 
       <div
-        className={`${
-          filtersOpen && !requestedJobId ? "" : "hidden"
-        } lg:block`}
+        // Closed on arrival so the list gets the height instead. A posting
+        // opened on a narrow screen is still a page of its own.
+        className={`shrink-0 ${
+          filtersOpen ? (requestedJobId ? "hidden lg:block" : "block") : "hidden"
+        }`}
       >
         <JobFilters
           filterOptions={filterOptions}
@@ -573,6 +612,6 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
           requestedJobId={requestedJobId}
         />
       </Suspense>
-    </>
+    </div>
   );
 }

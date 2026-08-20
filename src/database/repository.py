@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from src.database.db import get_db_session
 from src.database.models import (
     AnalysisRun,
+    SavedJob,
     Dataset,
     ExtractionResult,
     IngestionRun,
@@ -829,6 +830,105 @@ def delete_analysis_run(analysis_run_id: int) -> bool:
             return False
 
         session.delete(analysis_run)
+        session.flush()
+
+        return True
+
+
+def save_job(
+    *,
+    job_id: str,
+    dataset_name: str,
+    title: str = "",
+    company: str = "",
+    location: str = "",
+    source_url: str = "",
+) -> dict[str, Any]:
+    """Keep a posting, or leave an already-kept one alone.
+
+    Returns the stored row either way, so saving twice is not an error to the
+    caller that clicked twice, and the answer describes what is actually held
+    rather than what the second click happened to send.
+    """
+    with get_db_session() as session:
+        stmt = select(SavedJob).where(
+            SavedJob.dataset_name == dataset_name,
+            SavedJob.job_id == job_id,
+        )
+        saved_job = session.execute(stmt).scalar_one_or_none()
+
+        if saved_job is None:
+            saved_job = SavedJob(
+                job_id=job_id,
+                dataset_name=dataset_name,
+                title=title,
+                company=company,
+                location=location,
+                source_url=source_url,
+            )
+            session.add(saved_job)
+
+        session.flush()
+
+        return {
+            "id": saved_job.id,
+            "job_id": saved_job.job_id,
+            "dataset_name": saved_job.dataset_name,
+            "title": saved_job.title,
+            "company": saved_job.company,
+            "location": saved_job.location,
+            "source_url": saved_job.source_url,
+            "created_at": saved_job.created_at,
+        }
+
+
+def list_saved_jobs(dataset_name: str | None = None) -> list[dict[str, Any]]:
+    """List kept postings from newest to oldest."""
+    with get_db_session() as session:
+        stmt = select(
+            SavedJob.id,
+            SavedJob.job_id,
+            SavedJob.dataset_name,
+            SavedJob.title,
+            SavedJob.company,
+            SavedJob.location,
+            SavedJob.source_url,
+            SavedJob.created_at,
+        ).order_by(SavedJob.created_at.desc())
+
+        if dataset_name:
+            stmt = stmt.where(SavedJob.dataset_name == dataset_name)
+
+        rows = session.execute(stmt).all()
+
+    return [
+        {
+            "id": row.id,
+            "job_id": row.job_id,
+            "dataset_name": row.dataset_name,
+            "title": row.title,
+            "company": row.company,
+            "location": row.location,
+            "source_url": row.source_url,
+            "created_at": row.created_at,
+        }
+        for row in rows
+    ]
+
+
+def delete_saved_job(*, job_id: str, dataset_name: str) -> bool:
+    """Drop a kept posting. Returns whether there was one to drop."""
+    with get_db_session() as session:
+        stmt = select(SavedJob).where(
+            SavedJob.dataset_name == dataset_name,
+            SavedJob.job_id == job_id,
+        )
+        saved_job = session.execute(stmt).scalar_one_or_none()
+
+        if saved_job is None:
+            return False
+
+        session.delete(saved_job)
         session.flush()
 
         return True

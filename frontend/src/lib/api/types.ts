@@ -57,6 +57,8 @@ export interface JobListing {
   job_id: string;
   title: string;
   company: string;
+  /** Best-effort employer domain, used only to look up a logo. */
+  company_domain: string;
   location: string;
   experience_level: string;
   role_category: string;
@@ -68,6 +70,34 @@ export interface JobListing {
   source_url: string;
   skills: string[];
   search_relevance: number;
+}
+
+export interface JobDetail extends JobListing {
+  dataset_name: string;
+  /** The posting's own words, fetched only for the one being read. */
+  description: string;
+  /** The same words with the board's own paragraphs, where they survived. */
+  description_formatted: string;
+}
+
+export interface SavedJob {
+  id: number;
+  job_id: string;
+  dataset_name: string;
+  title: string;
+  company: string;
+  location: string;
+  source_url: string;
+  created_at: string | null;
+}
+
+export interface SaveJobRequest {
+  job_id: string;
+  dataset_name: string;
+  title?: string;
+  company?: string;
+  location?: string;
+  source_url?: string;
 }
 
 export interface JobListResponse {

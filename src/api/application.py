@@ -18,6 +18,7 @@ from src.api.routers import (
     market_insights,
     reports,
     resume,
+    saved_jobs,
 )
 from src.api.security import get_cors_origins
 
@@ -105,6 +106,7 @@ def create_app() -> FastAPI:
     app.include_router(market_insights.router)
     app.include_router(reports.router)
     app.include_router(analyze.router)
+    app.include_router(saved_jobs.router)
     app.include_router(resume.router)
 
     return app

@@ -300,8 +300,8 @@ async function JobDetailPane({
 function JobResultsSkeleton() {
   return (
     <>
-      <Skeleton className="h-5 w-56" />
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+      <Skeleton className="h-5 w-56 lg:shrink-0" />
+      <div className="grid gap-5 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
         <CardSkeleton rows={6} />
         <CardSkeleton rows={8} />
       </div>
@@ -355,27 +355,28 @@ async function JobResults({
 
   return (
     /*
-     * Both columns share the row's height from lg up and scroll inside it, so
-     * the description ends level with the list rather than running past the
-     * bottom of it.
+     * The pair takes whatever height the page has left and each column
+     * scrolls inside its own box, so a long list never runs past the bottom
+     * of the posting beside it. overscroll-contain stops a column that has
+     * reached either end from handing the remaining scroll to the page.
      */
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+    <div className="grid gap-5 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
       <Card
         // Narrow screens show one at a time: the list, or the posting it
         // opened. Both columns are side by side once there is room.
-        className={`flex min-h-0 flex-col ${
+        className={`flex min-h-0 flex-col lg:h-full ${
           requestedJobId ? "hidden lg:flex" : ""
         }`}
       >
         <p
-          className="border-b border-border px-4 py-3 text-sm text-text-muted"
+          className="shrink-0 border-b border-border px-4 py-3 text-sm text-text-muted"
           aria-live="polite"
         >
           Showing {formatCount(shownFrom)}–{formatCount(shownTo)} of{" "}
           {formatCount(jobList.total)} jobs
         </p>
 
-        <ul className="divide-y divide-border">
+        <ul className="divide-y divide-border lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain">
           {jobList.jobs.map((job, index) => (
             <JobRow
               key={job.job_id || `${job.title}-${job.company}-${index}`}
@@ -389,7 +390,7 @@ async function JobResults({
         {hasPrevious || hasNext ? (
           <nav
             aria-label="Job list pages"
-            className="flex items-center justify-between border-t border-border px-4 py-3"
+            className="flex shrink-0 items-center justify-between border-t border-border px-4 py-3"
           >
             {hasPrevious ? (
               <Link
@@ -421,10 +422,9 @@ async function JobResults({
       </Card>
 
       <div
-        // A floor as well as a ceiling: the list caps the height once it is
-        // long enough, but two results must not squeeze a posting into a
-        // couple of visible lines.
-        className={`min-w-0 lg:relative lg:min-h-[34rem] ${
+        // The grid row already carries the viewport height, so the posting
+        // fills it rather than setting a height of its own.
+        className={`min-w-0 lg:relative lg:h-full ${
           requestedJobId
             ? // Bleeds past the page padding so the posting sits on white
               // rather than the page's own ground.
@@ -499,14 +499,20 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
   );
 
   return (
-    <>
+    /*
+     * From lg up the page is exactly as tall as the viewport and does not
+     * scroll: the heading and filters take what they need and the results
+     * take the rest. Anything that hangs below the fold is unreachable once
+     * the columns stop passing their scroll on to the page.
+     */
+    <div className="space-y-8 lg:flex lg:h-[calc(100dvh-5rem)] lg:flex-col">
       {/*
        * Not PageHeader: the toggle has to sit level with the heading on a
        * narrow screen, and that component wraps its action below the
        * description instead.
        */}
       <header
-        className={`items-start justify-between gap-4 ${
+        className={`items-start justify-between gap-4 lg:shrink-0 ${
           // A posting opened on a narrow screen is a page of its own.
           requestedJobId ? "hidden lg:flex" : "flex"
         }`}
@@ -550,7 +556,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
       <div
         className={`${
           filtersOpen && !requestedJobId ? "" : "hidden"
-        } lg:block`}
+        } lg:block lg:shrink-0`}
       >
         <JobFilters
           filterOptions={filterOptions}
@@ -573,6 +579,6 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
           requestedJobId={requestedJobId}
         />
       </Suspense>
-    </>
+    </div>
   );
 }

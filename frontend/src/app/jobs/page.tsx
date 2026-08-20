@@ -478,12 +478,36 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
    * needs no state of its own.
    */
   const filtersOpen = readParam(params.filters, "") === "open";
+  const activeFilterCount = [
+    values.q.trim(),
+    values.location === "Any" ? "" : values.location,
+    values.company === "Any" ? "" : values.company,
+    values.level === "Any" ? "" : values.level,
+  ].filter(Boolean).length;
   const filtersToggleHref = buildJobsHref(
     datasetName,
     values,
     offset,
     requestedJobId,
     filtersOpen ? "" : "open",
+  );
+
+  const filtersToggle = (
+    <Link
+      href={filtersToggleHref}
+      aria-expanded={filtersOpen}
+      aria-label={filtersOpen ? "Hide filters" : "Show filters"}
+      // Square, and the same 2.375rem height as the sort control beside it.
+      className="relative inline-flex size-[2.375rem] shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-text transition-colors hover:bg-surface-muted"
+    >
+      <SlidersIcon />
+      {/* On the corner rather than in the row, so the button stays square. */}
+      {activeFilterCount > 0 ? (
+        <span className="absolute -right-1.5 -top-1.5 min-w-[1.125rem] rounded-full bg-accent-fill px-1 text-center text-[0.6875rem] font-medium leading-[1.125rem] text-on-accent">
+          {activeFilterCount}
+        </span>
+      ) : null}
+    </Link>
   );
 
   const sortMenu = (
@@ -537,6 +561,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
             {formatDatasetLabel(filterOptions.dataset_name)}
           </Badge>
           {sortMenu}
+          {filtersToggle}
         </div>
       </header>
 
@@ -547,21 +572,15 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
         }`}
       >
         {sortMenu}
-
-        <Link
-          href={filtersToggleHref}
-          aria-expanded={filtersOpen}
-          aria-label={filtersOpen ? "Hide filters" : "Show filters"}
-          className="inline-flex shrink-0 items-center rounded-lg border border-border bg-surface p-2.5 text-text transition-colors hover:bg-surface-muted"
-        >
-          <SlidersIcon />
-        </Link>
+        {filtersToggle}
       </div>
 
       <div
-        className={`${
-          filtersOpen && !requestedJobId ? "" : "hidden"
-        } lg:block lg:shrink-0`}
+        // Closed on arrival so the list gets the height instead. A posting
+        // opened on a narrow screen is still a page of its own.
+        className={`shrink-0 ${
+          filtersOpen ? (requestedJobId ? "hidden lg:block" : "block") : "hidden"
+        }`}
       >
         <JobFilters
           filterOptions={filterOptions}

@@ -2,7 +2,7 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 import { cn } from "@/lib/cn";
 
-type ButtonVariant = "primary" | "secondary" | "ghost";
+type ButtonVariant = "primary" | "secondary" | "ghost" | "strong";
 type ButtonSize = "sm" | "md" | "lg";
 
 const variantStyles: Record<ButtonVariant, string> = {
@@ -12,6 +12,9 @@ const variantStyles: Record<ButtonVariant, string> = {
     "bg-surface text-text border-border-strong hover:bg-surface-muted disabled:hover:bg-surface",
   ghost:
     "bg-transparent text-text-muted border-transparent hover:bg-surface-muted hover:text-text",
+  /* Solid rather than tinted: for the one action a page is actually for. */
+  strong:
+    "bg-accent-strong text-on-accent-strong border-transparent hover:bg-accent-strong-hover disabled:hover:bg-accent-strong",
 };
 
 /* Weight lives here rather than in the base classes: two font-weight

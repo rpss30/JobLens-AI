@@ -2,9 +2,11 @@ from typing import Literal
 
 import pandas as pd
 
+from src.api.errors import ApiError
 from src.api.schemas import JobListResponse
 from src.api.services.analysis_service import clean_optional_text, load_jobs_for_analysis
 from src.api.services.listing import paginate_items, sort_items
+from src.analysis.companies import company_domain
 from src.analysis.job_services import filter_jobs
 
 
@@ -36,6 +38,10 @@ def build_job_listing_row(row: pd.Series) -> dict:
         "job_id": clean_optional_text(row.get("job_id", "")),
         "title": clean_optional_text(row.get("title", "")),
         "company": clean_optional_text(row.get("company", "")),
+        "company_domain": company_domain(
+            clean_optional_text(row.get("company", "")),
+            [row.get("source_url", "")],
+        ),
         "location": clean_optional_text(row.get("location", "")),
         "experience_level": clean_optional_text(row.get("experience_level", "")),
         "role_category": clean_optional_text(row.get("role_category", "")),
@@ -87,3 +93,30 @@ def list_jobs(
         offset=offset,
         jobs=paginate_items(jobs, limit=limit, offset=offset),
     )
+
+
+def get_job(*, dataset_name: str | None, job_id: str) -> dict:
+    """Return one posting, including the description the list leaves out.
+
+    Descriptions run to several kilobytes each, so they travel one at a time
+    rather than riding along with every row of a list nobody has opened yet.
+    """
+    resolved_dataset_name, jobs_df = load_jobs_for_analysis(dataset_name)
+
+    if jobs_df.empty or "job_id" not in jobs_df.columns:
+        raise ApiError(status_code=404, detail="That job posting was not found.")
+
+    matches = jobs_df[jobs_df["job_id"].astype(str) == str(job_id)]
+
+    if matches.empty:
+        raise ApiError(status_code=404, detail="That job posting was not found.")
+
+    row = matches.iloc[0]
+
+    return {
+        **build_job_listing_row(row),
+        "dataset_name": resolved_dataset_name,
+        "description": clean_optional_text(row.get("description", "")),
+        # Not cleaned: the line breaks are the whole point of this field.
+        "description_formatted": str(row.get("description_formatted") or "").strip(),
+    }

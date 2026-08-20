@@ -30,9 +30,11 @@ const RESULTS_HEADING = {
 export function AnalyzeView({
   filterOptions,
   datasetName,
+  savedJobIds,
 }: {
   filterOptions: FilterOptions;
   datasetName: string;
+  savedJobIds: string[];
 }) {
   const { analysis } = useAnalysis();
   const hadAnalysis = useRef(analysis !== null);
@@ -57,7 +59,10 @@ export function AnalyzeView({
       <PageHeader title={heading.title} description={heading.description} />
 
       {analysis ? (
-        <AnalysisResults datasetName={datasetName} />
+        <AnalysisResults
+          datasetName={datasetName}
+          savedJobIds={savedJobIds}
+        />
       ) : (
         <AnalyzeForm filterOptions={filterOptions} datasetName={datasetName} />
       )}

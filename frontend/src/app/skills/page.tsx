@@ -9,7 +9,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardBody } from "@/components/ui/Card";
 import { CardSkeleton } from "@/components/ui/States";
 import { getMarketInsights } from "@/lib/api/endpoints";
-import { resolveDataset } from "@/lib/datasets";
+import { resolveDataset, withDataset } from "@/lib/datasets";
 import { formatCount, formatSkill } from "@/lib/format";
 
 /** How many rows are shown before the full ranking is revealed. */
@@ -53,7 +53,7 @@ function RankRow({
       </span>
       {/* Takes the spare room on a narrow screen, where the bar is hidden. */}
       <span
-        className="min-w-0 flex-1 truncate text-sm text-text sm:w-40 sm:flex-none"
+        className="min-w-0 flex-1 truncate text-sm text-text"
         title={label}
       >
         {label}
@@ -94,16 +94,31 @@ async function SkillsDemand({ datasetName }: { datasetName: string }) {
 
   return (
     <Card>
-      <CardBody className="space-y-5 p-5 sm:p-6">
-        <div className="grid items-start gap-5 lg:grid-cols-2">
-          <section className="rounded-xl border border-border p-4">
+      <CardBody className="min-w-0 space-y-5 p-5 sm:p-6">
+        {leader ? (
+          <div className="flex items-start gap-2.5 rounded-xl border border-border bg-surface-muted px-4 py-3 text-sm text-text-muted">
+            <span className="mt-0.5 text-accent">
+              <LightbulbIcon />
+            </span>
+            <p>
+              <strong className="font-medium text-text">
+                {leader.label} is the most in-demand skill
+              </strong>
+              , appearing in {Math.round(leader.share * 100)}% of all job
+              postings in this snapshot.
+            </p>
+          </div>
+        ) : null}
+        
+        <div className="grid min-w-0 items-start gap-5 lg:grid-cols-2">
+          <section className="order-2 min-w-0 w-full rounded-xl border border-border p-4 lg:order-1">
             <h2 className="text-base font-medium text-text">
               Skills ranked by number of postings
             </h2>
 
             <div className="mt-3 flex items-center gap-2 border-b border-border pb-2 text-[0.6875rem] font-medium uppercase tracking-wide text-text-subtle sm:gap-3 sm:text-xs">
               <span className="w-5 shrink-0">#</span>
-              <span className="min-w-0 flex-1 sm:w-40 sm:flex-none">Skill</span>
+              <span className="min-w-0 flex-1">Skill</span>
               <span className="hidden min-w-0 sm:block sm:flex-1" />
               <span className="w-10 shrink-0 text-right">Jobs</span>
               <span className="w-10 shrink-0 text-right">Share</span>
@@ -133,7 +148,7 @@ async function SkillsDemand({ datasetName }: { datasetName: string }) {
             ) : null}
           </section>
 
-          <section className="rounded-xl border border-border p-4">
+          <section className="order-1 min-w-0 w-full rounded-xl border border-border p-4 lg:order-2">
             <h2 className="text-base font-medium text-text">
               Skills at a glance
             </h2>
@@ -141,25 +156,21 @@ async function SkillsDemand({ datasetName }: { datasetName: string }) {
               Circle size represents number of postings.
             </p>
             <div className="mt-3">
-              <SkillBubbleChart data={visible} valueLabel="postings" />
+              <SkillBubbleChart
+                data={visible}
+                valueLabel="postings"
+                // The skill goes into the search box, and the filters open on
+                // arrival so it is clear what narrowed the list.
+                hrefFor={(skill) =>
+                  withDataset(
+                    `/jobs?q=${encodeURIComponent(skill)}&filters=open`,
+                    datasetName,
+                  )
+                }
+              />
             </div>
           </section>
         </div>
-
-        {leader ? (
-          <div className="flex items-start gap-2.5 rounded-xl border border-border bg-surface-muted px-4 py-3 text-sm text-text-muted">
-            <span className="mt-0.5 text-accent">
-              <LightbulbIcon />
-            </span>
-            <p>
-              <strong className="font-medium text-text">
-                {leader.label} is the most in-demand skill
-              </strong>
-              , appearing in {Math.round(leader.share * 100)}% of all job
-              postings in this snapshot.
-            </p>
-          </div>
-        ) : null}
       </CardBody>
     </Card>
   );

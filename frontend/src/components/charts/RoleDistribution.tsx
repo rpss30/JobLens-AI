@@ -149,11 +149,13 @@ export function RoleDistribution({
 
             <RoleSkillsPanel
               role={selected}
-              // The listing has no role filter, so the category goes in as a
-              // search: the nearest honest thing to "the jobs behind this tile".
+              // The category is a filter of its own, so it arrives as one,
+              // with the panel open so it is clear what narrowed the list.
               jobsHref={`/jobs?dataset=${encodeURIComponent(
                 datasetName,
-              )}&q=${encodeURIComponent(selected.roleCategory)}`}
+              )}&category=${encodeURIComponent(
+                selected.roleCategory,
+              )}&filters=open`}
             />
           </div>
         ) : null}

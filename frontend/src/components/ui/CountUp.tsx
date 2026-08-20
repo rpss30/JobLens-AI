@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { formatCount } from "@/lib/format";
+
 /**
  * A figure that counts up once it has been scrolled into view.
  *
@@ -14,11 +16,15 @@ import { useEffect, useRef, useState } from "react";
 export function CountUp({
   value,
   durationMs = 1200,
-  format,
+  format = formatCount,
 }: {
   value: number;
   durationMs?: number;
-  format: (value: number) => string;
+  /**
+   * Defaulted rather than required: a server component cannot hand a
+   * function across the boundary, and counting is what this is for.
+   */
+  format?: (value: number) => string;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
   const [shown, setShown] = useState(value);

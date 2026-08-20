@@ -153,6 +153,40 @@ def get_top_insights(
     return best_role, best_score, top_missing_skill, jobs_analyzed
 
 
+def recommended_skills_per_role(
+    *,
+    filtered_jobs: pd.DataFrame,
+    analysis_skills: list[str],
+    role_skill_weights: dict,
+    top_n: int,
+) -> dict[str, pd.DataFrame]:
+    """Rank the skills worth learning next within each role category.
+
+    The weights are the ones built from the whole analysis, so a category is
+    ranked on the same footing as the flat list; only the postings counted
+    against it change.
+    """
+    if filtered_jobs.empty or "role_category" not in filtered_jobs.columns:
+        return {}
+
+    recommendations: dict[str, pd.DataFrame] = {}
+
+    for role_category, role_jobs in filtered_jobs.groupby("role_category"):
+        category_name = str(role_category)
+
+        if not category_name:
+            continue
+
+        recommendations[category_name] = get_recommended_skills(
+            jobs_df=role_jobs,
+            user_skills=analysis_skills,
+            role_skill_weights=role_skill_weights,
+            top_n=top_n,
+        )
+
+    return recommendations
+
+
 @dataclass
 class AnalysisFrames:
     """Computed analysis results shared by the analyze and report endpoints."""
@@ -162,6 +196,8 @@ class AnalysisFrames:
     analysis_skills: list[str]
     role_scores_df: pd.DataFrame
     recommended_skills_df: pd.DataFrame
+    # The same recommendation, run again over each role category on its own.
+    recommended_skills_by_role: dict[str, pd.DataFrame]
     resume_analysis: dict | None
 
 
@@ -212,6 +248,12 @@ def compute_analysis_frames(request: AnalyzeRequest) -> AnalysisFrames:
             role_skill_weights=role_skill_weights,
             top_n=request.top_skills,
         ),
+        recommended_skills_by_role=recommended_skills_per_role(
+            filtered_jobs=filtered_jobs,
+            analysis_skills=analysis_skills,
+            role_skill_weights=role_skill_weights,
+            top_n=request.top_skills,
+        ),
         resume_analysis=resume_analysis,
     )
 
@@ -243,14 +285,38 @@ def build_analyze_response(
         filtered_jobs_df=filtered_jobs,
     )
 
-    recommended_skills = [
+    def build_recommended_skills(frame: pd.DataFrame) -> list[dict]:
+        return [
+            {
+                "skill": str(row["skill"]),
+                "score": float(row["score"]),
+                "job_count": int(row["job_count"]),
+                "avg_weight": float(row["avg_weight"]),
+            }
+            for _, row in frame.head(top_skills).iterrows()
+        ]
+
+    recommended_skills = build_recommended_skills(recommended_skills_df)
+
+    # Ordered the way the role fit panel ranks its bars, so the tabs above
+    # the table read in the same order as the roles beside them.
+    role_match_scores = {
+        str(row["role_category"]): float(row["weighted_match_score"])
+        for _, row in role_scores_df.iterrows()
+    }
+    recommended_skills_by_role = [
         {
-            "skill": str(row["skill"]),
-            "score": float(row["score"]),
-            "job_count": int(row["job_count"]),
-            "avg_weight": float(row["avg_weight"]),
+            "role_category": role_category,
+            "job_count": int(
+                (filtered_jobs["role_category"] == role_category).sum()
+            ),
+            "skills": build_recommended_skills(frame),
         }
-        for _, row in recommended_skills_df.head(top_skills).iterrows()
+        for role_category, frame in sorted(
+            frames.recommended_skills_by_role.items(),
+            key=lambda item: role_match_scores.get(item[0], 0.0),
+            reverse=True,
+        )
     ]
 
     role_scores = [
@@ -273,11 +339,13 @@ def build_analyze_response(
 
     top_matching_jobs = [
         {
+            "job_id": clean_optional_text(row.get("job_id", "")),
             "title": str(row["title"]),
             "company": str(row["company"]),
             "location": str(row["location"]),
             "experience_level": str(row["experience_level"]),
             "role_category": str(row["role_category"]),
+            "date_posted": clean_optional_text(row.get("date_posted", "")),
             "source": clean_optional_text(row.get("source", "")),
             "source_url": clean_optional_text(row.get("source_url", "")),
             "search_relevance": float(row["search_relevance"]),
@@ -308,6 +376,8 @@ def build_analyze_response(
             "matched_skills_preview": str(row["matched_skills_preview"]),
             "related_skills_preview": str(row["related_skills_preview"]),
             "missing_skills_preview": str(row["missing_skills_preview"]),
+            "matched_skills": list(row["matched_skills"]),
+            "missing_skills": list(row["missing_skills"]),
             "matched_required_skills": list(row["matched_required_skills"]),
             "missing_required_skills": list(row["missing_required_skills"]),
             "matched_preferred_skills": list(row["matched_preferred_skills"]),
@@ -328,6 +398,7 @@ def build_analyze_response(
         top_missing_skill=top_missing_skill,
         jobs_analyzed=jobs_analyzed,
         recommended_skills=recommended_skills,
+        recommended_skills_by_role=recommended_skills_by_role,
         role_scores=role_scores,
         top_matching_jobs=top_matching_jobs,
         resume_analysis=resume_analysis,

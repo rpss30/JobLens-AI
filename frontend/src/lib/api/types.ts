@@ -188,6 +188,13 @@ export interface RecommendedSkill {
   avg_weight: number;
 }
 
+/** The same recommendation, ranked within one type of role rather than across all. */
+export interface RoleRecommendedSkills {
+  role_category: string;
+  job_count: number;
+  skills: RecommendedSkill[];
+}
+
 export interface RoleScore {
   role_category: string;
   sample_size: number;
@@ -204,11 +211,14 @@ export interface RoleScore {
 }
 
 export interface JobMatch {
+  /** Empty on a dataset that never recorded one, which makes a match unsavable. */
+  job_id: string;
   title: string;
   company: string;
   location: string;
   experience_level: string;
   role_category: string;
+  date_posted: string;
   source: string;
   source_url: string;
   search_relevance: number;
@@ -229,6 +239,9 @@ export interface JobMatch {
   matched_skills_preview: string;
   related_skills_preview: string;
   missing_skills_preview: string;
+  /** Together, every skill the posting asks for, split by whether you have it. */
+  matched_skills: string[];
+  missing_skills: string[];
   matched_required_skills: string[];
   missing_required_skills: string[];
   matched_preferred_skills: string[];
@@ -303,6 +316,7 @@ export interface AnalyzeResponse {
   top_missing_skill: string;
   jobs_analyzed: number;
   recommended_skills: RecommendedSkill[];
+  recommended_skills_by_role: RoleRecommendedSkills[];
   role_scores: RoleScore[];
   top_matching_jobs: JobMatch[];
   resume_analysis: ResumeAnalysis | null;

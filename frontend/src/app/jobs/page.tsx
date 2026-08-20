@@ -56,6 +56,7 @@ function buildJobsHref(
   offset: number,
   jobId?: string,
   filters?: string,
+  savedOnly?: boolean,
 ): string {
   const params = new URLSearchParams({ dataset: datasetName, ...values });
 
@@ -71,7 +72,29 @@ function buildJobsHref(
     params.set("filters", filters);
   }
 
+  if (savedOnly) {
+    params.set("saved", "1");
+  }
+
   return `/jobs?${params.toString()}`;
+}
+
+function BookmarkIcon({ filled }: { filled: boolean }) {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 20 20"
+      fill={filled ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M5.25 3.75h9.5v13l-4.75-3.25-4.75 3.25v-13Z" />
+    </svg>
+  );
 }
 
 function SlidersIcon() {
@@ -321,12 +344,14 @@ async function JobResults({
   offset,
   requestedJobId,
   filtersOpen,
+  savedOnly,
 }: {
   datasetName: string;
   values: JobFilterValues;
   offset: number;
   requestedJobId: string;
   filtersOpen: boolean;
+  savedOnly: boolean;
 }) {
   // Carried by every link on the page: opening a posting or turning a page is
   // not a reason for the panel someone just opened to shut itself.
@@ -342,10 +367,16 @@ async function JobResults({
     sortOrder: values.order === "asc" ? "asc" : "desc",
     limit: PAGE_SIZE,
     offset,
+    savedOnly,
   });
 
   if (jobList.jobs.length === 0) {
-    return (
+    return savedOnly ? (
+      <EmptyState
+        title="Nothing saved yet"
+        description="Open a posting and use the bookmark beside Apply to keep it here."
+      />
+    ) : (
       <EmptyState
         title="No jobs match these filters"
         description="Try a shorter search, a different location, or set the experience level back to any."
@@ -383,7 +414,9 @@ async function JobResults({
           aria-live="polite"
         >
           Showing {formatCount(shownFrom)}–{formatCount(shownTo)} of{" "}
-          {formatCount(jobList.total)} jobs
+          {formatCount(jobList.total)}{" "}
+          {savedOnly ? <span className="font-medium text-text">saved</span> : null}
+          {savedOnly ? " " : ""}jobs
         </p>
 
         <ul className="divide-y divide-border lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain">
@@ -397,6 +430,7 @@ async function JobResults({
                 offset,
                 job.job_id,
                 filtersParam,
+                savedOnly,
               )}
               isSelected={job.job_id === selectedJob.job_id}
             />
@@ -416,6 +450,7 @@ async function JobResults({
                   Math.max(0, offset - PAGE_SIZE),
                   "",
                   filtersParam,
+                  savedOnly,
                 )}
                 className="text-sm font-medium text-accent hover:underline"
               >
@@ -433,6 +468,7 @@ async function JobResults({
                   offset + PAGE_SIZE,
                   "",
                   filtersParam,
+                  savedOnly,
                 )}
                 className="text-sm font-medium text-accent hover:underline"
               >
@@ -459,7 +495,14 @@ async function JobResults({
         {/* Rides under the shell's own bar, and bleeds to both edges so the
             description passes behind it rather than beside it. */}
         <Link
-          href={buildJobsHref(datasetName, values, offset, "", filtersParam)}
+          href={buildJobsHref(
+            datasetName,
+            values,
+            offset,
+            "",
+            filtersParam,
+            savedOnly,
+          )}
           className="sticky top-16 z-20 -mx-5 mb-3 flex items-center gap-2 bg-surface px-5 py-3 text-sm font-medium text-text-muted transition-colors hover:text-text sm:-mx-8 sm:px-8 lg:hidden"
         >
           <BackIcon />
@@ -499,6 +542,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
    * needs no state of its own.
    */
   const filtersOpen = readParam(params.filters, "") === "open";
+  const savedOnly = readParam(params.saved, "") === "1";
   const activeFilterCount = [
     values.q.trim(),
     values.location === "Any" ? "" : values.location,
@@ -511,6 +555,34 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
     offset,
     requestedJobId,
     filtersOpen ? "" : "open",
+    savedOnly,
+  );
+
+  const savedToggleHref = buildJobsHref(
+    datasetName,
+    values,
+    // Back to the first page: the two lists do not share a page count.
+    0,
+    requestedJobId,
+    filtersOpen ? "open" : "",
+    !savedOnly,
+  );
+
+  const savedToggle = (
+    <Link
+      href={savedToggleHref}
+      aria-pressed={savedOnly}
+      // Level with the sort control, and carrying the accent once the list it
+      // switches to is the one being shown.
+      className={`inline-flex shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-sm transition-colors ${
+        savedOnly
+          ? "border-transparent bg-accent-fill text-on-accent hover:bg-accent-fill-hover"
+          : "border-border bg-surface text-text hover:bg-surface-muted"
+      }`}
+    >
+      {savedOnly ? "Showing saved jobs" : "Show saved jobs"}
+      <BookmarkIcon filled={savedOnly} />
+    </Link>
   );
 
   const filtersToggle = (
@@ -551,6 +623,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
           0,
           requestedJobId,
           filtersOpen ? "open" : "",
+          savedOnly,
         ),
       }))}
     />
@@ -589,6 +662,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
           <Badge tone="neutral">
             {formatDatasetLabel(filterOptions.dataset_name)}
           </Badge>
+          {savedToggle}
           {sortMenu}
           {filtersToggle}
         </div>
@@ -600,6 +674,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
           requestedJobId ? "hidden" : "flex"
         }`}
       >
+        {savedToggle}
         {sortMenu}
         {filtersToggle}
       </div>
@@ -622,7 +697,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
         // The opened posting is deliberately not part of this key. Including
         // it threw the whole results area back to a skeleton on every click,
         // list and all, when only the panel beside it was changing.
-        key={`${values.q}|${values.location}|${values.company}|${values.level}|${values.sort}|${values.order}|${offset}`}
+        key={`${values.q}|${values.location}|${values.company}|${values.level}|${values.sort}|${values.order}|${offset}|${savedOnly}`}
         fallback={<JobResultsSkeleton />}
       >
         <JobResults
@@ -631,6 +706,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
           offset={offset}
           requestedJobId={requestedJobId}
           filtersOpen={filtersOpen}
+          savedOnly={savedOnly}
         />
       </Suspense>
     </div>

@@ -399,8 +399,12 @@ export function LandingIntro({
             you fit best, and see what skills are holding you back
           </p>
 
-          <div className="mt-7 flex flex-wrap items-center gap-3">
-            <Link href={`/analyze?dataset=${encodedDataset}`}>
+          {/* The two actions stack down one column and the claims down the
+              other, so the pair reads as a single block at any width. */}
+          {/* Halves on a narrow screen so the pair fills the row, natural
+              widths once there is room for them to sit as they are. */}
+          <div className="mt-8 grid grid-cols-2 gap-3 lg:flex lg:flex-wrap lg:items-center">
+            <Link href={`/analyze?dataset=${encodedDataset}`} className="contents">
               <Button variant="strong" size="md">
                 Analyze my fit
                 <span aria-hidden="true" className="ml-2">
@@ -408,27 +412,36 @@ export function LandingIntro({
                 </span>
               </Button>
             </Link>
-            <Link href={`/jobs?dataset=${encodedDataset}`}>
+            <Link href={`/jobs?dataset=${encodedDataset}`} className="contents">
               <Button variant="secondary" size="md">
                 Browse Jobs
               </Button>
             </Link>
           </div>
 
-          <ul className="mt-10 grid gap-6 sm:grid-cols-3">
+          {/* Centred under their marks on a narrow screen, ranged left once
+              they sit beside the window rather than above it. */}
+          <ul className="mt-10 grid grid-cols-3 gap-6">
             {HIGHLIGHTS.map((highlight) => (
-              <li key={highlight.title}>
+              <li
+                key={highlight.title}
+                className="flex flex-col items-center text-center lg:items-start lg:text-left"
+              >
                 <IconRing size="sm">{highlight.icon}</IconRing>
                 <p className="mt-3 text-sm font-medium text-text">
                   {highlight.title}
                 </p>
-                <p className="mt-1 text-xs text-text-muted">{highlight.body}</p>
+                <p className="mt-1.5 text-xs text-text-muted">
+                  {highlight.body}
+                </p>
               </li>
             ))}
           </ul>
         </div>
 
-        <HeroPreview />
+        <div className="hidden lg:block">
+          <HeroPreview />
+        </div>
       </section>
 
       <section className="rise-in" style={{ animationDelay: "260ms" }}>
@@ -436,7 +449,7 @@ export function LandingIntro({
 
         {/* Steps and the arrows between them run in source order, so the row
             places itself rather than being pinned column by column. */}
-        <ol className="mt-5 grid gap-5 md:grid-cols-[1fr_auto_1fr_auto_1fr] md:items-stretch md:gap-4">
+        <ol className="mt-5 grid gap-3 md:grid-cols-[1fr_auto_1fr_auto_1fr] md:items-stretch md:gap-4">
           {STEPS.map((step, index) => (
             <Fragment key={step.number}>
               {index > 0 ? (
@@ -476,16 +489,21 @@ export function LandingIntro({
 
         <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:gap-10">
           {/* Given a step card's own box, a 1px edge plus its inset, so this
-              icon lands on the same line down the page as the first step's. */}
-          <div className="flex items-center gap-5 md:border-l md:border-transparent md:pl-5">
-            <IconRing>
-              <ShieldIcon />
-            </IconRing>
-            <div className="min-w-0">
-              <h2 className="text-xl font-medium tracking-tight text-text">
-                Data you can trust
-              </h2>
-              <p className="mt-2 text-sm leading-relaxed text-text-muted">
+              icon and its words run down the same line as the steps above at
+              every width, not only where the cards sit side by side. */}
+          <div className="grid grid-cols-[auto_1fr] items-center gap-x-5 gap-y-3 border-l border-transparent pl-5">
+            <h2 className="col-start-2 row-start-1 text-xl font-medium tracking-tight text-text">
+              Data you can trust
+            </h2>
+
+            <span className="col-start-1 row-start-2 self-center lg:row-span-2 lg:row-start-1">
+              <IconRing>
+                <ShieldIcon />
+              </IconRing>
+            </span>
+
+            <div className="col-start-2 row-start-2 min-w-0">
+              <p className="text-sm leading-relaxed text-text-muted">
                 We pull job postings directly from employer career pages and
                 the Greenhouse, Lever, and Ashby job boards those companies
                 use.
@@ -498,11 +516,24 @@ export function LandingIntro({
 
           {/* Divided rather than boxed: three readings of one dataset, not
               three separate things. */}
-          <dl className="grid gap-6 sm:grid-cols-3 sm:gap-0 sm:divide-x sm:divide-border">
+          {/* Three shared rows rather than three independent stacks, so the
+              labels line up even where the date takes two lines above them. */}
+          <dl className="grid grid-cols-3 grid-rows-[auto_auto_auto] gap-x-4 sm:gap-0 sm:divide-x sm:divide-border">
             {facts.map((fact) => (
-              <div key={fact.label} className="sm:px-6 sm:first:pl-0 sm:last:pr-0">
+              <div
+                key={fact.label}
+                className="row-span-3 grid grid-rows-subgrid justify-items-center gap-y-3 text-center sm:justify-items-start sm:px-6 sm:text-left sm:first:pl-0 sm:last:pr-0"
+              >
                 <span className="inline-flex text-accent">{fact.icon}</span>
-                <dd className="mt-3 text-2xl font-semibold tracking-tight text-text">
+                <dd
+                  // The date runs longer than a count, so it is set smaller
+                  // rather than pushing its own column out of step.
+                  className={`font-semibold tracking-tight text-text ${
+                    typeof fact.count === "number"
+                      ? "text-2xl"
+                      : "text-xl sm:text-2xl"
+                  }`}
+                >
                   {typeof fact.count === "number" ? (
                     <CountUp
                       value={fact.count}
@@ -513,7 +544,7 @@ export function LandingIntro({
                     fact.value
                   )}
                 </dd>
-                <dt className="mt-1 whitespace-pre-line text-sm leading-relaxed text-text-muted">
+                <dt className="whitespace-pre-line text-sm leading-relaxed text-text-muted">
                   {fact.label}
                 </dt>
               </div>
@@ -521,7 +552,7 @@ export function LandingIntro({
           </dl>
         </div>
 
-        <div className="mt-8">
+        <div className="mt-8 flex justify-center sm:justify-start">
           <Link href={`/datasets?dataset=${encodedDataset}`}>
             <Button variant="secondary" size="md">
               View Datasets

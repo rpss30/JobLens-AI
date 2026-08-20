@@ -17,12 +17,13 @@ import { useDatasetParam } from "@/components/layout/ShellSearchParams";
 import { cn } from "@/lib/cn";
 import { withDataset } from "@/lib/datasets";
 
-// Market Insights is one dataset viewed five ways, so its views are children
-// rather than five more top-level entries.
+// Market Insights is one dataset viewed four ways, so its views are children
+// rather than four more top-level entries.
 const marketInsightsChildren = [
   { href: "/skills", label: "Skills Demand" },
+  // Role skills and role distribution read the same categories two ways, so
+  // they share one view rather than splitting it.
   { href: "/skills/role-distribution", label: "Role Distribution" },
-  { href: "/skills/role-skills", label: "Role Specific Skills" },
   { href: "/skills/locations", label: "Job Locations" },
   { href: "/skills/companies", label: "Top Hiring Companies" },
 ];

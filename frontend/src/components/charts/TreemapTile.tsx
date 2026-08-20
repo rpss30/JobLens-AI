@@ -13,8 +13,9 @@ interface TreemapTileProps {
   top: number;
   showIcon: boolean;
   showShare: boolean;
-  isLargest: boolean;
   step: number;
+  /** Given when the tile picks a role rather than only reporting one. */
+  onSelect?: () => void;
 }
 
 /**
@@ -32,8 +33,8 @@ export function TreemapTile({
   top,
   showIcon,
   showShare,
-  isLargest,
   step,
+  onSelect,
 }: TreemapTileProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -54,7 +55,10 @@ export function TreemapTile({
         aria-expanded={isOpen}
         onFocus={() => setIsOpen(true)}
         onBlur={() => setIsOpen(false)}
-        onClick={() => setIsOpen((open) => !open)}
+        // Where the tile picks a role, that is what the tap is for. The
+        // panel still opens on hover and focus for anyone reading a tile too
+        // small to label.
+        onClick={onSelect ?? (() => setIsOpen((open) => !open))}
         className={`flex h-full w-full flex-col overflow-hidden rounded-xl p-3 text-left motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-out motion-safe:hover:scale-[1.03] sm:p-4 ${
           step <= 3 ? "text-white" : "text-on-accent"
         }`}
@@ -79,10 +83,6 @@ export function TreemapTile({
           <span className="mt-1.5 w-fit rounded-md bg-white/20 px-1.5 py-0.5 text-xs font-medium tabular-nums">
             {Math.round(share * 100)}%
           </span>
-        ) : null}
-
-        {isLargest ? (
-          <span className="mt-auto text-sm opacity-80">postings</span>
         ) : null}
       </button>
 

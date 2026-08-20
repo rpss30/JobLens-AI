@@ -423,7 +423,7 @@ async function JobResults({
      * of the posting beside it. overscroll-contain stops a column that has
      * reached either end from handing the remaining scroll to the page.
      */
-    <div className="grid gap-5 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:gap-0 lg:overflow-hidden lg:rounded-xl lg:border lg:border-border lg:bg-surface lg:shadow-[0_1px_2px_rgba(16,21,31,0.04)]">
+    <div className="grid gap-5 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:gap-0">
       <Card
         // Narrow screens show one at a time: the list, or the posting it
         // opened. Both columns are side by side once there is room.
@@ -748,40 +748,45 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
         {filtersToggle}
       </div>
 
-      <div
-        // Closed on arrival so the list gets the height instead. A posting
-        // opened on a narrow screen is still a page of its own.
-        className={`shrink-0 ${
-          filtersOpen
-            ? `animate-filters-in ${
-                requestedJobId ? "hidden lg:block" : "block"
-              }`
-            : "hidden"
-        }`}
-      >
-        <JobFilters
-          filterOptions={filterOptions}
-          values={values}
-          datasetName={datasetName}
-        />
-      </div>
+      {/* From lg the filters and the results share one surface, so the panel
+          reads as the top of the list rather than a card floating above it.
+          Below lg they stay two cards with the page's own gap between. */}
+      <div className="space-y-8 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:space-y-0 lg:overflow-hidden lg:rounded-xl lg:border lg:border-border lg:bg-surface lg:shadow-[0_1px_2px_rgba(16,21,31,0.04)]">
+        <div
+          // Closed on arrival so the list gets the height instead. A posting
+          // opened on a narrow screen is still a page of its own.
+          className={`shrink-0 ${
+            filtersOpen
+              ? `animate-filters-in ${
+                  requestedJobId ? "hidden lg:block" : "block"
+                }`
+              : "hidden"
+          }`}
+        >
+          <JobFilters
+            filterOptions={filterOptions}
+            values={values}
+            datasetName={datasetName}
+          />
+        </div>
 
-      <Suspense
+        <Suspense
         // The opened posting is deliberately not part of this key. Including
         // it threw the whole results area back to a skeleton on every click,
         // list and all, when only the panel beside it was changing.
         key={`${values.q}|${values.location}|${values.category}|${values.company}|${values.level}|${values.sort}|${values.order}|${offset}|${savedOnly}`}
         fallback={<JobResultsSkeleton />}
       >
-        <JobResults
-          datasetName={datasetName}
-          values={values}
-          offset={offset}
-          requestedJobId={requestedJobId}
-          filtersOpen={filtersOpen}
-          savedOnly={savedOnly}
-        />
-      </Suspense>
+          <JobResults
+            datasetName={datasetName}
+            values={values}
+            offset={offset}
+            requestedJobId={requestedJobId}
+            filtersOpen={filtersOpen}
+            savedOnly={savedOnly}
+          />
+        </Suspense>
+      </div>
     </div>
   );
 }

@@ -56,10 +56,10 @@
    * unordered states, and shades of one hue were near-impossible to tell apart
    * at the size of a dot or a thin bar.
    */
-  --color-signal-required: #157f4a;
-  --color-signal-preferred: #1d5fd0;
-  --color-signal-mixed: #b45309;
-  --color-signal-unclear: #8b989d;
+  --color-signal-required: #2e7d32;
+  --color-signal-preferred: #4a9fe3;
+  --color-signal-mixed: #f6c445;
+  --color-signal-unclear: #d24b45;
 
   /* Status colours sit outside the brand palette on purpose: online and
      offline must be told apart at a glance, which shape alone does not do. */
@@ -101,10 +101,10 @@
     --color-chart-4: #6fbccb;
     --color-chart-5: #b7dee8;
     /* Lifted for a dark background; the light values go muddy on one. */
-    --color-signal-required: #4ade80;
-    --color-signal-preferred: #8ab4ff;
-    --color-signal-mixed: #f0b357;
-    --color-signal-unclear: #97a4a9;
+    --color-signal-required: #5cbf68;
+    --color-signal-preferred: #7ec0f5;
+    --color-signal-mixed: #f7d070;
+    --color-signal-unclear: #ef7a74;
     --color-status-online: #4ade80;
     --color-status-offline: #f28b82;
   }

@@ -16,6 +16,7 @@
  * place.
  */
 
+import type { CSSProperties } from "react";
 import Link from "next/link";
 
 import {
@@ -265,6 +266,7 @@ export function LocationMap({ pins }: { pins: MapPin[] }) {
       className="h-full w-full"
       preserveAspectRatio="xMidYMid meet"
       role="img"
+      style={{ ["--pin-label" as string]: `${labelSize}px` } as CSSProperties}
       aria-label={`Postings by location on a map of Canada. ${placed
         .map((pin) => `${pin.label}, ${pin.value}`)
         .join(". ")}`}
@@ -309,15 +311,24 @@ export function LocationMap({ pins }: { pins: MapPin[] }) {
           key={pin.label}
           href={pin.href}
           aria-label={`${pin.label}, ${pin.value} postings. Show these jobs.`}
-          className="cursor-pointer outline-none [&:focus-visible>circle]:stroke-accent [&:hover>circle]:stroke-accent"
+          className="group cursor-pointer outline-none [&:focus-visible>circle]:stroke-accent [&:hover>circle]:stroke-accent"
         >
           {pin.labelX !== undefined && pin.labelY !== undefined ? (
             <text
               x={pin.labelX}
               y={pin.labelY}
               textAnchor={pin.anchor}
-              fontSize={labelSize}
-              fill="var(--color-text-muted)"
+              /*
+               * Crowded pins are hard to tell apart, and two neighbouring
+               * cities can carry the same count. Pointing at one grows and
+               * darkens its name so it is clear which city was found.
+               *
+               * The resting size is computed from the map's own scale, so it
+               * travels as a custom property the hover rule can multiply
+               * rather than a fixed size the rule would have to repeat.
+               */
+              style={{ fontSize: "var(--label-size)" } as CSSProperties}
+              className="transition-[font-size,fill,font-weight] duration-150 [--label-size:var(--pin-label)] [fill:var(--color-text-muted)] group-focus-visible:[--label-size:calc(var(--pin-label)*1.35)] group-focus-visible:font-bold group-focus-visible:[fill:var(--color-text)] group-hover:[--label-size:calc(var(--pin-label)*1.35)] group-hover:font-bold group-hover:[fill:var(--color-text)]"
             >
               {pin.label}
             </text>

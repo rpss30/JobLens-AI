@@ -4,49 +4,20 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
-import {
-  AnalyzeIcon,
-  ChevronIcon,
-  DatasetsIcon,
-  HistoryIcon,
-  JobsIcon,
-  OverviewIcon,
-  SkillsIcon,
-} from "@/components/layout/NavIcons";
+import { ChevronIcon } from "@/components/layout/NavIcons";
 import { useDatasetParam } from "@/components/layout/ShellSearchParams";
 import { cn } from "@/lib/cn";
 import { withDataset } from "@/lib/datasets";
+import { isActiveRoute, navigationItems } from "@/lib/navigation";
 
-// Market Insights is one dataset viewed four ways, so its views are children
-// rather than four more top-level entries.
-const marketInsightsChildren = [
-  { href: "/skills", label: "Skills Demand" },
-  // Role skills and role distribution read the same categories two ways, so
-  // they share one view rather than splitting it.
-  { href: "/skills/role-distribution", label: "Role Distribution" },
-  { href: "/skills/locations", label: "Job Locations" },
-  { href: "/skills/companies", label: "Top Hiring Companies" },
-];
-
-const navigationItems = [
-  { href: "/", label: "Overview", Icon: OverviewIcon },
-  { href: "/analyze", label: "Analyze", Icon: AnalyzeIcon },
-  { href: "/jobs", label: "Jobs", Icon: JobsIcon },
-  {
-    href: "/skills",
-    label: "Market Insights",
-    Icon: SkillsIcon,
-    children: marketInsightsChildren,
-  },
-  { href: "/history", label: "History", Icon: HistoryIcon },
-  { href: "/datasets", label: "Datasets", Icon: DatasetsIcon },
-];
-
-function isActiveRoute(pathname: string, href: string): boolean {
-  return href === "/" ? pathname === "/" : pathname.startsWith(href);
-}
-
-export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
+export function SidebarNav({
+  onNavigate,
+  isCollapsed = false,
+}: {
+  onNavigate?: () => void;
+  /** Icons only, for the narrow rail the collapse button leaves behind. */
+  isCollapsed?: boolean;
+}) {
   const pathname = usePathname();
   const datasetName = useDatasetParam();
   const isInsideMarketInsights = pathname.startsWith("/skills");
@@ -61,14 +32,31 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   const [lastSectionState, setLastSectionState] = useState(
     isInsideMarketInsights,
   );
+  const [lastPathname, setLastPathname] = useState(pathname);
 
   if (isInsideMarketInsights !== lastSectionState) {
     setLastSectionState(isInsideMarketInsights);
     setIsMarketInsightsOpen(isInsideMarketInsights);
   }
 
+  /*
+   * On a rail the section is a flyout over the page, so it has to shut once
+   * it has taken you somewhere. Expanded it is part of the sidebar and stays
+   * open, which is how you see where you are.
+   */
+  if (pathname !== lastPathname) {
+    setLastPathname(pathname);
+
+    if (isCollapsed) {
+      setIsMarketInsightsOpen(false);
+    }
+  }
+
   return (
-    <nav aria-label="Primary" className="px-3 py-2">
+    <nav
+      aria-label="Primary"
+      className={cn("py-2", isCollapsed ? "px-2.5" : "px-3")}
+    >
       <ul className="space-y-1">
         {navigationItems.map(({ href, label, Icon, children }) => {
           // Matching uses the bare path: the dataset only rides along in the
@@ -77,7 +65,7 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
           const isExpanded = Boolean(children) && isMarketInsightsOpen;
 
           return (
-            <li key={href}>
+            <li key={href} className="relative">
               {/*
                 A parent with children only opens and closes them. It used to
                 navigate as well, so one click both moved you and expanded the
@@ -90,43 +78,57 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
                   aria-expanded={isExpanded}
                   aria-controls="market-insights-views"
                   onClick={() => setIsMarketInsightsOpen((open) => !open)}
+                  title={isCollapsed ? label : undefined}
                   className={cn(
-                    "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-base font-medium transition-colors",
+                    "flex w-full items-center gap-3 rounded-xl py-2.5 text-base font-medium transition-colors",
+                    isCollapsed ? "justify-center px-0" : "px-3",
                     isActive
                       ? "bg-accent-fill text-on-accent"
                       : "text-text-muted hover:bg-surface-muted hover:text-text",
                   )}
                 >
                   <Icon className="shrink-0" />
-                  <span className="flex-1 text-left">{label}</span>
-                  <ChevronIcon
-                    className={cn(
-                      "shrink-0 transition-transform",
-                      isExpanded && "rotate-180",
-                    )}
-                  />
+                  {isCollapsed ? (
+                    <span className="sr-only">{label}</span>
+                  ) : (
+                    <>
+                      <span className="flex-1 text-left">{label}</span>
+                      <ChevronIcon
+                        className={cn(
+                          "shrink-0 transition-transform",
+                          isExpanded && "rotate-180",
+                        )}
+                      />
+                    </>
+                  )}
                 </button>
               ) : (
                 <Link
                   href={withDataset(href, datasetName)}
                   onClick={onNavigate}
                   aria-current={isActive ? "page" : undefined}
+                  title={isCollapsed ? label : undefined}
                   className={cn(
-                    "flex items-center gap-3 rounded-xl px-3 py-2.5 text-base font-medium transition-colors",
+                    "flex items-center gap-3 rounded-xl py-2.5 text-base font-medium transition-colors",
+                    isCollapsed ? "justify-center px-0" : "px-3",
                     isActive
                       ? "bg-accent-fill text-on-accent"
                       : "text-text-muted hover:bg-surface-muted hover:text-text",
                   )}
                 >
                   <Icon className="shrink-0" />
-                  {label}
+                  {isCollapsed ? <span className="sr-only">{label}</span> : label}
                 </Link>
               )}
 
               {children && isExpanded ? (
                 <ul
                   id="market-insights-views"
-                  className="mt-1 space-y-0.5 pl-8"
+                  className={cn(
+                    isCollapsed
+                      ? "absolute left-full top-0 z-40 ml-2 w-56 rounded-xl border border-border bg-surface p-1.5 shadow-[0_12px_28px_rgba(16,21,31,0.14)]"
+                      : "mt-1 space-y-0.5 pl-8",
+                  )}
                 >
                   {children.map((child) => {
                     // Exact match: every child lives under the parent path, so

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { JobMatch } from "@/lib/api/types";
 import {
   EMPTY_MATCH_FILTERS,
+  defaultMatchFilters,
   filterMatches,
   matchFilterOptions,
   sortMatches,
@@ -63,6 +64,28 @@ describe("matchFilterOptions", () => {
       "Stretch",
     ]);
     expect(options.companies).toEqual(["Acme", "Beta"]);
+  });
+});
+
+describe("defaultMatchFilters", () => {
+  it("opens narrowed to the role the analysis settled on", () => {
+    const jobs = [
+      match({ role_category: "Software Engineering" }),
+      match({ role_category: "Data Science" }),
+    ];
+
+    expect(defaultMatchFilters(jobs, "Data Science")).toEqual({
+      ...EMPTY_MATCH_FILTERS,
+      category: "Data Science",
+    });
+  });
+
+  it("narrows nothing when no match carries that role", () => {
+    const jobs = [match({ role_category: "Software Engineering" })];
+
+    // Narrowing to it would open the result on an empty list.
+    expect(defaultMatchFilters(jobs, "Analytics")).toEqual(EMPTY_MATCH_FILTERS);
+    expect(defaultMatchFilters(jobs, "")).toEqual(EMPTY_MATCH_FILTERS);
   });
 });
 

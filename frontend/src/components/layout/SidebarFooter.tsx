@@ -9,6 +9,8 @@ import {
 interface SidebarFooterProps {
   datasets: DatasetOption[];
   statusSlot: ReactNode;
+  /** The rail keeps the account mark and drops everything that needs words. */
+  isCollapsed?: boolean;
 }
 
 /**
@@ -16,7 +18,19 @@ interface SidebarFooterProps {
  * dataset switcher and the backend status indicator — sit at the foot of the
  * sidebar instead, above the account block.
  */
-export function SidebarFooter({ datasets, statusSlot }: SidebarFooterProps) {
+export function SidebarFooter({
+  datasets,
+  statusSlot,
+  isCollapsed = false,
+}: SidebarFooterProps) {
+  if (isCollapsed) {
+    return (
+      <div className="flex justify-center border-t border-border px-2 py-3.5">
+        <AvatarIcon className="shrink-0 text-text-muted" />
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="space-y-2.5 border-t border-border px-4 py-3.5">

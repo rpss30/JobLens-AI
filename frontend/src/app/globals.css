@@ -12,33 +12,44 @@
  * uses --color-text-muted or darker; every pairing below clears WCAG AA.
  */
 :root {
-  --color-canvas: #f7f9fa;
-  --color-surface: #ffffff;
-  --color-surface-muted: #f1f4f5;
-  --color-border: #e3e8ea;
-  --color-border-strong: #c6ced1;
-  --color-text: #14181a;
-  --color-text-muted: #4c5559;
-  --color-text-subtle: #6e787c;
-  --color-accent: #11626f;
-  --color-accent-hover: #0c4b55;
+  /*
+   * Both themes in one place. light-dark() picks a side from the used
+   * color-scheme, so a token is declared once rather than in two mirrored
+   * blocks that drift apart; a value with no second argument is one that is
+   * deliberately the same in both.
+   */
+  color-scheme: light dark;
+
+  --color-canvas: light-dark(#f7f9fa, #0e1315);
+  --color-surface: light-dark(#ffffff, #161c1f);
+  --color-surface-muted: light-dark(#f1f4f5, #1e262a);
+  --color-border: light-dark(#e3e8ea, #2a3438);
+  --color-border-strong: light-dark(#c6ced1, #47545a);
+  --color-text: light-dark(#14181a, #e6edef);
+  --color-text-muted: light-dark(#4c5559, #a8b4b8);
+  --color-text-subtle: light-dark(#6e787c, #8b989d);
+  --color-accent: light-dark(#11626f, #7fc8d9);
+  --color-accent-hover: light-dark(#0c4b55, #a4dbe8);
+  /* The fill and the text on it hold one value across both themes: the
+     pairing is what makes the accent legible, so inverting either half of it
+     breaks the other. */
   --color-accent-fill: #b7dee8;
-  --color-accent-fill-hover: #a4d4e1;
+  --color-accent-fill-hover: light-dark(#a4d4e1, #cbe8ef);
   --color-on-accent: #14181a;
-  --color-accent-soft: #e8f4f8;
+  --color-accent-soft: light-dark(#e8f4f8, #1c2c31);
   /* The solid accent, for a control that has to read as the one thing on the
-     page worth pressing. Fixed across themes for the same reason the fill is:
-     the white on it is what makes it legible. */
+     page worth pressing. Fixed for the same reason the fill is: the white on
+     it is what makes it legible. */
   --color-accent-strong: #11626f;
   --color-accent-strong-hover: #0c4b55;
   --color-on-accent-strong: #ffffff;
-  --color-positive: #11626f;
-  --color-positive-soft: #11626f;
-  --color-warning: #6e787c;
+  --color-positive: light-dark(#11626f, #7fc8d9);
+  --color-positive-soft: light-dark(#11626f, #7fc8d9);
+  --color-warning: light-dark(#6e787c, #8b989d);
   --color-warning-soft: transparent;
-  --color-danger: #14181a;
-  --color-danger-soft: #f1f4f5;
-  --color-required: #d93025;
+  --color-danger: light-dark(#14181a, #e6edef);
+  --color-danger-soft: light-dark(#f1f4f5, #1e262a);
+  --color-required: light-dark(#d93025, #f28b82);
 
   /*
    * Sequential chart ramp, dark to light, derived from the accent. Fixed
@@ -54,19 +65,21 @@
   /*
    * Requirement signals sit outside the brand ramp on purpose. They are four
    * unordered states, and shades of one hue were near-impossible to tell apart
-   * at the size of a dot or a thin bar.
+   * at the size of a dot or a thin bar. The dark values are lifted, because
+   * the light ones go muddy on a dark ground.
    */
-  --color-signal-required: #2e7d32;
-  --color-signal-preferred: #4a9fe3;
-  --color-signal-mixed: #f6c445;
-  --color-signal-unclear: #d24b45;
+  --color-signal-required: light-dark(#2e7d32, #5cbf68);
+  --color-signal-preferred: light-dark(#4a9fe3, #7ec0f5);
+  --color-signal-mixed: light-dark(#f6c445, #f7d070);
+  --color-signal-unclear: light-dark(#d24b45, #ef7a74);
 
   /*
-   * The banner a result opens on. Fixed across themes like the accent fill,
-   * because the white on it is what makes it legible; the mockup's lighter
-   * teal put the small labels under 4.5:1, so it is a step darker.
+   * The banner a result opens on. The light value is a step darker than the
+   * mockup's, which put the small labels under 4.5:1; the dark one is darker
+   * again, because a mid teal that reads as a filled card on white glares on
+   * a dark page. White holds on both.
    */
-  --color-hero: #3a7a8f;
+  --color-hero: light-dark(#3a7a8f, #2b5c6c);
   --color-on-hero: #ffffff;
 
   /*
@@ -81,21 +94,22 @@
    * green and amber below, since it is the same three-step judgement; only
    * the red at the bottom of the scale is its own.
    */
-  --color-confidence-low: #a80000;
-  --color-confidence-low-soft: #ffebeb;
+  --color-confidence-low: light-dark(#a80000, #ef7a74);
+  --color-confidence-low-soft: light-dark(#ffebeb, #2b1618);
 
   /*
    * How a posting's experience requirement lines up with the candidate's.
    * Three unordered states, so they sit outside the brand ramp for the same
    * reason the requirement signals do. The stretch amber is darker than a
-   * pure orange because the pale one it was drawn as reads at 2.3:1.
+   * pure orange because the pale one it was drawn as reads at 2.3:1. The soft
+   * grounds go dark rather than pale, so a pill does not glare on a dark card.
    */
-  --color-fit-met: #007c43;
-  --color-fit-met-soft: #eff8f4;
-  --color-fit-close: #006ca8;
-  --color-fit-close-soft: #ebf4ff;
-  --color-fit-stretch: #a85f00;
-  --color-fit-stretch-soft: #fff9ec;
+  --color-fit-met: light-dark(#007c43, #5cbf68);
+  --color-fit-met-soft: light-dark(#eff8f4, #16261c);
+  --color-fit-close: light-dark(#006ca8, #7ec0f5);
+  --color-fit-close-soft: light-dark(#ebf4ff, #14222e);
+  --color-fit-stretch: light-dark(#a85f00, #e0a355);
+  --color-fit-stretch-soft: light-dark(#fff9ec, #2a2113);
 
   /*
    * Solid blue for a skill the candidate already has, the role fit bars, and
@@ -107,66 +121,21 @@
 
   /* Status colours sit outside the brand palette on purpose: online and
      offline must be told apart at a glance, which shape alone does not do. */
-  --color-status-online: #1a7f4b;
-  --color-status-offline: #b3261e;
+  --color-status-online: light-dark(#1a7f4b, #4ade80);
+  --color-status-offline: light-dark(#b3261e, #f28b82);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-canvas: #0e1315;
-    --color-surface: #161c1f;
-    --color-surface-muted: #1e262a;
-    --color-border: #2a3438;
-    --color-border-strong: #47545a;
-    --color-text: #e6edef;
-    --color-text-muted: #a8b4b8;
-    --color-text-subtle: #8b989d;
-    --color-accent: #7fc8d9;
-    --color-accent-hover: #a4dbe8;
-    /* The fill and the text on it keep their light-theme values: the pairing
-       is what makes the accent legible, so inverting either half breaks it. */
-    --color-accent-fill: #b7dee8;
-    --color-accent-fill-hover: #cbe8ef;
-    --color-on-accent: #14181a;
-    --color-accent-soft: #1c2c31;
-    --color-accent-strong: #11626f;
-    --color-accent-strong-hover: #0c4b55;
-    --color-on-accent-strong: #ffffff;
-    --color-positive: #7fc8d9;
-    --color-positive-soft: #7fc8d9;
-    --color-warning: #8b989d;
-    --color-warning-soft: transparent;
-    --color-danger: #e6edef;
-    --color-danger-soft: #1e262a;
-    --color-required: #f28b82;
-    --color-chart-1: #0b4650;
-    --color-chart-2: #11626f;
-    --color-chart-3: #1c7d8d;
-    --color-chart-4: #6fbccb;
-    --color-chart-5: #b7dee8;
-    /* Lifted for a dark background; the light values go muddy on one. */
-    --color-signal-required: #5cbf68;
-    --color-signal-preferred: #7ec0f5;
-    --color-signal-mixed: #f7d070;
-    --color-signal-unclear: #ef7a74;
-    --color-hero: #3a7a8f;
-    --color-on-hero: #ffffff;
-    --color-chart-mark: #009cbc;
-    --color-confidence-low: #ef7a74;
-    --color-confidence-low-soft: #2b1618;
-    /* Lifted the same way the signals are; the soft grounds go dark rather
-       than pale, so a pill does not glare on a dark card. */
-    --color-fit-met: #5cbf68;
-    --color-fit-met-soft: #16261c;
-    --color-fit-close: #7ec0f5;
-    --color-fit-close-soft: #14222e;
-    --color-fit-stretch: #e0a355;
-    --color-fit-stretch-soft: #2a2113;
-    --color-match: #44759f;
-    --color-on-match: #ffffff;
-    --color-status-online: #4ade80;
-    --color-status-offline: #f28b82;
-  }
+/*
+ * The reader's own choice, written by the script in the document head before
+ * anything paints. Without an attribute the root keeps `light dark` above and
+ * follows the operating system.
+ */
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
 }
 
 @theme inline {

@@ -96,6 +96,26 @@ export function matchFilterOptions(jobs: JobMatch[]): MatchFilterOptions {
   };
 }
 
+/**
+ * What the filters start at for a fresh result.
+ *
+ * Narrowed to the role the analysis settled on: that role is the finding, and
+ * the postings worth reading first are the ones under it. A best role that no
+ * match carries would narrow the list to nothing, so that falls back to all
+ * of them.
+ */
+export function defaultMatchFilters(
+  jobs: JobMatch[],
+  bestRole: string,
+): MatchFilterValues {
+  const isWorthNarrowing =
+    Boolean(bestRole) && jobs.some((job) => job.role_category === bestRole);
+
+  return isWorthNarrowing
+    ? { ...EMPTY_MATCH_FILTERS, category: bestRole }
+    : EMPTY_MATCH_FILTERS;
+}
+
 export function filterMatches(
   jobs: JobMatch[],
   values: MatchFilterValues,

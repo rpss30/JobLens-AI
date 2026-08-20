@@ -32,6 +32,7 @@ const SORT_OPTIONS = [
 interface JobFilterValues {
   q: string;
   location: string;
+  category: string;
   company: string;
   level: string;
   sort: string;
@@ -380,6 +381,7 @@ async function JobResults({
     searchMode: "tfidf" as SearchMode,
     location: values.location,
     experienceLevel: values.level,
+    roleCategory: values.category,
     company: values.company,
     sortBy: values.sort,
     sortOrder: values.order === "asc" ? "asc" : "desc",
@@ -586,6 +588,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
   const values: JobFilterValues = {
     q: readParam(params.q, ""),
     location: readParam(params.location, "Any"),
+    category: readParam(params.category, "Any"),
     company: readParam(params.company, "Any"),
     level: readParam(params.level, "Any"),
     sort: readParam(params.sort, "search_relevance"),
@@ -606,6 +609,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
   const activeFilterCount = [
     values.q.trim(),
     values.location === "Any" ? "" : values.location,
+    values.category === "Any" ? "" : values.category,
     values.company === "Any" ? "" : values.company,
     values.level === "Any" ? "" : values.level,
   ].filter(Boolean).length;
@@ -762,7 +766,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
         // The opened posting is deliberately not part of this key. Including
         // it threw the whole results area back to a skeleton on every click,
         // list and all, when only the panel beside it was changing.
-        key={`${values.q}|${values.location}|${values.company}|${values.level}|${values.sort}|${values.order}|${offset}|${savedOnly}`}
+        key={`${values.q}|${values.location}|${values.category}|${values.company}|${values.level}|${values.sort}|${values.order}|${offset}|${savedOnly}`}
         fallback={<JobResultsSkeleton />}
       >
         <JobResults

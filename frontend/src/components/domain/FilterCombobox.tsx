@@ -17,12 +17,19 @@ export function FilterCombobox({
   value,
   options,
   placeholder,
+  onChanged,
 }: {
   id: string;
   name: string;
   value: string;
   options: { value: string; label: string }[];
   placeholder: string;
+  /**
+   * The choice is held in state and submitted through a hidden input, so a
+   * native change event never reaches the form. Anything that needs to know
+   * the reader touched this has to be told.
+   */
+  onChanged?: () => void;
 }) {
   const [chosen, setChosen] = useState(value);
   const [lastValue, setLastValue] = useState(value);
@@ -39,7 +46,10 @@ export function FilterCombobox({
       id={id}
       name={name}
       value={chosen}
-      onChange={setChosen}
+      onChange={(next) => {
+        setChosen(next);
+        onChanged?.();
+      }}
       options={options}
       placeholder={placeholder}
       size="compact"

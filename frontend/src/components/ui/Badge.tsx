@@ -5,8 +5,8 @@ import { cn } from "@/lib/cn";
 export type BadgeTone = "neutral" | "accent" | "positive" | "warning" | "danger";
 
 /*
- * The palette is monochrome, so meaning is carried by fill weight rather than
- * hue: solid chips read as held or achieved, outlined chips as missing.
+ * Meaning is carried by fill weight rather than hue: solid chips read as held
+ * or achieved, outlined chips as missing.
  */
 const toneStyles: Record<BadgeTone, string> = {
   neutral: "bg-surface-muted text-text-muted border-border",

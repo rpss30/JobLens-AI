@@ -19,9 +19,7 @@ export function StatTile({
 }: StatTileProps) {
   return (
     <div className="rounded-xl border border-border bg-surface px-5 py-4">
-      <p className="text-xs font-medium uppercase tracking-wide text-text-subtle">
-        {label}
-      </p>
+      <p className="text-sm text-text-subtle">{label}</p>
       <p
         className={cn(
           "mt-2 font-semibold tracking-tight text-text",

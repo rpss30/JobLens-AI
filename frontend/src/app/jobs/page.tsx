@@ -633,14 +633,17 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
       href={savedToggleHref}
       aria-pressed={savedOnly}
       // Level with the sort control, and carrying the accent once the list it
-      // switches to is the one being shown.
-      className={`inline-flex shrink-0 items-center gap-2 rounded-lg border px-3.5 py-2 text-sm transition-colors ${
+      // switches to is the one being shown. The mark stands on its own until
+      // there is room for the words beside it.
+      className={`inline-flex size-[2.375rem] shrink-0 items-center justify-center gap-2 rounded-lg border text-sm transition-colors lg:h-auto lg:w-auto lg:px-3.5 lg:py-2 ${
         savedOnly
           ? "border-transparent bg-accent-fill text-on-accent hover:bg-accent-fill-hover"
           : "border-border bg-surface text-text hover:bg-surface-muted"
       }`}
     >
-      {savedOnly ? "Showing saved jobs" : "Show saved jobs"}
+      <span className="hidden lg:inline">
+        {savedOnly ? "Showing saved jobs" : "Show saved jobs"}
+      </span>
       <BookmarkIcon filled={savedOnly} />
     </Link>
   );
@@ -734,8 +737,10 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
           requestedJobId ? "hidden" : "flex"
         }`}
       >
-        {savedToggle}
-        {sortMenu}
+        <div className="flex min-w-0 items-center gap-2">
+          {sortMenu}
+          {savedToggle}
+        </div>
         {filtersToggle}
       </div>
 

@@ -88,6 +88,8 @@ export interface SavedJob {
   company: string;
   location: string;
   source_url: string;
+  date_posted: string;
+  experience_level: string;
   created_at: string | null;
 }
 
@@ -98,6 +100,8 @@ export interface SaveJobRequest {
   company?: string;
   location?: string;
   source_url?: string;
+  date_posted?: string;
+  experience_level?: string;
 }
 
 export interface JobListResponse {

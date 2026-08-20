@@ -1394,6 +1394,10 @@ def test_saving_a_job_twice_keeps_one_copy(monkeypatch) -> None:
         "dataset_name": "canada_snapshot",
         "title": "Applied AI Engineer",
         "company": "Cohere",
+        # Kept alongside the title so the saved list can draw and filter the
+        # row once the posting behind it has left the dataset.
+        "date_posted": "2026-08-07",
+        "experience_level": "Mid Level",
     }
 
     first = client.post("/saved-jobs", json=payload)
@@ -1404,6 +1408,10 @@ def test_saving_a_job_twice_keeps_one_copy(monkeypatch) -> None:
     assert first.json()["id"] == second.json()["id"]
     assert second.json()["title"] == "Applied AI Engineer"
     assert len(stored) == 1
+
+    assert first.json()["date_posted"] == "2026-08-07"
+    assert first.json()["experience_level"] == "Mid Level"
+    assert stored[("canada_snapshot", "job-1")]["experience_level"] == "Mid Level"
 
 
 def test_unsaving_a_job_that_was_never_saved_is_a_404(monkeypatch) -> None:

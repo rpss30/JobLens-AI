@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState, type FormEvent, type ReactNode } from "react";
 
 import { Card, CardBody } from "@/components/ui/Card";
@@ -126,7 +125,6 @@ export function AnalyzeForm({
   filterOptions: FilterOptions;
   datasetName: string;
 }) {
-  const router = useRouter();
   const { setAnalysis } = useAnalysis();
 
   const [currentSkills, setCurrentSkills] = useState<string[]>([]);
@@ -210,6 +208,10 @@ export function AnalyzeForm({
         setValidationMessage("");
       }
 
+      // Read, so the box is done with: leaving the text sitting there reads
+      // as though it still has to be submitted.
+      setResumeText("");
+
       setExtractNotice(
         additions.length === 0
           ? {
@@ -233,6 +235,18 @@ export function AnalyzeForm({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (currentSkills.length === 0 && !resumeText.trim()) {
+      setValidationMessage(
+        "Choose at least one skill, or paste your resume below.",
+      );
+      return;
+    }
+
+    if (!candidateExperience) {
+      setValidationMessage("Choose how much experience you have.");
+      return;
+    }
 
     if (!location) {
       setValidationMessage("Choose a location, or pick Any location.");
@@ -281,7 +295,6 @@ export function AnalyzeForm({
         response: payload as AnalyzeResponse,
         completedAt: new Date().toISOString(),
       });
-      router.push(`/?dataset=${encodeURIComponent(datasetName)}`);
     } catch {
       setErrorMessage(
         "Could not reach JobLens. Check your connection and try again.",

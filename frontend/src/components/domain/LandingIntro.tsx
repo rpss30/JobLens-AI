@@ -535,11 +535,7 @@ export function LandingIntro({
                   }`}
                 >
                   {typeof fact.count === "number" ? (
-                    <CountUp
-                      value={fact.count}
-                      durationMs={1800}
-                      format={formatCount}
-                    />
+                    <CountUp value={fact.count} durationMs={1800} />
                   ) : (
                     fact.value
                   )}

@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { JobMatchCard } from "@/components/domain/JobMatchCard";
-import { LandingIntro } from "@/components/domain/LandingIntro";
 import { ReportDownloads } from "@/components/domain/ReportDownloads";
 import { RoleFitPanel } from "@/components/domain/RoleFitPanel";
 import { SaveAnalysisButton } from "@/components/domain/SaveAnalysisButton";
@@ -15,7 +14,7 @@ import { Button } from "@/components/ui/Button";
 import { StatTile } from "@/components/ui/StatTile";
 import { EmptyState } from "@/components/ui/States";
 import { useAnalysis } from "@/context/AnalysisContext";
-import type { DatasetSnapshotSummary, JobMatch } from "@/lib/api/types";
+import type { JobMatch } from "@/lib/api/types";
 import { formatCount, formatPercent, formatSkill } from "@/lib/format";
 
 /** Best fit first, rather than the alphabetical order the data arrives in. */
@@ -117,22 +116,19 @@ function FilterChipRow({
   );
 }
 
-interface OverviewContentProps {
-  datasetName: string;
-  summary: DatasetSnapshotSummary;
-}
-
-export function OverviewContent({
-  datasetName,
-  summary,
-}: OverviewContentProps) {
-  const { analysis } = useAnalysis();
+/**
+ * The result of the last analysis, shown where it was asked for.
+ *
+ * It used to live on Overview. Overview is the landing page now, so a result
+ * stays on Analyze rather than throwing the reader to another tab to read it.
+ */
+export function AnalysisResults({ datasetName }: { datasetName: string }) {
+  const { analysis, clearAnalysis } = useAnalysis();
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [activeFit, setActiveFit] = useState<string | null>(null);
-  const analyzeHref = `/analyze?dataset=${encodeURIComponent(datasetName)}`;
-
+  // The caller decides what stands in for a result that is not there.
   if (!analysis) {
-    return <LandingIntro datasetName={datasetName} summary={summary} />;
+    return null;
   }
 
   const { response, request } = analysis;
@@ -215,6 +211,15 @@ export function OverviewContent({
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
         <SaveAnalysisButton />
         <ReportDownloads />
+        {/* Puts the form back where the result is, rather than sending the
+            reader off to find it. */}
+        <button
+          type="button"
+          onClick={clearAnalysis}
+          className="text-sm font-medium text-accent hover:underline"
+        >
+          Run a new analysis
+        </button>
       </div>
 
       <div className="grid items-start gap-6 lg:grid-cols-2">
@@ -264,9 +269,9 @@ export function OverviewContent({
             title="No close matches yet"
             description="None of these jobs overlap with the skills you listed. Try adding more skills, or widening your search."
             action={
-              <Link href={analyzeHref}>
-                <Button variant="secondary">Change my search</Button>
-              </Link>
+              <Button variant="secondary" onClick={clearAnalysis}>
+                Change my search
+              </Button>
             }
           />
         ) : (

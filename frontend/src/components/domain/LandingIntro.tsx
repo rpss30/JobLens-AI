@@ -3,6 +3,7 @@ import { Fragment, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody } from "@/components/ui/Card";
+import { CountUp } from "@/components/ui/CountUp";
 import type { DatasetSnapshotSummary } from "@/lib/api/types";
 import { formatCount, formatDate } from "@/lib/format";
 
@@ -364,11 +365,13 @@ export function LandingIntro({
   const facts = [
     {
       icon: <DocumentIcon size={34} />,
+      count: summary.job_count,
       value: formatCount(summary.job_count),
       label: "Job postings in\nthe current snapshot",
     },
     {
       icon: <BarsIcon size={34} />,
+      count: summary.company_count,
       value: formatCount(summary.company_count),
       label: "Companies across\nthe dataset",
     },
@@ -500,7 +503,15 @@ export function LandingIntro({
               <div key={fact.label} className="sm:px-6 sm:first:pl-0 sm:last:pr-0">
                 <span className="inline-flex text-accent">{fact.icon}</span>
                 <dd className="mt-3 text-2xl font-semibold tracking-tight text-text">
-                  {fact.value}
+                  {typeof fact.count === "number" ? (
+                    <CountUp
+                      value={fact.count}
+                      durationMs={1800}
+                      format={formatCount}
+                    />
+                  ) : (
+                    fact.value
+                  )}
                 </dd>
                 <dt className="mt-1 whitespace-pre-line text-sm leading-relaxed text-text-muted">
                   {fact.label}

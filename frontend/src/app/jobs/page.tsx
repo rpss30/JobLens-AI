@@ -320,12 +320,17 @@ async function JobResults({
   values,
   offset,
   requestedJobId,
+  filtersOpen,
 }: {
   datasetName: string;
   values: JobFilterValues;
   offset: number;
   requestedJobId: string;
+  filtersOpen: boolean;
 }) {
+  // Carried by every link on the page: opening a posting or turning a page is
+  // not a reason for the panel someone just opened to shut itself.
+  const filtersParam = filtersOpen ? "open" : "";
   const jobList = await getJobs({
     datasetName,
     searchQuery: values.q,
@@ -386,7 +391,13 @@ async function JobResults({
             <JobRow
               key={job.job_id || `${job.title}-${job.company}-${index}`}
               job={job}
-              href={buildJobsHref(datasetName, values, offset, job.job_id)}
+              href={buildJobsHref(
+                datasetName,
+                values,
+                offset,
+                job.job_id,
+                filtersParam,
+              )}
               isSelected={job.job_id === selectedJob.job_id}
             />
           ))}
@@ -403,6 +414,8 @@ async function JobResults({
                   datasetName,
                   values,
                   Math.max(0, offset - PAGE_SIZE),
+                  "",
+                  filtersParam,
                 )}
                 className="text-sm font-medium text-accent hover:underline"
               >
@@ -414,7 +427,13 @@ async function JobResults({
 
             {hasNext ? (
               <Link
-                href={buildJobsHref(datasetName, values, offset + PAGE_SIZE)}
+                href={buildJobsHref(
+                  datasetName,
+                  values,
+                  offset + PAGE_SIZE,
+                  "",
+                  filtersParam,
+                )}
                 className="text-sm font-medium text-accent hover:underline"
               >
                 Next
@@ -440,7 +459,7 @@ async function JobResults({
         {/* Rides under the shell's own bar, and bleeds to both edges so the
             description passes behind it rather than beside it. */}
         <Link
-          href={buildJobsHref(datasetName, values, offset)}
+          href={buildJobsHref(datasetName, values, offset, "", filtersParam)}
           className="sticky top-16 z-20 -mx-5 mb-3 flex items-center gap-2 bg-surface px-5 py-3 text-sm font-medium text-text-muted transition-colors hover:text-text sm:-mx-8 sm:px-8 lg:hidden"
         >
           <BackIcon />
@@ -531,6 +550,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
           { ...values, sort: option.value },
           0,
           requestedJobId,
+          filtersOpen ? "open" : "",
         ),
       }))}
     />
@@ -610,6 +630,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
           values={values}
           offset={offset}
           requestedJobId={requestedJobId}
+          filtersOpen={filtersOpen}
         />
       </Suspense>
     </div>

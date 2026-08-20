@@ -26,6 +26,12 @@
   --color-accent-fill-hover: #a4d4e1;
   --color-on-accent: #14181a;
   --color-accent-soft: #e8f4f8;
+  /* The solid accent, for a control that has to read as the one thing on the
+     page worth pressing. Fixed across themes for the same reason the fill is:
+     the white on it is what makes it legible. */
+  --color-accent-strong: #11626f;
+  --color-accent-strong-hover: #0c4b55;
+  --color-on-accent-strong: #ffffff;
   --color-positive: #11626f;
   --color-positive-soft: #11626f;
   --color-warning: #6e787c;
@@ -79,6 +85,9 @@
     --color-accent-fill-hover: #cbe8ef;
     --color-on-accent: #14181a;
     --color-accent-soft: #1c2c31;
+    --color-accent-strong: #11626f;
+    --color-accent-strong-hover: #0c4b55;
+    --color-on-accent-strong: #ffffff;
     --color-positive: #7fc8d9;
     --color-positive-soft: #7fc8d9;
     --color-warning: #8b989d;
@@ -116,6 +125,9 @@
   --color-accent-fill-hover: var(--color-accent-fill-hover);
   --color-on-accent: var(--color-on-accent);
   --color-accent-soft: var(--color-accent-soft);
+  --color-accent-strong: var(--color-accent-strong);
+  --color-accent-strong-hover: var(--color-accent-strong-hover);
+  --color-on-accent-strong: var(--color-on-accent-strong);
   --color-positive: var(--color-positive);
   --color-positive-soft: var(--color-positive-soft);
   --color-warning: var(--color-warning);

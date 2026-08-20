@@ -182,3 +182,47 @@ export function LogoMark({ className }: IconProps) {
     </svg>
   );
 }
+
+/** A panel with its edge tucked in, for putting the sidebar away. */
+export function CollapseIcon({ className }: IconProps) {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={className}
+    >
+      <rect x="2.75" y="3.75" width="14.5" height="12.5" rx="2.25" />
+      <path d="M7.75 3.75v12.5" />
+      <path d="m13.5 8 -2 2 2 2" />
+    </svg>
+  );
+}
+
+/** The same panel with its edge pushed back out. */
+export function ExpandIcon({ className }: IconProps) {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={className}
+    >
+      <rect x="2.75" y="3.75" width="14.5" height="12.5" rx="2.25" />
+      <path d="M7.75 3.75v12.5" />
+      <path d="m11.5 8 2 2 -2 2" />
+    </svg>
+  );
+}

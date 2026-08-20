@@ -7,17 +7,33 @@ import { MenuIcon } from "@/components/layout/NavIcons";
 import { SidebarFooter } from "@/components/layout/SidebarFooter";
 import { ShellSearchParamsProvider } from "@/components/layout/ShellSearchParams";
 import { SidebarNav } from "@/components/layout/SidebarNav";
+import { TopBar } from "@/components/layout/TopBar";
 import { Wordmark } from "@/components/layout/Wordmark";
 import type { DatasetOption } from "@/components/layout/DatasetSwitcher";
+import { rememberSidebar, type Theme } from "@/lib/theme";
 
 interface AppShellProps {
   datasets: DatasetOption[];
   statusSlot: ReactNode;
+  /** Both read from the request, so the first paint is already correct. */
+  initialTheme: Theme | null;
+  initialSidebarCollapsed: boolean;
   children: ReactNode;
 }
 
-export function AppShell({ datasets, statusSlot, children }: AppShellProps) {
+export function AppShell({
+  datasets,
+  statusSlot,
+  initialTheme,
+  initialSidebarCollapsed,
+  children,
+}: AppShellProps) {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  // Seeded from the cookie the server already rendered against, so the rail
+  // never starts wide and snaps shut.
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(
+    initialSidebarCollapsed,
+  );
   const pathname = usePathname();
   const [lastPathname, setLastPathname] = useState(pathname);
 
@@ -68,23 +84,52 @@ export function AppShell({ datasets, statusSlot, children }: AppShellProps) {
           ) : null}
         </header>
 
-        <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r border-border bg-surface lg:flex">
-          <div className="px-4 py-5">
-            <Wordmark />
+        <aside
+          // Above the main column, not just before it: sticky makes this a
+          // stacking context, so the flyout's own z-index cannot lift it out.
+          className={`sticky top-0 z-40 hidden h-dvh shrink-0 flex-col border-r border-border bg-surface transition-[width] duration-200 lg:flex ${
+            isSidebarCollapsed ? "w-[4.5rem]" : "w-64"
+          }`}
+        >
+          <div
+            className={
+              isSidebarCollapsed ? "px-2 py-5" : "px-4 py-5"
+            }
+          >
+            <Wordmark isCollapsed={isSidebarCollapsed} />
           </div>
-          <div className="flex-1 overflow-y-auto">
-            <SidebarNav />
+          {/* A rail is short enough not to need scrolling, and scrolling it
+              would clip the flyout the Market Insights icon opens. */}
+          <div
+            className={isSidebarCollapsed ? "flex-1" : "flex-1 overflow-y-auto"}
+          >
+            <SidebarNav isCollapsed={isSidebarCollapsed} />
           </div>
-          {footer}
+          <SidebarFooter
+            datasets={datasets}
+            statusSlot={statusSlot}
+            isCollapsed={isSidebarCollapsed}
+          />
         </aside>
-      </ShellSearchParamsProvider>
 
-      <main
-        id="main-content"
-        className="min-w-0 flex-1 px-5 py-8 sm:px-8 lg:px-10 lg:py-10"
-      >
-        <div className="mx-auto max-w-7xl space-y-8">{children}</div>
-      </main>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <TopBar
+            isSidebarCollapsed={isSidebarCollapsed}
+            initialTheme={initialTheme}
+            onToggleSidebar={() => {
+              setIsSidebarCollapsed(!isSidebarCollapsed);
+              rememberSidebar(!isSidebarCollapsed);
+            }}
+          />
+
+          <main
+            id="main-content"
+            className="min-w-0 flex-1 px-5 py-8 sm:px-8 lg:px-10 lg:py-10"
+          >
+            <div className="mx-auto max-w-7xl space-y-8">{children}</div>
+          </main>
+        </div>
+      </ShellSearchParamsProvider>
     </div>
   );
 }

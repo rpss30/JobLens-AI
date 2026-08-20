@@ -12,7 +12,7 @@ import { withDataset } from "@/lib/datasets";
  * returning to a stale one, but keeps the chosen dataset, which is a setting
  * rather than part of the result.
  */
-export function Wordmark() {
+export function Wordmark({ isCollapsed = false }: { isCollapsed?: boolean }) {
   const { clearAnalysis } = useAnalysis();
   const datasetName = useDatasetParam();
 
@@ -20,10 +20,22 @@ export function Wordmark() {
     <Link
       href={withDataset("/", datasetName)}
       onClick={clearAnalysis}
-      className="flex min-w-0 items-center gap-3"
+      className={
+        isCollapsed
+          ? "flex justify-center"
+          : "flex min-w-0 items-center gap-3"
+      }
     >
       <LogoMark className="shrink-0 text-text" />
-      <span className="truncate text-4xl font-semibold tracking-tight text-text">
+      {/* The mark alone on a rail, but the name still has to be readable to
+          anything that is not looking at it. */}
+      <span
+        className={
+          isCollapsed
+            ? "sr-only"
+            : "truncate text-4xl font-semibold tracking-tight text-text"
+        }
+      >
         JobLens
       </span>
     </Link>

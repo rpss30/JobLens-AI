@@ -8,6 +8,7 @@ import requests
 
 from src.ingestion.ats_normalizers import (
     build_ats_job_id,
+    clean_html_document,
     clean_html_text,
     current_utc_timestamp,
     infer_experience_level_from_text,
@@ -67,9 +68,12 @@ def normalize_ashby_posting(
     job_url = clean_html_text(posting.get("jobUrl"))
     posting_id = posting.get("id") or job_url or posting.get("title", "")
     title = clean_html_text(posting.get("title"))
-    description = clean_html_text(
+    description_source = (
         posting.get("descriptionPlain") or posting.get("descriptionHtml")
     )
+    description = clean_html_text(description_source)
+    # The same words, with the paragraphs and lists the board wrote them in.
+    description_formatted = clean_html_document(description_source)
     primary_address = get_primary_ashby_address(posting)
 
     return {
@@ -78,6 +82,7 @@ def normalize_ashby_posting(
         "company": company_name,
         "location": clean_html_text(posting.get("location")),
         "description": description,
+        "description_formatted": description_formatted,
         "experience_level": infer_experience_level_from_text(title, description),
         "source": "ashby",
         "source_url": job_url or clean_html_text(posting.get("applyUrl")),

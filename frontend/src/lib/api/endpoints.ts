@@ -8,10 +8,13 @@ import type {
   DeleteDatasetResult,
   FilterOptions,
   HealthResponse,
+  JobDetail,
   JobListResponse,
   MarketInsights,
   RenameDatasetResult,
   ResumeSkillsResponse,
+  SavedJob,
+  SaveJobRequest,
   SearchMode,
   SortOrder,
   UploadDatasetResult,
@@ -180,4 +183,40 @@ export function deleteAnalysisRun(
   analysisRunId: number,
 ): Promise<{ id: number; deleted: boolean }> {
   return apiFetch(`/analysis-runs/${analysisRunId}`, { method: "DELETE" });
+}
+
+export function getJob(
+  jobId: string,
+  datasetName?: string | null,
+): Promise<JobDetail> {
+  return apiFetch<JobDetail>(
+    `/jobs/${encodeURIComponent(jobId)}${buildQueryString({
+      dataset_name: datasetName,
+    })}`,
+  );
+}
+
+export function getSavedJobs(datasetName?: string | null): Promise<SavedJob[]> {
+  return apiFetch<SavedJob[]>(
+    `/saved-jobs${buildQueryString({ dataset_name: datasetName })}`,
+  );
+}
+
+export function saveJob(request: SaveJobRequest): Promise<SavedJob> {
+  return apiFetch<SavedJob>("/saved-jobs", {
+    method: "POST",
+    body: JSON.stringify(request),
+  });
+}
+
+export function unsaveJob(
+  jobId: string,
+  datasetName: string,
+): Promise<{ job_id: string; deleted: boolean }> {
+  return apiFetch<{ job_id: string; deleted: boolean }>(
+    `/saved-jobs/${encodeURIComponent(jobId)}${buildQueryString({
+      dataset_name: datasetName,
+    })}`,
+    { method: "DELETE" },
+  );
 }

@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 
-import { OverviewContent } from "@/components/domain/OverviewContent";
+import { LandingIntro } from "@/components/domain/LandingIntro";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { CardSkeleton } from "@/components/ui/States";
 import { getFilterOptions } from "@/lib/api/endpoints";
@@ -10,10 +10,7 @@ async function OverviewSection({ datasetName }: { datasetName: string }) {
   const filterOptions = await getFilterOptions(datasetName);
 
   return (
-    <OverviewContent
-      datasetName={datasetName}
-      summary={filterOptions.summary}
-    />
+    <LandingIntro datasetName={datasetName} summary={filterOptions.summary} />
   );
 }
 

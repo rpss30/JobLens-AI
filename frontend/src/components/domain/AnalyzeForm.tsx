@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState, type FormEvent, type ReactNode } from "react";
 
 import { Card, CardBody } from "@/components/ui/Card";
@@ -126,7 +125,6 @@ export function AnalyzeForm({
   filterOptions: FilterOptions;
   datasetName: string;
 }) {
-  const router = useRouter();
   const { setAnalysis } = useAnalysis();
 
   const [currentSkills, setCurrentSkills] = useState<string[]>([]);
@@ -297,7 +295,6 @@ export function AnalyzeForm({
         response: payload as AnalyzeResponse,
         completedAt: new Date().toISOString(),
       });
-      router.push(`/?dataset=${encodeURIComponent(datasetName)}`);
     } catch {
       setErrorMessage(
         "Could not reach JobLens. Check your connection and try again.",

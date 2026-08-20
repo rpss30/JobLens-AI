@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 
 import { Card, CardBody } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -36,12 +36,87 @@ const EXPERIENCE_BUCKETS = [
   "10+ years",
 ];
 
-function StepHeading({ children }: { children: string }) {
+function ProfileIcon() {
   return (
-    <h2 className="text-2xl font-semibold uppercase tracking-wide text-text">
-      {children}
-    </h2>
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="8" r="3.5" />
+      <path d="M5 20c0-3.6 3.1-5.5 7-5.5s7 1.9 7 5.5" />
+    </svg>
   );
+}
+
+function CompassIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="m15.5 8.5-2 5-5 2 2-5z" />
+    </svg>
+  );
+}
+
+function LockIcon() {
+  return (
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className="shrink-0"
+    >
+      <rect x="4.5" y="10.5" width="15" height="9.5" rx="2" />
+      <path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" />
+    </svg>
+  );
+}
+
+/** An area of the form, announced by its own icon and label. */
+function SectionHeading({
+  icon,
+  children,
+}: {
+  icon: ReactNode;
+  children: string;
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="inline-flex shrink-0 rounded-xl bg-accent-soft p-2 text-accent">
+        {icon}
+      </span>
+      <h2 className="text-base font-semibold uppercase tracking-wide text-text">
+        {children}
+      </h2>
+    </div>
+  );
+}
+
+/** The hint under a control, kept to one voice across the form. */
+function FieldHint({ children }: { children: string }) {
+  return <p className="mt-2 text-xs text-text-subtle">{children}</p>;
 }
 
 export function AnalyzeForm({
@@ -216,153 +291,171 @@ export function AnalyzeForm({
     }
   }
 
+  const notices = (
+    <>
+      {validationMessage ? (
+        <p role="alert" className={`mt-4 ${noticeToneClassName.error}`}>
+          {validationMessage}
+        </p>
+      ) : null}
+
+      {errorMessage ? (
+        <div className="mt-4">
+          <ErrorState
+            title="Analysis could not run"
+            description={errorMessage}
+          />
+        </div>
+      ) : null}
+    </>
+  );
+
   return (
     <form onSubmit={handleSubmit} className="w-full">
       <Card className="overflow-visible">
-        <CardBody className="overflow-visible p-5 sm:px-5 sm:py-7">
-          <div className="flex flex-col">
-            {/* Heading */}
-            <StepHeading>What do you bring?</StepHeading>
+        <CardBody className="overflow-visible p-5 sm:px-6 sm:py-7">
+          <SectionHeading icon={<ProfileIcon />}>Your profile</SectionHeading>
 
-            {/* Skills */}
-            <div className="mt-5">
-              <TokenInput
-                id="current-skills"
-                label="Skills"
-                placeholder="Choose skill(s)"
-                values={currentSkills}
-                suggestions={filterOptions.skills}
-                allowCustomValues={false}
-                required
-                formatValue={formatSkill}
-                onChange={(skills) => {
-                  setValidationMessage("");
-                  setCurrentSkills(skills);
-                }}
-              />
-            </div>
+          <div className="mt-5">
+            <TokenInput
+              id="current-skills"
+              label="Skills"
+              placeholder="Choose skill(s)"
+              values={currentSkills}
+              suggestions={filterOptions.skills}
+              allowCustomValues={false}
+              required
+              formatValue={formatSkill}
+              onChange={(skills) => {
+                setValidationMessage("");
+                setCurrentSkills(skills);
+              }}
+            />
+            <FieldHint>
+              Choose the skills you currently feel comfortable using
+            </FieldHint>
+          </div>
 
-            {/* Resume alternative */}
-            <div className="mt-3">
-              <p className="mb-2 pl-2 text-sm text-text-subtle">OR</p>
+          {/* The two routes to the same field, so neither reads as the
+              fallback for the other. */}
+          <div className="my-6 flex items-center gap-4">
+            <span className="h-px flex-1 bg-border" />
+            <span className="text-sm text-text-muted">
+              or add skills from your resume
+            </span>
+            <span className="h-px flex-1 bg-border" />
+          </div>
 
-              <textarea
-                id="resume-text"
-                aria-label="Paste your resume"
-                rows={3}
-                maxLength={12000}
-                value={resumeText}
-                onChange={(event) => {
-                  setResumeText(event.target.value);
-                  setExtractNotice(null);
-                }}
-                placeholder="Paste your resume"
-                className={`${largeControlClassName} min-h-[84px] resize-y`}
-              />
+          <div>
+            <textarea
+              id="resume-text"
+              aria-label="Paste your resume"
+              rows={3}
+              maxLength={12000}
+              value={resumeText}
+              onChange={(event) => {
+                setResumeText(event.target.value);
+                setExtractNotice(null);
+              }}
+              placeholder="Paste your resume"
+              className={`${largeControlClassName} min-h-[84px] resize-y`}
+            />
 
-              <div className="mt-3 flex flex-wrap items-center gap-3">
-                <button
-                  type="button"
-                  onClick={handleExtractSkills}
-                  disabled={isExtracting}
-                  className={outlineControlButtonClassName}
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={handleExtractSkills}
+                disabled={isExtracting}
+                className={outlineControlButtonClassName}
+              >
+                {isExtracting ? "Reading…" : "Read skills from resume"}
+              </button>
+
+              {extractNotice ? (
+                <p
+                  role="status"
+                  className={noticeToneClassName[extractNotice.tone]}
                 >
-                  {isExtracting ? "Reading…" : "Read skills from resume"}
-                </button>
-
-                {extractNotice ? (
-                  <p
-                    role="status"
-                    className={noticeToneClassName[extractNotice.tone]}
-                  >
-                    {extractNotice.text}
-                  </p>
-                ) : null}
-              </div>
-
-              <p className="mt-2 text-xs text-text-subtle">
-                Your resume is only used to work out this result. It is never
-                saved or shared.
-              </p>
+                  {extractNotice.text}
+                </p>
+              ) : null}
             </div>
 
-            {/* Experience */}
-            <div className="mt-7">
-              <SingleSelectCombobox
-                id="candidate-experience"
-                label="Experience Level"
-                value={candidateExperience}
-                placeholder="Select experience"
-                options={EXPERIENCE_BUCKETS.map((option) => ({
-                  value: option,
-                  label: option,
-                }))}
-                onChange={(next) => {
-                  setValidationMessage("");
-                  setCandidateExperience(next);
-                }}
-              />
-            </div>
+            <p className="mt-3 flex items-center gap-1.5 text-xs text-text-subtle">
+              <LockIcon />
+              Your resume is only used to work out this result. It is never
+              saved or shared
+            </p>
+          </div>
 
-            {validationMessage ? (
-              <p role="alert" className={`mt-3 ${noticeToneClassName.error}`}>
-                {validationMessage}
-              </p>
-            ) : null}
+          <div className="mt-8 border-t border-border pt-7">
+            <SectionHeading icon={<CompassIcon />}>
+              Experience &amp; location
+            </SectionHeading>
 
-            {errorMessage ? (
-              <div className="mt-4">
-                <ErrorState
-                  title="Analysis could not run"
-                  description={errorMessage}
-                />
-              </div>
-            ) : null}
-
-            {/* Location */}
-            <div className="mt-7">
-              <SingleSelectCombobox
-                id="location"
-                label="Location"
-                value={location}
-                placeholder="Select location"
-                options={[
-                  { value: "Any", label: "Any location" },
-                  ...filterOptions.locations.map((option) => ({
+            <div className="mt-5 grid gap-6 sm:grid-cols-2">
+              <div>
+                <SingleSelectCombobox
+                  id="candidate-experience"
+                  label="Experience Level"
+                  value={candidateExperience}
+                  placeholder="Select experience"
+                  required
+                  options={EXPERIENCE_BUCKETS.map((option) => ({
                     value: option,
                     label: option,
-                  })),
-                ]}
-                onChange={(next) => {
-                  setValidationMessage("");
-                  setLocation(next);
-                }}
-              />
-            </div>
-
-            {validationMessage ? (
-              <p role="alert" className={`mt-3 ${noticeToneClassName.error}`}>
-                {validationMessage}
-              </p>
-            ) : null}
-
-            {errorMessage ? (
-              <div className="mt-4">
-                <ErrorState
-                  title="Analysis could not run"
-                  description={errorMessage}
+                  }))}
+                  onChange={(next) => {
+                    setValidationMessage("");
+                    setCandidateExperience(next);
+                  }}
                 />
+                <FieldHint>
+                  How much professional experience do you have?
+                </FieldHint>
               </div>
-            ) : null}
 
-            <div className="mt-auto flex justify-end pt-10">
-              <Button type="submit" size="lg" disabled={isSubmitting}>
-                {isSubmitting ? "Checking…" : "Submit"}
-              </Button>
+              <div>
+                <SingleSelectCombobox
+                  id="location"
+                  label="Location"
+                  value={location}
+                  placeholder="Select location"
+                  required
+                  options={[
+                    { value: "Any", label: "Any location" },
+                    ...filterOptions.locations.map((option) => ({
+                      value: option,
+                      label: option,
+                    })),
+                  ]}
+                  onChange={(next) => {
+                    setValidationMessage("");
+                    setLocation(next);
+                  }}
+                />
+                <FieldHint>Jobs near this location will be prioritized</FieldHint>
+              </div>
             </div>
           </div>
+
+          {notices}
         </CardBody>
       </Card>
+
+      {/* Outside the card and pinned to the bottom of the viewport: the one
+          action the page exists for should never be somewhere you have to go
+          looking. Not the jobs page's scrolling columns, because the skill and
+          location menus are absolutely positioned children rather than
+          portals, and a scroll container here would clip them. */}
+      <div className="sticky bottom-0 z-10 mt-6 flex justify-center bg-canvas py-4">
+        <Button type="submit" size="lg" variant="strong" disabled={isSubmitting}>
+          {isSubmitting ? "Checking…" : "Analyze my fit"}
+          <span aria-hidden="true" className="ml-2">
+            &rarr;
+          </span>
+        </Button>
+      </div>
     </form>
   );
 }

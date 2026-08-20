@@ -371,6 +371,9 @@ class JobDetail(JobListing):
     dataset_name: str = ""
     # The posting's own words, carried only for the one being read.
     description: str = ""
+    # The same words with the board's own paragraphs and lists, where the
+    # posting was still up when the dataset was last filled in.
+    description_formatted: str = ""
 
 
 class JobListResponse(BaseModel):

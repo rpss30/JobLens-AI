@@ -8,6 +8,7 @@ import requests
 
 from src.ingestion.ats_normalizers import (
     build_ats_job_id,
+    clean_html_document,
     clean_html_text,
     current_utc_timestamp,
     infer_experience_level_from_text,
@@ -57,6 +58,8 @@ def normalize_greenhouse_job(
     location = clean_html_text(location_data.get("name"))
 
     content = clean_html_text(job.get("content"))
+    # The body as written, before it is joined with the tidier metadata.
+    description_formatted = clean_html_document(job.get("content"))
     departments = job.get("departments") or []
     offices = job.get("offices") or []
 
@@ -84,6 +87,7 @@ def normalize_greenhouse_job(
         "company": company,
         "location": location,
         "description": description,
+        "description_formatted": description_formatted,
         "experience_level": infer_experience_level_from_text(title, description),
         "source": "greenhouse",
         "source_url": job.get("absolute_url", ""),

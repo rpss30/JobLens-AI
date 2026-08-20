@@ -117,4 +117,6 @@ def get_job(*, dataset_name: str | None, job_id: str) -> dict:
         **build_job_listing_row(row),
         "dataset_name": resolved_dataset_name,
         "description": clean_optional_text(row.get("description", "")),
+        # Not cleaned: the line breaks are the whole point of this field.
+        "description_formatted": str(row.get("description_formatted") or "").strip(),
     }

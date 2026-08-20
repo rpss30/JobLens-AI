@@ -5,9 +5,9 @@ import { BookmarkButton } from "@/components/domain/BookmarkButton";
 import { CompanyLogo } from "@/components/domain/CompanyLogo";
 import { JobDescription } from "@/components/domain/JobDescription";
 import { JobFilters } from "@/components/domain/JobFilters";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { JobSortMenu } from "@/components/domain/JobSortMenu";
 import { Badge } from "@/components/ui/Badge";
-import { Card, CardBody } from "@/components/ui/Card";
+import { Card } from "@/components/ui/Card";
 import { CardSkeleton, EmptyState, Skeleton } from "@/components/ui/States";
 import {
   getFilterOptions,
@@ -20,6 +20,14 @@ import { resolveDataset } from "@/lib/datasets";
 import { formatCount, formatDate, formatDatasetLabel } from "@/lib/format";
 
 const PAGE_SIZE = 12;
+
+const SORT_OPTIONS = [
+  { value: "search_relevance", label: "Relevance" },
+  { value: "date_posted", label: "Date posted" },
+  { value: "title", label: "Title" },
+  { value: "company", label: "Company" },
+  { value: "location", label: "Location" },
+];
 
 interface JobFilterValues {
   q: string;
@@ -47,6 +55,7 @@ function buildJobsHref(
   values: JobFilterValues,
   offset: number,
   jobId?: string,
+  filters?: string,
 ): string {
   const params = new URLSearchParams({ dataset: datasetName, ...values });
 
@@ -58,7 +67,49 @@ function buildJobsHref(
     params.set("job", jobId);
   }
 
+  if (filters) {
+    params.set("filters", filters);
+  }
+
   return `/jobs?${params.toString()}`;
+}
+
+function SlidersIcon() {
+  return (
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
+      <path d="M4 7h10M18 7h2M4 12h4M12 12h8M4 17h10M18 17h2" />
+      <circle cx="16" cy="7" r="1.9" />
+      <circle cx="10" cy="12" r="1.9" />
+      <circle cx="16" cy="17" r="1.9" />
+    </svg>
+  );
+}
+
+function BackIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M16 10H4M9 5l-5 5 5 5" />
+    </svg>
+  );
 }
 
 function PinIcon() {
@@ -180,12 +231,16 @@ async function JobDetailPane({
   }
 
   return (
-    <Card className="flex min-h-0 flex-col lg:h-full">
-      <CardBody className="min-h-0 space-y-4 overflow-y-auto p-5 sm:p-6">
-        <div className="flex items-start gap-3">
+    <div className="flex min-h-0 flex-col gap-4 lg:h-full lg:rounded-xl lg:border lg:border-border lg:bg-surface lg:shadow-[0_1px_2px_rgba(16,21,31,0.04)]">
+      {/* Outside the scrolling part, so which posting is open stays readable
+          however far down the description you are. */}
+      <div className="shrink-0 space-y-4 border-b border-border pb-4 pt-1 lg:px-6 lg:pt-6">
+        {/* The buttons drop to their own row rather than squeezing the title
+            into a column a few words wide. */}
+        <div className="flex flex-wrap items-start gap-3">
           <CompanyLogo name={job.company} domain={job.company_domain} />
 
-          <div className="min-w-0 flex-1">
+          <div className="min-w-[12rem] flex-1">
             <h2 className="text-xl font-medium text-text">{job.title}</h2>
             <p className="mt-0.5 flex items-center gap-1.5 text-sm text-text-muted">
               <BuildingIcon />
@@ -193,23 +248,25 @@ async function JobDetailPane({
             </p>
           </div>
 
-          <BookmarkButton
-            job={job}
-            datasetName={datasetName}
-            initiallySaved={isSaved}
-          />
+          <div className="flex shrink-0 items-center gap-2">
+            <BookmarkButton
+              job={job}
+              datasetName={datasetName}
+              initiallySaved={isSaved}
+            />
 
-          {job.source_url ? (
-            <a
-              href={job.source_url}
-              target="_blank"
-              rel="noreferrer noopener"
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-accent-fill px-4 py-2.5 text-sm font-medium text-on-accent transition-opacity hover:opacity-90"
-            >
-              Apply
-              <span aria-hidden="true">↗</span>
-            </a>
-          ) : null}
+            {job.source_url ? (
+              <a
+                href={job.source_url}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-accent-fill px-4 py-2.5 text-sm font-medium text-on-accent transition-opacity hover:opacity-90"
+              >
+                Apply
+                <span aria-hidden="true">↗</span>
+              </a>
+            ) : null}
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -225,25 +282,31 @@ async function JobDetailPane({
           {job.employment_type ? <Pill>{job.employment_type}</Pill> : null}
           {job.experience_level ? <Pill>{job.experience_level}</Pill> : null}
         </div>
+      </div>
 
-        <div className="border-t border-border pt-4">
-          <h3 className="text-[0.6875rem] font-medium uppercase tracking-wide text-text-subtle">
-            About the job
-          </h3>
-          <div className="mt-2">
-            <JobDescription description={job.description} />
-          </div>
+      {/* Only a scroller once there is a height to scroll in: overscroll-contain
+          swallows a touch even with nothing to scroll, which below lg left the
+          page stuck unless the drag started outside the description. */}
+      <div className="min-h-0 pb-1 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain lg:px-6 lg:pb-6">
+        <h3 className="text-[0.6875rem] font-medium uppercase tracking-wide text-text-subtle">
+          About the job
+        </h3>
+        <div className="mt-2">
+          <JobDescription
+            description={job.description}
+            formatted={job.description_formatted}
+          />
         </div>
-      </CardBody>
-    </Card>
+      </div>
+    </div>
   );
 }
 
 function JobResultsSkeleton() {
   return (
     <>
-      <Skeleton className="h-5 w-56" />
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+      <Skeleton className="h-5 w-56 lg:shrink-0" />
+      <div className="grid gap-5 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
         <CardSkeleton rows={6} />
         <CardSkeleton rows={8} />
       </div>
@@ -297,21 +360,28 @@ async function JobResults({
 
   return (
     /*
-     * Both columns share the row's height from lg up and scroll inside it, so
-     * the description ends level with the list rather than running past the
-     * bottom of it.
+     * The pair takes whatever height the page has left and each column
+     * scrolls inside its own box, so a long list never runs past the bottom
+     * of the posting beside it. overscroll-contain stops a column that has
+     * reached either end from handing the remaining scroll to the page.
      */
-    <div className="grid gap-5 lg:h-[calc(100vh-17rem)] lg:min-h-[34rem] lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-      <Card className="flex min-h-0 flex-col lg:h-full">
+    <div className="grid gap-5 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+      <Card
+        // Narrow screens show one at a time: the list, or the posting it
+        // opened. Both columns are side by side once there is room.
+        className={`flex min-h-0 flex-col lg:h-full ${
+          requestedJobId ? "hidden lg:flex" : ""
+        }`}
+      >
         <p
-          className="border-b border-border px-4 py-3 text-sm text-text-muted"
+          className="shrink-0 border-b border-border px-4 py-3 text-sm text-text-muted"
           aria-live="polite"
         >
           Showing {formatCount(shownFrom)}–{formatCount(shownTo)} of{" "}
           {formatCount(jobList.total)} jobs
         </p>
 
-        <ul className="min-h-0 flex-1 divide-y divide-border overflow-y-auto">
+        <ul className="divide-y divide-border lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain">
           {jobList.jobs.map((job, index) => (
             <JobRow
               key={job.job_id || `${job.title}-${job.company}-${index}`}
@@ -325,7 +395,7 @@ async function JobResults({
         {hasPrevious || hasNext ? (
           <nav
             aria-label="Job list pages"
-            className="flex items-center justify-between border-t border-border px-4 py-3"
+            className="flex shrink-0 items-center justify-between border-t border-border px-4 py-3"
           >
             {hasPrevious ? (
               <Link
@@ -356,9 +426,33 @@ async function JobResults({
         ) : null}
       </Card>
 
-      <Suspense key={selectedJob.job_id} fallback={<JobDetailSkeleton />}>
-        <JobDetailPane jobId={selectedJob.job_id} datasetName={datasetName} />
-      </Suspense>
+      <div
+        // The grid row already carries the viewport height, so the posting
+        // fills it rather than setting a height of its own.
+        className={`min-w-0 lg:relative lg:h-full ${
+          requestedJobId
+            ? // Bleeds past the page padding so the posting sits on white
+              // rather than the page's own ground.
+              "-mx-5 -my-8 min-h-[calc(100dvh-4rem)] bg-surface px-5 py-6 sm:-mx-8 sm:px-8 lg:mx-0 lg:my-0 lg:min-h-0 lg:bg-transparent lg:p-0"
+            : "hidden lg:block"
+        }`}
+      >
+        {/* Rides under the shell's own bar, and bleeds to both edges so the
+            description passes behind it rather than beside it. */}
+        <Link
+          href={buildJobsHref(datasetName, values, offset)}
+          className="sticky top-16 z-20 -mx-5 mb-3 flex items-center gap-2 bg-surface px-5 py-3 text-sm font-medium text-text-muted transition-colors hover:text-text sm:-mx-8 sm:px-8 lg:hidden"
+        >
+          <BackIcon />
+          Back to postings
+        </Link>
+
+        <div className="lg:absolute lg:inset-0 lg:overflow-hidden">
+          <Suspense key={selectedJob.job_id} fallback={<JobDetailSkeleton />}>
+            <JobDetailPane jobId={selectedJob.job_id} datasetName={datasetName} />
+          </Suspense>
+        </div>
+      </div>
     </div>
   );
 }
@@ -380,26 +474,135 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
   const offset = Math.max(0, Number(readParam(params.offset, "0")) || 0);
   const filterOptions = await getFilterOptions(datasetName);
 
+  /*
+   * The filter panel is always open once there is room for it. On a narrow
+   * screen it hides behind the toggle, and the toggle is a link so the panel
+   * needs no state of its own.
+   */
+  const filtersOpen = readParam(params.filters, "") === "open";
+  const activeFilterCount = [
+    values.q.trim(),
+    values.location === "Any" ? "" : values.location,
+    values.company === "Any" ? "" : values.company,
+    values.level === "Any" ? "" : values.level,
+  ].filter(Boolean).length;
+  const filtersToggleHref = buildJobsHref(
+    datasetName,
+    values,
+    offset,
+    requestedJobId,
+    filtersOpen ? "" : "open",
+  );
+
+  const filtersToggle = (
+    <Link
+      href={filtersToggleHref}
+      aria-expanded={filtersOpen}
+      aria-label={filtersOpen ? "Hide filters" : "Show filters"}
+      // Square, and the same 2.375rem height as the sort control beside it.
+      // Carries the accent while the panel is open, the way every other
+      // control in this interface shows that it is the one doing something.
+      className={`relative inline-flex size-[2.375rem] shrink-0 items-center justify-center rounded-lg border transition-colors ${
+        filtersOpen
+          ? "border-transparent bg-accent-fill text-on-accent hover:bg-accent-fill-hover"
+          : "border-border bg-surface text-text hover:bg-surface-muted"
+      }`}
+    >
+      <SlidersIcon />
+      {/* Only worth counting while the panel is shut: open, the filters
+          speak for themselves. */}
+      {!filtersOpen && activeFilterCount > 0 ? (
+        <span className="absolute -right-1.5 -top-1.5 min-w-[1.125rem] rounded-full bg-accent-fill px-1 text-center text-[0.6875rem] font-medium leading-[1.125rem] text-on-accent">
+          {activeFilterCount}
+        </span>
+      ) : null}
+    </Link>
+  );
+
+  const sortMenu = (
+    <JobSortMenu
+      value={values.sort}
+      options={SORT_OPTIONS.map((option) => ({
+        ...option,
+        // Changing the order keeps every other filter, and starts again from
+        // the first page of results.
+        href: buildJobsHref(
+          datasetName,
+          { ...values, sort: option.value },
+          0,
+          requestedJobId,
+        ),
+      }))}
+    />
+  );
+
   return (
-    <>
-      <PageHeader
-        title="Jobs"
-        description="Every job in the selected dataset. Search and filter to narrow the list."
-        action={
+    /*
+     * From lg up the page is exactly as tall as the viewport and does not
+     * scroll: the heading and filters take what they need and the results
+     * take the rest. Anything that hangs below the fold is unreachable once
+     * the columns stop passing their scroll on to the page.
+     */
+    <div className="space-y-8 lg:flex lg:h-[calc(100dvh-5rem)] lg:flex-col">
+      {/*
+       * Not PageHeader: the toggle has to sit level with the heading on a
+       * narrow screen, and that component wraps its action below the
+       * description instead.
+       */}
+      <header
+        className={`items-start justify-between gap-4 lg:shrink-0 ${
+          // A posting opened on a narrow screen is a page of its own.
+          requestedJobId ? "hidden lg:flex" : "flex"
+        }`}
+      >
+        <div className="min-w-0">
+          <h1 className="text-3xl font-medium tracking-tight text-text sm:text-4xl">
+            Jobs
+          </h1>
+          <p className="mt-2 max-w-2xl text-base text-text-muted">
+            Every job in the selected dataset. Search and filter to narrow the
+            list.
+          </p>
+        </div>
+
+        <div className="hidden shrink-0 items-center gap-3 self-end lg:flex">
           <Badge tone="neutral">
             {formatDatasetLabel(filterOptions.dataset_name)}
           </Badge>
-        }
-      />
+          {sortMenu}
+          {filtersToggle}
+        </div>
+      </header>
 
-      <JobFilters
-        filterOptions={filterOptions}
-        values={values}
-        datasetName={datasetName}
-      />
+      {/* Below the description on a narrow screen, beside the heading above. */}
+      <div
+        className={`items-center justify-between gap-3 lg:hidden ${
+          requestedJobId ? "hidden" : "flex"
+        }`}
+      >
+        {sortMenu}
+        {filtersToggle}
+      </div>
+
+      <div
+        // Closed on arrival so the list gets the height instead. A posting
+        // opened on a narrow screen is still a page of its own.
+        className={`shrink-0 ${
+          filtersOpen ? (requestedJobId ? "hidden lg:block" : "block") : "hidden"
+        }`}
+      >
+        <JobFilters
+          filterOptions={filterOptions}
+          values={values}
+          datasetName={datasetName}
+        />
+      </div>
 
       <Suspense
-        key={`${values.q}|${values.location}|${values.company}|${values.level}|${values.sort}|${values.order}|${offset}|${requestedJobId}`}
+        // The opened posting is deliberately not part of this key. Including
+        // it threw the whole results area back to a skeleton on every click,
+        // list and all, when only the panel beside it was changing.
+        key={`${values.q}|${values.location}|${values.company}|${values.level}|${values.sort}|${values.order}|${offset}`}
         fallback={<JobResultsSkeleton />}
       >
         <JobResults
@@ -409,6 +612,6 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
           requestedJobId={requestedJobId}
         />
       </Suspense>
-    </>
+    </div>
   );
 }

@@ -14,6 +14,7 @@ from src.api.services import (
     job_listing_service,
     saved_job_service,
 )
+from src.api.services.analysis_service import load_jobs_for_analysis
 
 client = TestClient(app)
 
@@ -1361,6 +1362,28 @@ def test_reading_one_job_returns_its_description() -> None:
     assert len(detail.json()["description"]) > 0
 
     assert client.get("/jobs/does-not-exist").status_code == 404
+
+
+def test_a_posting_missing_its_formatted_description_reads_its_own_words() -> None:
+    """A missing value reaches the service as NaN rather than as nothing.
+
+    Read with `or ""` that survived as the string "nan", and because the
+    formatted description is preferred over the plain one, "nan" was what a
+    reader saw in place of a posting that did carry its own words.
+    """
+    _, jobs = load_jobs_for_analysis("canada_snapshot")
+    missing = jobs[jobs["description_formatted"].isna()]
+
+    assert not missing.empty, "the bundled dataset no longer covers this case"
+
+    detail = job_listing_service.get_job(
+        dataset_name="canada_snapshot",
+        job_id=str(missing.iloc[0]["job_id"]),
+    )
+
+    assert detail["description_formatted"] == ""
+    assert detail["description"]
+    assert "nan" not in detail["description_formatted"]
 
 
 def test_saving_a_job_twice_keeps_one_copy(monkeypatch) -> None:

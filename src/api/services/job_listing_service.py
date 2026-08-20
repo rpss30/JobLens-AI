@@ -214,6 +214,12 @@ def get_job(*, dataset_name: str | None, job_id: str) -> dict:
         **build_job_listing_row(row),
         "dataset_name": resolved_dataset_name,
         "description": clean_optional_text(row.get("description", "")),
-        # Not cleaned: the line breaks are the whole point of this field.
-        "description_formatted": str(row.get("description_formatted") or "").strip(),
+        # Cleaned only for the NaN a missing value arrives from pandas as:
+        # read with `or ""` it survived as the string "nan", which then won
+        # over the description the posting actually carried. Stripping trims
+        # the ends and leaves the line breaks, which are the point of this
+        # field.
+        "description_formatted": clean_optional_text(
+            row.get("description_formatted")
+        ),
     }

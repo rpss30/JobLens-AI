@@ -469,6 +469,7 @@ def filter_jobs(
     search_query: str = "",
     search_mode: str = TFIDF_SEARCH_MODE,
     company: str = "Any",
+    role_category: str = "Any",
 ) -> pd.DataFrame:
     """
     Filter jobs based on user input.
@@ -654,6 +655,26 @@ def filter_jobs(
             .str.strip()
             .str.casefold()
             == wanted_company
+        ]
+
+        if filtered_df.empty:
+            return filtered_df
+
+    if (
+        role_category
+        and role_category != "Any"
+        and "role_category" in filtered_df.columns
+    ):
+        # Matched whole, like the employer above it: the categories are a
+        # fixed set the extractor assigns, not words to search postings for.
+        wanted_category = role_category.strip().casefold()
+
+        filtered_df = filtered_df[
+            filtered_df["role_category"]
+            .astype(str)
+            .str.strip()
+            .str.casefold()
+            == wanted_category
         ]
 
         if filtered_df.empty:

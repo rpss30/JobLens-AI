@@ -72,6 +72,15 @@ def get_jobs(
             ),
         ),
     ] = "Any",
+    role_category: Annotated[
+        str,
+        Query(
+            max_length=120,
+            description=(
+                "Role category filter, matched in full. Use 'Any' to disable it."
+            ),
+        ),
+    ] = "Any",
     sort_by: Annotated[
         JobSortBy,
         Query(description="Job field to sort by."),
@@ -89,6 +98,7 @@ def get_jobs(
         location=location,
         experience_level=experience_level,
         company=company,
+        role_category=role_category,
         sort_by=sort_by,
         sort_order=query.sort_order,
         limit=query.limit,

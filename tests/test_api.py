@@ -263,6 +263,26 @@ def test_jobs_support_search_sorting_and_pagination() -> None:
 
     assert client.get("/jobs", params={"sort_by": "unsupported"}).status_code == 422
 
+    # Role category is matched whole, like the employer filter beside it: the
+    # categories are a fixed set the extractor assigns, not words to search for.
+    first = sorted_response.json()["jobs"][0]
+
+    narrowed = client.get(
+        "/jobs",
+        params={
+            "dataset_name": "canada_snapshot",
+            "role_category": first["role_category"],
+            "limit": 50,
+        },
+    )
+
+    assert narrowed.status_code == 200
+
+    categories = {job["role_category"] for job in narrowed.json()["jobs"]}
+
+    assert categories == {first["role_category"]}
+    assert narrowed.json()["total"] < data["total"]
+
 
 def test_market_insights_summarize_demand_without_a_candidate_profile() -> None:
     response = client.post(

@@ -386,7 +386,7 @@ export function LandingIntro({
 
   return (
     <div className="space-y-10">
-      <section className="grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+      <section className="rise-in grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
         <div>
           <Eyebrow>Job market intelligence</Eyebrow>
 
@@ -431,7 +431,7 @@ export function LandingIntro({
         <HeroPreview />
       </section>
 
-      <section>
+      <section className="rise-in" style={{ animationDelay: "260ms" }}>
         <Eyebrow>How it works</Eyebrow>
 
         {/* Steps and the arrows between them run in source order, so the row
@@ -471,7 +471,7 @@ export function LandingIntro({
         </ol>
       </section>
 
-      <section>
+      <section className="rise-in" style={{ animationDelay: "520ms" }}>
         <Eyebrow>Data behind JobLens</Eyebrow>
 
         <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:gap-10">

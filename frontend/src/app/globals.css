@@ -197,6 +197,23 @@ body {
   animation: ring-fill 900ms ease-out;
 }
 
+/* Sections arrive rather than appearing, staggered by an inline delay. The
+   reduced-motion block below collapses this to its finished state. */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rise-in {
+  animation: rise-in 850ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 /* Keyboard focus stays visible everywhere; pointer focus does not draw a ring. */
 :focus-visible {
   outline: 2px solid var(--color-accent);

@@ -30,7 +30,7 @@ function IconRing({
 }) {
   return (
     <span
-      className={`inline-flex shrink-0 items-center justify-center rounded-full border-2 border-accent/45 bg-accent-soft text-accent ${
+      className={`inline-flex shrink-0 items-center justify-center rounded-full border-2 border-accent bg-accent-soft text-accent ${
         size === "sm" ? "size-11" : "size-16"
       }`}
     >
@@ -42,8 +42,8 @@ function IconRing({
 function CheckIcon() {
   return (
     <svg
-      width="18"
-      height="18"
+      width="22"
+      height="22"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -57,7 +57,7 @@ function CheckIcon() {
   );
 }
 
-function TargetIcon({ size = 18 }: { size?: number }) {
+function TargetIcon({ size = 22 }: { size?: number }) {
   return (
     <svg
       width={size}
@@ -80,8 +80,8 @@ function TargetIcon({ size = 18 }: { size?: number }) {
 function TrendIcon() {
   return (
     <svg
-      width="18"
-      height="18"
+      width="22"
+      height="22"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -99,8 +99,8 @@ function TrendIcon() {
 function PersonIcon() {
   return (
     <svg
-      width="26"
-      height="26"
+      width="30"
+      height="30"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -118,8 +118,8 @@ function PersonIcon() {
 function CompassIcon() {
   return (
     <svg
-      width="26"
-      height="26"
+      width="30"
+      height="30"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -134,7 +134,7 @@ function CompassIcon() {
   );
 }
 
-function BarsIcon({ size = 26 }: { size?: number }) {
+function BarsIcon({ size = 30 }: { size?: number }) {
   return (
     <svg
       width={size}
@@ -173,8 +173,8 @@ function ArrowIcon() {
 function ShieldIcon() {
   return (
     <svg
-      width="26"
-      height="26"
+      width="30"
+      height="30"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"

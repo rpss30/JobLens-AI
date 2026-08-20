@@ -460,7 +460,7 @@ export function AnalyzeForm({
           <div className="flex justify-center rounded-b-xl border border-border bg-surface px-5 py-4 sm:px-6">
             <Button
               type="submit"
-              size="lg"
+              size="md"
               variant="strong"
               disabled={isSubmitting}
             >
@@ -472,20 +472,6 @@ export function AnalyzeForm({
           </div>
         </div>
       </Card>
-
-      {/* Outside the card and pinned to the bottom of the viewport: the one
-          action the page exists for should never be somewhere you have to go
-          looking. Not the jobs page's scrolling columns, because the skill and
-          location menus are absolutely positioned children rather than
-          portals, and a scroll container here would clip them. */}
-      {/* <div className="sticky bottom-0 z-10 mt-6 flex justify-center bg-canvas py-4">
-        <Button type="submit" size="lg" variant="strong" disabled={isSubmitting}>
-          {isSubmitting ? "Checking…" : "Analyze my fit"}
-          <span aria-hidden="true" className="ml-2">
-            &rarr;
-          </span>
-        </Button>
-      </div> */}
     </form>
   );
 }

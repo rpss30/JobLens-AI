@@ -27,7 +27,7 @@ function HeroStat({
       <p className="text-3xl font-semibold leading-tight sm:text-[2.25rem]">
         {value}
       </p>
-      <p className="mt-2 text-sm">{label}</p>
+      <p className="mt-2 text-xs">{label}</p>
     </div>
   );
 }
@@ -68,11 +68,11 @@ export function ResultsHero({
                 format={formatPercent}
               />
             }
-            label="skill match"
+            label="SKILL MATCH"
           />
           <HeroStat
             value={<CountUp value={skillCount} />}
-            label="skills you have"
+            label="SKILLS YOU HAVE"
           />
           {/* Not a number, so nothing to count: the gap is a skill's name. */}
           <HeroStat
@@ -81,7 +81,7 @@ export function ResultsHero({
                 {formatSkill(response.top_missing_skill)}
               </span>
             }
-            label="biggest gap"
+            label="BIGGEST GAP"
           />
         </div>
       </div>

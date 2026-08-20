@@ -312,8 +312,8 @@ export function AnalyzeForm({
 
   return (
     <form onSubmit={handleSubmit} className="w-full">
-      <Card className="overflow-visible">
-        <CardBody className="overflow-visible p-5 sm:px-6 sm:py-7">
+      <Card className="relative overflow-visible">
+        <CardBody className="overflow-visible p-5 pb-24 sm:px-6 sm:pt-7 sm:pb-24">
           <SectionHeading icon={<ProfileIcon />}>Your profile</SectionHeading>
 
           <div className="mt-5">
@@ -441,6 +441,23 @@ export function AnalyzeForm({
 
           {notices}
         </CardBody>
+
+        {/* Sticky visual bottom of the card */}
+        <div className="sticky bottom-0 z-20 -mx-px bg-canvas">
+          <div className="flex justify-center rounded-b-xl border border-border bg-surface px-5 py-4 sm:px-6">
+            <Button
+              type="submit"
+              size="lg"
+              variant="strong"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Checking…" : "Analyze my fit"}
+              <span aria-hidden="true" className="ml-2">
+                &rarr;
+              </span>
+            </Button>
+          </div>
+        </div>
       </Card>
 
       {/* Outside the card and pinned to the bottom of the viewport: the one
@@ -448,14 +465,14 @@ export function AnalyzeForm({
           looking. Not the jobs page's scrolling columns, because the skill and
           location menus are absolutely positioned children rather than
           portals, and a scroll container here would clip them. */}
-      <div className="sticky bottom-0 z-10 mt-6 flex justify-center bg-canvas py-4">
+      {/* <div className="sticky bottom-0 z-10 mt-6 flex justify-center bg-canvas py-4">
         <Button type="submit" size="lg" variant="strong" disabled={isSubmitting}>
           {isSubmitting ? "Checking…" : "Analyze my fit"}
           <span aria-hidden="true" className="ml-2">
             &rarr;
           </span>
         </Button>
-      </div>
+      </div> */}
     </form>
   );
 }

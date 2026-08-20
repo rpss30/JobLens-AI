@@ -79,6 +79,24 @@ function buildJobsHref(
   return `/jobs?${params.toString()}`;
 }
 
+/**
+ * The page numbers worth drawing: both ends, and a step either side of the
+ * page being read. A run of six is more than a narrow column can spell out,
+ * so the rest collapses to a gap.
+ */
+function pageWindow(current: number, total: number): (number | "gap")[] {
+  const wanted = [1, total, current - 1, current, current + 1];
+  const shown = [...new Set(wanted)]
+    .filter((page) => page >= 1 && page <= total)
+    .sort((first, second) => first - second);
+
+  return shown.flatMap((page, index) =>
+    index > 0 && page - shown[index - 1] > 1
+      ? (["gap", page] as (number | "gap")[])
+      : [page],
+  );
+}
+
 function BookmarkIcon({ filled }: { filled: boolean }) {
   return (
     <svg
@@ -393,6 +411,8 @@ async function JobResults({
   const shownTo = Math.min(offset + PAGE_SIZE, jobList.total);
   const hasPrevious = offset > 0;
   const hasNext = shownTo < jobList.total;
+  const pageCount = Math.max(1, Math.ceil(jobList.total / PAGE_SIZE));
+  const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
 
   return (
     /*
@@ -440,7 +460,7 @@ async function JobResults({
         {hasPrevious || hasNext ? (
           <nav
             aria-label="Job list pages"
-            className="flex shrink-0 items-center justify-between border-t border-border px-4 py-3"
+            className="flex shrink-0 items-center justify-between gap-2 border-t border-border px-4 py-3"
           >
             {hasPrevious ? (
               <Link
@@ -452,13 +472,53 @@ async function JobResults({
                   filtersParam,
                   savedOnly,
                 )}
-                className="text-sm font-medium text-accent hover:underline"
+                className="shrink-0 text-sm font-medium text-accent hover:underline"
               >
                 Previous
               </Link>
             ) : (
               <span />
             )}
+
+            {/* Where you are in the run, and a way straight to anywhere else
+                in it: six pages is too many to reach a step at a time. */}
+            <div className="flex items-center gap-1">
+              {pageWindow(currentPage, pageCount).map((page, index) =>
+                page === "gap" ? (
+                  <span
+                    key={`gap-${index}`}
+                    aria-hidden="true"
+                    className="px-1 text-sm text-text-subtle"
+                  >
+                    &hellip;
+                  </span>
+                ) : page === currentPage ? (
+                  <span
+                    key={page}
+                    aria-current="page"
+                    className="rounded-md bg-accent-fill px-2 py-1 text-sm font-medium text-on-accent"
+                  >
+                    {page}
+                  </span>
+                ) : (
+                  <Link
+                    key={page}
+                    href={buildJobsHref(
+                      datasetName,
+                      values,
+                      (page - 1) * PAGE_SIZE,
+                      "",
+                      filtersParam,
+                      savedOnly,
+                    )}
+                    aria-label={`Page ${page}`}
+                    className="rounded-md px-2 py-1 text-sm text-text-muted transition-colors hover:bg-surface-muted hover:text-text"
+                  >
+                    {page}
+                  </Link>
+                ),
+              )}
+            </div>
 
             {hasNext ? (
               <Link
@@ -470,7 +530,7 @@ async function JobResults({
                   filtersParam,
                   savedOnly,
                 )}
-                className="text-sm font-medium text-accent hover:underline"
+                className="shrink-0 text-sm font-medium text-accent hover:underline"
               >
                 Next
               </Link>

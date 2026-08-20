@@ -75,6 +75,8 @@ export interface JobQuery {
   sortOrder?: SortOrder;
   limit?: number;
   offset?: number;
+  /** Narrow the listing to postings that have been saved. */
+  savedOnly?: boolean;
 }
 
 export function getJobs(query: JobQuery = {}): Promise<JobListResponse> {
@@ -91,6 +93,7 @@ export function getJobs(query: JobQuery = {}): Promise<JobListResponse> {
       sort_order: query.sortOrder,
       limit: query.limit,
       offset: query.offset,
+      saved_only: query.savedOnly ? "true" : undefined,
     })}`,
   );
 }

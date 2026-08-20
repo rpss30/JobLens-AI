@@ -221,6 +221,8 @@ class SaveJobRequest(BaseModel):
     company: str = Field(default="", max_length=255)
     location: str = Field(default="", max_length=255)
     source_url: str = Field(default="", max_length=2000)
+    date_posted: str = Field(default="", max_length=64)
+    experience_level: str = Field(default="", max_length=100)
 
 
 class SavedJobResponse(BaseModel):
@@ -231,6 +233,8 @@ class SavedJobResponse(BaseModel):
     company: str
     location: str
     source_url: str
+    date_posted: str = ""
+    experience_level: str = ""
     created_at: datetime | None = None
 
 

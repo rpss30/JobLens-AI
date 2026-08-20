@@ -220,6 +220,14 @@ class SavedJob(Base):
     location: Mapped[str] = mapped_column(String(255), nullable=False, default="")
     source_url: Mapped[str] = mapped_column(Text, nullable=False, default="")
 
+    # Carried so the saved list can draw and filter a row on its own, without
+    # the dataset the posting came from. The company mark is not, being
+    # derived from the company and the source url already held here.
+    date_posted: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    experience_level: Mapped[str] = mapped_column(
+        String(100), nullable=False, default=""
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=lambda: datetime.now(UTC),

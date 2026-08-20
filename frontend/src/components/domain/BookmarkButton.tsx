@@ -48,6 +48,10 @@ export function BookmarkButton({
               company: job.company,
               location: job.location,
               source_url: job.source_url,
+              // Copied in too, so the saved list can draw and filter this row
+              // once the posting behind it has left the dataset.
+              date_posted: job.date_posted,
+              experience_level: job.experience_level,
             }),
           });
 

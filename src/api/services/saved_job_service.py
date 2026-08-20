@@ -35,6 +35,8 @@ def keep_job(request: SaveJobRequest) -> dict:
         company=request.company,
         location=request.location,
         source_url=request.source_url,
+        date_posted=request.date_posted,
+        experience_level=request.experience_level,
     )
 
 

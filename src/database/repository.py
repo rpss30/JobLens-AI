@@ -843,6 +843,8 @@ def save_job(
     company: str = "",
     location: str = "",
     source_url: str = "",
+    date_posted: str = "",
+    experience_level: str = "",
 ) -> dict[str, Any]:
     """Keep a posting, or leave an already-kept one alone.
 
@@ -865,6 +867,8 @@ def save_job(
                 company=company,
                 location=location,
                 source_url=source_url,
+                date_posted=date_posted,
+                experience_level=experience_level,
             )
             session.add(saved_job)
 
@@ -878,6 +882,8 @@ def save_job(
             "company": saved_job.company,
             "location": saved_job.location,
             "source_url": saved_job.source_url,
+            "date_posted": saved_job.date_posted,
+            "experience_level": saved_job.experience_level,
             "created_at": saved_job.created_at,
         }
 
@@ -893,6 +899,8 @@ def list_saved_jobs(dataset_name: str | None = None) -> list[dict[str, Any]]:
             SavedJob.company,
             SavedJob.location,
             SavedJob.source_url,
+            SavedJob.date_posted,
+            SavedJob.experience_level,
             SavedJob.created_at,
         ).order_by(SavedJob.created_at.desc())
 
@@ -910,6 +918,8 @@ def list_saved_jobs(dataset_name: str | None = None) -> list[dict[str, Any]]:
             "company": row.company,
             "location": row.location,
             "source_url": row.source_url,
+            "date_posted": row.date_posted,
+            "experience_level": row.experience_level,
             "created_at": row.created_at,
         }
         for row in rows

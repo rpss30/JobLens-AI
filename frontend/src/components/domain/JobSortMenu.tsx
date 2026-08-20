@@ -21,12 +21,26 @@ export function JobSortMenu({
   value: string;
 }) {
   const selected = options.find((option) => option.value === value) ?? options[0];
+  // The first option is the order the list arrives in, so anything else is a
+  // choice someone made and worth marking as one.
+  const isReordered = Boolean(options[0]) && value !== options[0].value;
 
   return (
     <details className="group relative">
-      <summary className="inline-flex cursor-pointer list-none items-center gap-2 rounded-lg border border-border bg-surface px-3.5 py-2 text-sm text-text transition-colors hover:bg-surface-muted [&::-webkit-details-marker]:hidden">
-        <span className="text-text-muted">Sort by:</span>
-        {selected?.label}
+      <summary
+        className={`inline-flex cursor-pointer list-none items-center gap-2 rounded-lg border px-3.5 py-2 text-sm transition-colors [&::-webkit-details-marker]:hidden ${
+          isReordered
+            ? "border-transparent bg-accent-fill text-on-accent hover:bg-accent-fill-hover"
+            : "border-border bg-surface text-text hover:bg-surface-muted"
+        }`}
+      >
+        {/* Narrow screens have no room to spell the field out, so they name
+            it only once it is not the order the list came in. */}
+        <span className="lg:hidden">{isReordered ? selected?.label : "Sort"}</span>
+        <span className="hidden lg:inline">
+          <span className="text-text-muted">Sort by: </span>
+          {selected?.label}
+        </span>
         {/* Two chevrons: the control reorders, it does not simply expand. */}
         <svg
           width="14"
@@ -38,28 +52,24 @@ export function JobSortMenu({
           strokeLinecap="round"
           strokeLinejoin="round"
           aria-hidden="true"
-          className="text-text-muted"
+          className={isReordered ? "" : "text-text-muted"}
         >
           <path d="m6.75 8.25 3.25-3.25 3.25 3.25" />
           <path d="m6.75 11.75 3.25 3.25 3.25-3.25" />
         </svg>
       </summary>
 
-      <div className="absolute right-0 z-30 mt-2 w-52 overflow-hidden rounded-xl border border-border bg-surface py-1.5 shadow-[0_12px_28px_rgba(16,21,31,0.14)]">
-        {options.map((option, index) => (
+      {/* Hangs from whichever edge the control sits against: anchored right
+          on a narrow screen it ran off the side of the page. */}
+      <div className="absolute left-0 z-30 mt-2 w-52 overflow-hidden rounded-xl border border-border bg-surface py-1.5 shadow-[0_12px_28px_rgba(16,21,31,0.14)] lg:left-auto lg:right-0">
+        {options.map((option) => (
           <Link
             key={option.value}
             href={option.href}
             aria-current={option.value === value ? "true" : undefined}
-            // The rule is inset and belongs to the row above, so a highlighted
-            // row reads as one unbroken band rather than a boxed-in cell.
-            className={`relative block px-4 py-2.5 text-sm transition-colors ${
-              index > 0
-                ? "before:absolute before:inset-x-4 before:top-0 before:h-px before:bg-border before:content-['']"
-                : ""
-            } ${
+            className={`block px-4 py-2.5 text-sm transition-colors ${
               option.value === value
-                ? "bg-accent-soft text-text before:hidden"
+                ? "bg-accent-soft text-text"
                 : "text-text hover:bg-surface-muted"
             }`}
           >

@@ -56,6 +56,7 @@ function buildJobsHref(
   offset: number,
   jobId?: string,
   filters?: string,
+  savedOnly?: boolean,
 ): string {
   const params = new URLSearchParams({ dataset: datasetName, ...values });
 
@@ -71,7 +72,47 @@ function buildJobsHref(
     params.set("filters", filters);
   }
 
+  if (savedOnly) {
+    params.set("saved", "1");
+  }
+
   return `/jobs?${params.toString()}`;
+}
+
+/**
+ * The page numbers worth drawing: both ends, and a step either side of the
+ * page being read. A run of six is more than a narrow column can spell out,
+ * so the rest collapses to a gap.
+ */
+function pageWindow(current: number, total: number): (number | "gap")[] {
+  const wanted = [1, total, current - 1, current, current + 1];
+  const shown = [...new Set(wanted)]
+    .filter((page) => page >= 1 && page <= total)
+    .sort((first, second) => first - second);
+
+  return shown.flatMap((page, index) =>
+    index > 0 && page - shown[index - 1] > 1
+      ? (["gap", page] as (number | "gap")[])
+      : [page],
+  );
+}
+
+function BookmarkIcon({ filled }: { filled: boolean }) {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 20 20"
+      fill={filled ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M5.25 3.75h9.5v13l-4.75-3.25-4.75 3.25v-13Z" />
+    </svg>
+  );
 }
 
 function SlidersIcon() {
@@ -320,12 +361,19 @@ async function JobResults({
   values,
   offset,
   requestedJobId,
+  filtersOpen,
+  savedOnly,
 }: {
   datasetName: string;
   values: JobFilterValues;
   offset: number;
   requestedJobId: string;
+  filtersOpen: boolean;
+  savedOnly: boolean;
 }) {
+  // Carried by every link on the page: opening a posting or turning a page is
+  // not a reason for the panel someone just opened to shut itself.
+  const filtersParam = filtersOpen ? "open" : "";
   const jobList = await getJobs({
     datasetName,
     searchQuery: values.q,
@@ -337,10 +385,16 @@ async function JobResults({
     sortOrder: values.order === "asc" ? "asc" : "desc",
     limit: PAGE_SIZE,
     offset,
+    savedOnly,
   });
 
   if (jobList.jobs.length === 0) {
-    return (
+    return savedOnly ? (
+      <EmptyState
+        title="Nothing saved yet"
+        description="Open a posting and use the bookmark beside Apply to keep it here."
+      />
+    ) : (
       <EmptyState
         title="No jobs match these filters"
         description="Try a shorter search, a different location, or set the experience level back to any."
@@ -357,6 +411,8 @@ async function JobResults({
   const shownTo = Math.min(offset + PAGE_SIZE, jobList.total);
   const hasPrevious = offset > 0;
   const hasNext = shownTo < jobList.total;
+  const pageCount = Math.max(1, Math.ceil(jobList.total / PAGE_SIZE));
+  const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
 
   return (
     /*
@@ -378,7 +434,9 @@ async function JobResults({
           aria-live="polite"
         >
           Showing {formatCount(shownFrom)}–{formatCount(shownTo)} of{" "}
-          {formatCount(jobList.total)} jobs
+          {formatCount(jobList.total)}{" "}
+          {savedOnly ? <span className="font-medium text-text">saved</span> : null}
+          {savedOnly ? " " : ""}jobs
         </p>
 
         <ul className="divide-y divide-border lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain">
@@ -386,7 +444,14 @@ async function JobResults({
             <JobRow
               key={job.job_id || `${job.title}-${job.company}-${index}`}
               job={job}
-              href={buildJobsHref(datasetName, values, offset, job.job_id)}
+              href={buildJobsHref(
+                datasetName,
+                values,
+                offset,
+                job.job_id,
+                filtersParam,
+                savedOnly,
+              )}
               isSelected={job.job_id === selectedJob.job_id}
             />
           ))}
@@ -395,7 +460,7 @@ async function JobResults({
         {hasPrevious || hasNext ? (
           <nav
             aria-label="Job list pages"
-            className="flex shrink-0 items-center justify-between border-t border-border px-4 py-3"
+            className="flex shrink-0 items-center justify-between gap-2 border-t border-border px-4 py-3"
           >
             {hasPrevious ? (
               <Link
@@ -403,8 +468,11 @@ async function JobResults({
                   datasetName,
                   values,
                   Math.max(0, offset - PAGE_SIZE),
+                  "",
+                  filtersParam,
+                  savedOnly,
                 )}
-                className="text-sm font-medium text-accent hover:underline"
+                className="shrink-0 text-sm font-medium text-accent hover:underline"
               >
                 Previous
               </Link>
@@ -412,10 +480,57 @@ async function JobResults({
               <span />
             )}
 
+            {/* Where you are in the run, and a way straight to anywhere else
+                in it: six pages is too many to reach a step at a time. */}
+            <div className="flex items-center gap-1">
+              {pageWindow(currentPage, pageCount).map((page, index) =>
+                page === "gap" ? (
+                  <span
+                    key={`gap-${index}`}
+                    aria-hidden="true"
+                    className="px-1 text-sm text-text-subtle"
+                  >
+                    &hellip;
+                  </span>
+                ) : page === currentPage ? (
+                  <span
+                    key={page}
+                    aria-current="page"
+                    className="rounded-md bg-accent-fill px-2 py-1 text-sm font-medium text-on-accent"
+                  >
+                    {page}
+                  </span>
+                ) : (
+                  <Link
+                    key={page}
+                    href={buildJobsHref(
+                      datasetName,
+                      values,
+                      (page - 1) * PAGE_SIZE,
+                      "",
+                      filtersParam,
+                      savedOnly,
+                    )}
+                    aria-label={`Page ${page}`}
+                    className="rounded-md px-2 py-1 text-sm text-text-muted transition-colors hover:bg-surface-muted hover:text-text"
+                  >
+                    {page}
+                  </Link>
+                ),
+              )}
+            </div>
+
             {hasNext ? (
               <Link
-                href={buildJobsHref(datasetName, values, offset + PAGE_SIZE)}
-                className="text-sm font-medium text-accent hover:underline"
+                href={buildJobsHref(
+                  datasetName,
+                  values,
+                  offset + PAGE_SIZE,
+                  "",
+                  filtersParam,
+                  savedOnly,
+                )}
+                className="shrink-0 text-sm font-medium text-accent hover:underline"
               >
                 Next
               </Link>
@@ -440,7 +555,14 @@ async function JobResults({
         {/* Rides under the shell's own bar, and bleeds to both edges so the
             description passes behind it rather than beside it. */}
         <Link
-          href={buildJobsHref(datasetName, values, offset)}
+          href={buildJobsHref(
+            datasetName,
+            values,
+            offset,
+            "",
+            filtersParam,
+            savedOnly,
+          )}
           className="sticky top-16 z-20 -mx-5 mb-3 flex items-center gap-2 bg-surface px-5 py-3 text-sm font-medium text-text-muted transition-colors hover:text-text sm:-mx-8 sm:px-8 lg:hidden"
         >
           <BackIcon />
@@ -480,6 +602,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
    * needs no state of its own.
    */
   const filtersOpen = readParam(params.filters, "") === "open";
+  const savedOnly = readParam(params.saved, "") === "1";
   const activeFilterCount = [
     values.q.trim(),
     values.location === "Any" ? "" : values.location,
@@ -492,6 +615,37 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
     offset,
     requestedJobId,
     filtersOpen ? "" : "open",
+    savedOnly,
+  );
+
+  const savedToggleHref = buildJobsHref(
+    datasetName,
+    values,
+    // Back to the first page: the two lists do not share a page count.
+    0,
+    requestedJobId,
+    filtersOpen ? "open" : "",
+    !savedOnly,
+  );
+
+  const savedToggle = (
+    <Link
+      href={savedToggleHref}
+      aria-pressed={savedOnly}
+      // Level with the sort control, and carrying the accent once the list it
+      // switches to is the one being shown. The mark stands on its own until
+      // there is room for the words beside it.
+      className={`inline-flex size-[2.375rem] shrink-0 items-center justify-center gap-2 rounded-lg border text-sm transition-colors lg:h-auto lg:w-auto lg:px-3.5 lg:py-2 ${
+        savedOnly
+          ? "border-transparent bg-accent-fill text-on-accent hover:bg-accent-fill-hover"
+          : "border-border bg-surface text-text hover:bg-surface-muted"
+      }`}
+    >
+      <span className="hidden lg:inline">
+        {savedOnly ? "Showing saved jobs" : "Show saved jobs"}
+      </span>
+      <BookmarkIcon filled={savedOnly} />
+    </Link>
   );
 
   const filtersToggle = (
@@ -531,6 +685,8 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
           { ...values, sort: option.value },
           0,
           requestedJobId,
+          filtersOpen ? "open" : "",
+          savedOnly,
         ),
       }))}
     />
@@ -569,6 +725,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
           <Badge tone="neutral">
             {formatDatasetLabel(filterOptions.dataset_name)}
           </Badge>
+          {savedToggle}
           {sortMenu}
           {filtersToggle}
         </div>
@@ -580,7 +737,10 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
           requestedJobId ? "hidden" : "flex"
         }`}
       >
-        {sortMenu}
+        <div className="flex min-w-0 items-center gap-2">
+          {sortMenu}
+          {savedToggle}
+        </div>
         {filtersToggle}
       </div>
 
@@ -602,7 +762,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
         // The opened posting is deliberately not part of this key. Including
         // it threw the whole results area back to a skeleton on every click,
         // list and all, when only the panel beside it was changing.
-        key={`${values.q}|${values.location}|${values.company}|${values.level}|${values.sort}|${values.order}|${offset}`}
+        key={`${values.q}|${values.location}|${values.company}|${values.level}|${values.sort}|${values.order}|${offset}|${savedOnly}`}
         fallback={<JobResultsSkeleton />}
       >
         <JobResults
@@ -610,6 +770,8 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
           values={values}
           offset={offset}
           requestedJobId={requestedJobId}
+          filtersOpen={filtersOpen}
+          savedOnly={savedOnly}
         />
       </Suspense>
     </div>

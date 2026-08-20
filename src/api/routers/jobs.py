@@ -76,6 +76,10 @@ def get_jobs(
         JobSortBy,
         Query(description="Job field to sort by."),
     ] = "search_relevance",
+    saved_only: Annotated[
+        bool,
+        Query(description="Limit the listing to postings that have been saved."),
+    ] = False,
 ) -> JobListResponse:
     return job_listing_service.list_jobs(
         dataset_name=dataset_name,
@@ -89,6 +93,7 @@ def get_jobs(
         sort_order=query.sort_order,
         limit=query.limit,
         offset=query.offset,
+        saved_only=saved_only,
     )
 
 

@@ -11,8 +11,10 @@ from src.api.services import (
     analysis_run_service,
     analysis_service,
     dataset_service,
+    job_listing_service,
     saved_job_service,
 )
+from src.api.services.analysis_service import load_jobs_for_analysis
 
 client = TestClient(app)
 
@@ -1362,6 +1364,28 @@ def test_reading_one_job_returns_its_description() -> None:
     assert client.get("/jobs/does-not-exist").status_code == 404
 
 
+def test_a_posting_missing_its_formatted_description_reads_its_own_words() -> None:
+    """A missing value reaches the service as NaN rather than as nothing.
+
+    Read with `or ""` that survived as the string "nan", and because the
+    formatted description is preferred over the plain one, "nan" was what a
+    reader saw in place of a posting that did carry its own words.
+    """
+    _, jobs = load_jobs_for_analysis("canada_snapshot")
+    missing = jobs[jobs["description_formatted"].isna()]
+
+    assert not missing.empty, "the bundled dataset no longer covers this case"
+
+    detail = job_listing_service.get_job(
+        dataset_name="canada_snapshot",
+        job_id=str(missing.iloc[0]["job_id"]),
+    )
+
+    assert detail["description_formatted"] == ""
+    assert detail["description"]
+    assert "nan" not in detail["description_formatted"]
+
+
 def test_saving_a_job_twice_keeps_one_copy(monkeypatch) -> None:
     """A second click on the bookmark is not an error, and changes nothing.
 
@@ -1394,6 +1418,10 @@ def test_saving_a_job_twice_keeps_one_copy(monkeypatch) -> None:
         "dataset_name": "canada_snapshot",
         "title": "Applied AI Engineer",
         "company": "Cohere",
+        # Kept alongside the title so the saved list can draw and filter the
+        # row once the posting behind it has left the dataset.
+        "date_posted": "2026-08-07",
+        "experience_level": "Mid Level",
     }
 
     first = client.post("/saved-jobs", json=payload)
@@ -1404,6 +1432,10 @@ def test_saving_a_job_twice_keeps_one_copy(monkeypatch) -> None:
     assert first.json()["id"] == second.json()["id"]
     assert second.json()["title"] == "Applied AI Engineer"
     assert len(stored) == 1
+
+    assert first.json()["date_posted"] == "2026-08-07"
+    assert first.json()["experience_level"] == "Mid Level"
+    assert stored[("canada_snapshot", "job-1")]["experience_level"] == "Mid Level"
 
 
 def test_unsaving_a_job_that_was_never_saved_is_a_404(monkeypatch) -> None:
@@ -1421,6 +1453,90 @@ def test_unsaving_a_job_that_was_never_saved_is_a_404(monkeypatch) -> None:
     response = client.delete("/saved-jobs/missing?dataset_name=canada_snapshot")
 
     assert response.status_code == 404
+
+
+def test_saved_only_listing_keeps_a_posting_the_dataset_has_dropped(
+    monkeypatch,
+) -> None:
+    """A save outlives the posting it came from.
+
+    The dataset row is preferred while it exists, because it is the fresher
+    of the two. Once the posting has gone the copied details stand in on
+    their own, which is the reason they are copied at all.
+    """
+    listing = client.get(
+        "/jobs",
+        params={"dataset_name": "canada_snapshot", "limit": 1},
+    )
+    still_listed = listing.json()["jobs"][0]
+
+    saved_rows = [
+        {
+            "job_id": "retired:posting:1",
+            "title": "Retired Data Engineer",
+            "company": "Gone Corp",
+            "location": "Toronto, ON",
+            "source_url": "https://example.com/retired",
+            "date_posted": "2026-01-01",
+            "experience_level": "Senior",
+        },
+        {
+            "job_id": still_listed["job_id"],
+            "title": still_listed["title"],
+            "company": still_listed["company"],
+            "location": still_listed["location"],
+            "source_url": still_listed["source_url"],
+            "date_posted": still_listed["date_posted"],
+            "experience_level": still_listed["experience_level"],
+        },
+    ]
+
+    monkeypatch.setattr(
+        job_listing_service.database_repository,
+        "check_database_connection",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        job_listing_service.database_repository,
+        "list_saved_jobs",
+        lambda dataset_name=None: saved_rows,
+    )
+
+    response = client.get(
+        "/jobs",
+        params={"dataset_name": "canada_snapshot", "saved_only": "true"},
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+    returned = {job["job_id"]: job for job in data["jobs"]}
+
+    assert data["total"] == 2
+    assert set(returned) == {"retired:posting:1", still_listed["job_id"]}
+
+    # The dropped posting reads from its snapshot alone.
+    retired = returned["retired:posting:1"]
+    assert retired["title"] == "Retired Data Engineer"
+    assert retired["company"] == "Gone Corp"
+    assert retired["experience_level"] == "Senior"
+
+    # The one still in the dataset keeps everything the dataset knows.
+    assert returned[still_listed["job_id"]]["company_domain"]
+
+    # Filters run over the saved set the same way they run over the dataset.
+    narrowed = client.get(
+        "/jobs",
+        params={
+            "dataset_name": "canada_snapshot",
+            "saved_only": "true",
+            "company": "Gone Corp",
+        },
+    )
+
+    assert [job["job_id"] for job in narrowed.json()["jobs"]] == [
+        "retired:posting:1"
+    ]
 
 
 def test_saved_jobs_return_503_when_database_unavailable(monkeypatch) -> None:

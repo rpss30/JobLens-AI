@@ -500,11 +500,18 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
       aria-expanded={filtersOpen}
       aria-label={filtersOpen ? "Hide filters" : "Show filters"}
       // Square, and the same 2.375rem height as the sort control beside it.
-      className="relative inline-flex size-[2.375rem] shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-text transition-colors hover:bg-surface-muted"
+      // Carries the accent while the panel is open, the way every other
+      // control in this interface shows that it is the one doing something.
+      className={`relative inline-flex size-[2.375rem] shrink-0 items-center justify-center rounded-lg border transition-colors ${
+        filtersOpen
+          ? "border-transparent bg-accent-fill text-on-accent hover:bg-accent-fill-hover"
+          : "border-border bg-surface text-text hover:bg-surface-muted"
+      }`}
     >
       <SlidersIcon />
-      {/* On the corner rather than in the row, so the button stays square. */}
-      {activeFilterCount > 0 ? (
+      {/* Only worth counting while the panel is shut: open, the filters
+          speak for themselves. */}
+      {!filtersOpen && activeFilterCount > 0 ? (
         <span className="absolute -right-1.5 -top-1.5 min-w-[1.125rem] rounded-full bg-accent-fill px-1 text-center text-[0.6875rem] font-medium leading-[1.125rem] text-on-accent">
           {activeFilterCount}
         </span>

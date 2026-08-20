@@ -231,8 +231,10 @@ async function JobDetailPane({
   }
 
   return (
-    <div className="flex min-h-0 flex-col lg:h-full lg:rounded-xl lg:border lg:border-border lg:bg-surface lg:shadow-[0_1px_2px_rgba(16,21,31,0.04)]">
-      <div className="min-h-0 space-y-4 overflow-y-auto py-1 lg:p-6">
+    <div className="flex min-h-0 flex-col gap-4 lg:h-full lg:rounded-xl lg:border lg:border-border lg:bg-surface lg:shadow-[0_1px_2px_rgba(16,21,31,0.04)]">
+      {/* Outside the scrolling part, so which posting is open stays readable
+          however far down the description you are. */}
+      <div className="shrink-0 space-y-4 border-b border-border pb-4 pt-1 lg:px-6 lg:pt-6">
         {/* The buttons drop to their own row rather than squeezing the title
             into a column a few words wide. */}
         <div className="flex flex-wrap items-start gap-3">
@@ -280,17 +282,20 @@ async function JobDetailPane({
           {job.employment_type ? <Pill>{job.employment_type}</Pill> : null}
           {job.experience_level ? <Pill>{job.experience_level}</Pill> : null}
         </div>
+      </div>
 
-        <div className="border-t border-border pt-4">
-          <h3 className="text-[0.6875rem] font-medium uppercase tracking-wide text-text-subtle">
-            About the job
-          </h3>
-          <div className="mt-2">
-            <JobDescription
-              description={job.description}
-              formatted={job.description_formatted}
-            />
-          </div>
+      {/* Only a scroller once there is a height to scroll in: overscroll-contain
+          swallows a touch even with nothing to scroll, which below lg left the
+          page stuck unless the drag started outside the description. */}
+      <div className="min-h-0 pb-1 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain lg:px-6 lg:pb-6">
+        <h3 className="text-[0.6875rem] font-medium uppercase tracking-wide text-text-subtle">
+          About the job
+        </h3>
+        <div className="mt-2">
+          <JobDescription
+            description={job.description}
+            formatted={job.description_formatted}
+          />
         </div>
       </div>
     </div>

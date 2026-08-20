@@ -437,9 +437,11 @@ async function JobResults({
             : "hidden lg:block"
         }`}
       >
+        {/* Rides under the shell's own bar, and bleeds to both edges so the
+            description passes behind it rather than beside it. */}
         <Link
           href={buildJobsHref(datasetName, values, offset)}
-          className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-text-muted transition-colors hover:text-text lg:hidden"
+          className="sticky top-16 z-20 -mx-5 mb-3 flex items-center gap-2 bg-surface px-5 py-3 text-sm font-medium text-text-muted transition-colors hover:text-text sm:-mx-8 sm:px-8 lg:hidden"
         >
           <BackIcon />
           Back to postings

@@ -6,22 +6,26 @@ import { useEffect, useRef } from "react";
 export interface JobSortOption {
   value: string;
   label: string;
-  href: string;
+  /** Omitted where the list being ordered is not in the URL. */
+  href?: string;
 }
 
 /**
  * The order the list is read in, chosen beside the heading.
  *
- * A details element rather than a listbox: the choices are links, so the
+ * A details element rather than a listbox: where the choices are links the
  * order lives in the URL like every other filter, and the menu opens without
- * any client JavaScript.
+ * any client JavaScript. A matched-jobs result has no URL to live in, so it
+ * passes onSelect instead and the same menu draws buttons.
  */
 export function JobSortMenu({
   options,
   value,
+  onSelect,
 }: {
   options: JobSortOption[];
   value: string;
+  onSelect?: (value: string) => void;
 }) {
   const menuRef = useRef<HTMLDetailsElement | null>(null);
 
@@ -97,20 +101,40 @@ export function JobSortMenu({
       {/* Hangs from whichever edge the control sits against: anchored right
           on a narrow screen it ran off the side of the page. */}
       <div className="absolute left-0 z-30 mt-2 w-52 overflow-hidden rounded-xl border border-border bg-surface py-1.5 shadow-[0_12px_28px_rgba(16,21,31,0.14)] lg:left-auto lg:right-0">
-        {options.map((option) => (
-          <Link
-            key={option.value}
-            href={option.href}
-            aria-current={option.value === value ? "true" : undefined}
-            className={`block px-4 py-2.5 text-sm transition-colors ${
-              option.value === value
-                ? "bg-accent-soft text-text"
-                : "text-text hover:bg-surface-muted"
-            }`}
-          >
-            {option.label}
-          </Link>
-        ))}
+        {options.map((option) => {
+          const itemClassName = `block w-full px-4 py-2.5 text-left text-sm transition-colors ${
+            option.value === value
+              ? "bg-accent-soft text-text"
+              : "text-text hover:bg-surface-muted"
+          }`;
+
+          return option.href ? (
+            <Link
+              key={option.value}
+              href={option.href}
+              aria-current={option.value === value ? "true" : undefined}
+              className={itemClassName}
+            >
+              {option.label}
+            </Link>
+          ) : (
+            <button
+              key={option.value}
+              type="button"
+              aria-current={option.value === value ? "true" : undefined}
+              onClick={() => {
+                onSelect?.(option.value);
+
+                if (menuRef.current) {
+                  menuRef.current.open = false;
+                }
+              }}
+              className={itemClassName}
+            >
+              {option.label}
+            </button>
+          );
+        })}
       </div>
     </details>
   );

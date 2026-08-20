@@ -19,6 +19,7 @@ import {
   EMPTY_MATCH_FILTERS,
   MATCH_SORT_LABELS,
   activeMatchFilterCount,
+  defaultMatchFilters,
   filterMatches,
   matchFilterOptions,
   sortMatches,
@@ -75,8 +76,14 @@ export function AnalysisResults({
   savedJobIds: string[];
 }) {
   const { analysis, clearAnalysis } = useAnalysis();
-  const [filters, setFilters] =
-    useState<MatchFilterValues>(EMPTY_MATCH_FILTERS);
+  // Narrowed to the role the analysis settled on, rather than opening on
+  // every category it happened to match.
+  const [filters, setFilters] = useState<MatchFilterValues>(() =>
+    defaultMatchFilters(
+      analysis?.response.top_matching_jobs ?? [],
+      analysis?.response.best_role ?? "",
+    ),
+  );
   const [sortKey, setSortKey] = useState<MatchSortKey>("match_score");
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
 
@@ -104,7 +111,7 @@ export function AnalysisResults({
     <div className="space-y-10">
       {/* The banner and what can be done with it are one block: the actions
           are about the result under them, not about the page. */}
-      <div className="animate-section-in space-y-6">
+      <div className="relative z-20 animate-section-in space-y-6">
         <ResultsHero
           response={response}
           skillCount={

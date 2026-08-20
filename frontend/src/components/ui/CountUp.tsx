@@ -16,10 +16,17 @@ import { formatCount } from "@/lib/format";
 export function CountUp({
   value,
   durationMs = 1200,
+  decimals = 0,
   format = formatCount,
 }: {
   value: number;
   durationMs?: number;
+  /**
+   * How far to count in. A tally counts in whole numbers; a percentage
+   * rounded to a tenth has to as well, or it lands on a figure a tenth away
+   * from the one it settles on.
+   */
+  decimals?: number;
   /**
    * Defaulted rather than required: a server component cannot hand a
    * function across the boundary, and counting is what this is for.
@@ -78,7 +85,11 @@ export function CountUp({
           // Fast away from zero, settling gently onto the figure.
           const eased = 1 - (1 - progress) ** 3;
 
-          setShown(Math.round(value * eased));
+          setShown(
+            decimals > 0
+              ? Number((value * eased).toFixed(decimals))
+              : Math.round(value * eased),
+          );
 
           if (progress < 1) {
             frame = requestAnimationFrame(step);
@@ -100,7 +111,7 @@ export function CountUp({
       observer.disconnect();
       cancelAnimationFrame(frame);
     };
-  }, [value, durationMs]);
+  }, [value, durationMs, decimals]);
 
   return (
     <span ref={ref} className="tabular-nums">

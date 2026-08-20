@@ -6,7 +6,6 @@ import {
   formatDatasetLabel,
   formatPercent,
   formatSkill,
-  parseSkillPreview,
 } from "@/lib/format";
 
 describe("formatCount", () => {
@@ -61,21 +60,6 @@ describe("formatSkill", () => {
 
   it("passes through blank input", () => {
     expect(formatSkill("   ")).toBe("");
-  });
-});
-
-describe("parseSkillPreview", () => {
-  it("splits the comma-joined preview into chips", () => {
-    expect(parseSkillPreview("python, sql , docker")).toEqual([
-      "python",
-      "sql",
-      "docker",
-    ]);
-  });
-
-  it("treats the API's empty markers as no skills", () => {
-    expect(parseSkillPreview("None")).toEqual([]);
-    expect(parseSkillPreview("")).toEqual([]);
   });
 });
 

@@ -6,13 +6,31 @@ import {
 } from "@/components/domain/AnalyzeView";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { CardSkeleton } from "@/components/ui/States";
-import { getFilterOptions } from "@/lib/api/endpoints";
+import { getFilterOptions, getSavedJobs } from "@/lib/api/endpoints";
 import { resolveDataset } from "@/lib/datasets";
 
 async function AnalyzeSection({ datasetName }: { datasetName: string }) {
   const filterOptions = await getFilterOptions(datasetName);
 
-  return <AnalyzeView filterOptions={filterOptions} datasetName={datasetName} />;
+  /*
+   * Saved jobs need PostgreSQL. Reading a result should not stop when it is
+   * down, so an unreachable list only means nothing is known to be saved.
+   */
+  let savedJobIds: string[] = [];
+
+  try {
+    savedJobIds = (await getSavedJobs(datasetName)).map((entry) => entry.job_id);
+  } catch {
+    savedJobIds = [];
+  }
+
+  return (
+    <AnalyzeView
+      filterOptions={filterOptions}
+      datasetName={datasetName}
+      savedJobIds={savedJobIds}
+    />
+  );
 }
 
 export default async function AnalyzePage({ searchParams }: PageProps<"/analyze">) {

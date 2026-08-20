@@ -534,6 +534,20 @@ class RecommendedSkill(BaseModel):
     avg_weight: float
 
 
+class RoleRecommendedSkills(BaseModel):
+    """The skills worth learning next for one type of role.
+
+    The flat ``recommended_skills`` list ranks across every posting in the
+    analysis, so a skill that only matters for one kind of role is buried
+    under the ones that matter everywhere. This splits the same calculation
+    per role category so each can be read on its own.
+    """
+
+    role_category: str
+    job_count: int
+    skills: list[RecommendedSkill]
+
+
 class RoleScore(BaseModel):
     role_category: str
     sample_size: int
@@ -550,11 +564,15 @@ class RoleScore(BaseModel):
 
 
 class JobMatch(BaseModel):
+    job_id: str = ""
     title: str
     company: str
+    """Best-effort employer domain, used only to look up a logo."""
+    company_domain: str = ""
     location: str
     experience_level: str
     role_category: str
+    date_posted: str = ""
     source: str = ""
     source_url: str = ""
     search_relevance: float
@@ -575,6 +593,8 @@ class JobMatch(BaseModel):
     matched_skills_preview: str
     related_skills_preview: str
     missing_skills_preview: str
+    matched_skills: list[str] = Field(default_factory=list)
+    missing_skills: list[str] = Field(default_factory=list)
     matched_required_skills: list[str] = Field(default_factory=list)
     missing_required_skills: list[str] = Field(default_factory=list)
     matched_preferred_skills: list[str] = Field(default_factory=list)
@@ -625,6 +645,9 @@ class AnalyzeResponse(BaseModel):
     top_missing_skill: str
     jobs_analyzed: int
     recommended_skills: list[RecommendedSkill]
+    recommended_skills_by_role: list[RoleRecommendedSkills] = Field(
+        default_factory=list
+    )
     role_scores: list[RoleScore]
     top_matching_jobs: list[JobMatch]
     resume_analysis: ResumeAnalysis | None = None

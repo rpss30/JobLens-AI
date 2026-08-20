@@ -61,6 +61,50 @@
   --color-signal-mixed: #f6c445;
   --color-signal-unclear: #d24b45;
 
+  /*
+   * The banner a result opens on. Fixed across themes like the accent fill,
+   * because the white on it is what makes it legible; the mockup's lighter
+   * teal put the small labels under 4.5:1, so it is a step darker.
+   */
+  --color-hero: #3a7a8f;
+  --color-on-hero: #ffffff;
+
+  /*
+   * The one mark colour both result charts use. They each draw a single
+   * series, so a ramp would be colouring things that mean the same. A shade
+   * deeper than the mockup's, to clear 3:1 against the card behind it.
+   */
+  --color-chart-mark: #009cbc;
+
+  /*
+   * How far a role's ranking can be trusted. High and medium reuse the fit
+   * green and amber below, since it is the same three-step judgement; only
+   * the red at the bottom of the scale is its own.
+   */
+  --color-confidence-low: #a80000;
+  --color-confidence-low-soft: #ffebeb;
+
+  /*
+   * How a posting's experience requirement lines up with the candidate's.
+   * Three unordered states, so they sit outside the brand ramp for the same
+   * reason the requirement signals do. The stretch amber is darker than a
+   * pure orange because the pale one it was drawn as reads at 2.3:1.
+   */
+  --color-fit-met: #007c43;
+  --color-fit-met-soft: #eff8f4;
+  --color-fit-close: #006ca8;
+  --color-fit-close-soft: #ebf4ff;
+  --color-fit-stretch: #a85f00;
+  --color-fit-stretch-soft: #fff9ec;
+
+  /*
+   * Solid blue for a skill the candidate already has, the role fit bars, and
+   * the tab the skills table is showing. Fixed across themes like
+   * --color-accent-fill, because the white on it is what makes it legible.
+   */
+  --color-match: #44759f;
+  --color-on-match: #ffffff;
+
   /* Status colours sit outside the brand palette on purpose: online and
      offline must be told apart at a glance, which shape alone does not do. */
   --color-status-online: #1a7f4b;
@@ -105,6 +149,21 @@
     --color-signal-preferred: #7ec0f5;
     --color-signal-mixed: #f7d070;
     --color-signal-unclear: #ef7a74;
+    --color-hero: #3a7a8f;
+    --color-on-hero: #ffffff;
+    --color-chart-mark: #009cbc;
+    --color-confidence-low: #ef7a74;
+    --color-confidence-low-soft: #2b1618;
+    /* Lifted the same way the signals are; the soft grounds go dark rather
+       than pale, so a pill does not glare on a dark card. */
+    --color-fit-met: #5cbf68;
+    --color-fit-met-soft: #16261c;
+    --color-fit-close: #7ec0f5;
+    --color-fit-close-soft: #14222e;
+    --color-fit-stretch: #e0a355;
+    --color-fit-stretch-soft: #2a2113;
+    --color-match: #44759f;
+    --color-on-match: #ffffff;
     --color-status-online: #4ade80;
     --color-status-offline: #f28b82;
   }
@@ -144,6 +203,19 @@
   --color-signal-preferred: var(--color-signal-preferred);
   --color-signal-mixed: var(--color-signal-mixed);
   --color-signal-unclear: var(--color-signal-unclear);
+  --color-hero: var(--color-hero);
+  --color-on-hero: var(--color-on-hero);
+  --color-chart-mark: var(--color-chart-mark);
+  --color-confidence-low: var(--color-confidence-low);
+  --color-confidence-low-soft: var(--color-confidence-low-soft);
+  --color-fit-met: var(--color-fit-met);
+  --color-fit-met-soft: var(--color-fit-met-soft);
+  --color-fit-close: var(--color-fit-close);
+  --color-fit-close-soft: var(--color-fit-close-soft);
+  --color-fit-stretch: var(--color-fit-stretch);
+  --color-fit-stretch-soft: var(--color-fit-stretch-soft);
+  --color-match: var(--color-match);
+  --color-on-match: var(--color-on-match);
   --color-status-online: var(--color-status-online);
   --color-status-offline: var(--color-status-offline);
   --font-sans: ui-rounded, "SF Pro Rounded", var(--font-rounded), ui-sans-serif,
@@ -248,5 +320,61 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/*
+ * A result arrives section by section rather than all at once. Each runs
+ * once, on mount, which is exactly when a result is drawn; a later filter or
+ * sort re-renders in place and is left alone.
+ */
+@keyframes section-rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.75rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-section-in {
+  animation: section-rise 460ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* A bar grows out of the baseline it is measured from. */
+@keyframes bar-grow {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+.animate-bar-grow {
+  transform-origin: bottom;
+  animation: bar-grow 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/*
+ * A dot travels out to the figure it marks. Only a from: the element's own
+ * left is where the data put it, so that is where the animation ends.
+ */
+@keyframes dot-slide {
+  from {
+    left: 0;
+    opacity: 0;
+  }
+}
+
+.animate-dot-in {
+  animation: dot-slide 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-section-in,
+  .animate-bar-grow,
+  .animate-dot-in {
+    animation: none;
   }
 }

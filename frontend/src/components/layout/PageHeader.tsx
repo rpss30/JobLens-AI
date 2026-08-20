@@ -28,6 +28,8 @@ interface SectionProps {
   title: string;
   description?: string;
   action?: ReactNode;
+  /** "large" for a section that divides a page rather than labels a block. */
+  headingSize?: "base" | "large";
   children: ReactNode;
 }
 
@@ -35,13 +37,20 @@ export function Section({
   title,
   description,
   action,
+  headingSize = "base",
   children,
 }: SectionProps) {
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="text-base font-semibold tracking-tight text-text">
+          <h2
+            className={
+              headingSize === "large"
+                ? "text-2xl font-medium tracking-tight text-text"
+                : "text-base font-semibold tracking-tight text-text"
+            }
+          >
             {title}
           </h2>
           {description ? (

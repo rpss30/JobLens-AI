@@ -895,11 +895,15 @@ def get_job_match_details(
         )
 
         rows.append({
+            # Carried through so a match can be saved and sorted by date the
+            # same way a posting in the job listing can.
+            "job_id": str(row.get("job_id", "") or ""),
             "title": row["title"],
             "company": row["company"],
             "location": row["location"],
             "experience_level": row["experience_level"],
             "role_category": role_category,
+            "date_posted": str(row.get("date_posted", "") or ""),
             "skills_text": row["skills_text"],
             "source": row.get("source", ""),
             "source_url": row.get("source_url", ""),
@@ -924,6 +928,11 @@ def get_job_match_details(
             "matched_skills_preview": ", ".join(matched_skills[:5]) if matched_skills else "None",
             "related_skills_preview": ", ".join(related_skills[:3]) if related_skills else "None",
             "missing_skills_preview": ", ".join(missing_skills[:5]) if missing_skills else "None",
+            # Every skill the posting asks for, split by whether the candidate
+            # has it. The previews above are truncated summary text; these two
+            # together are the posting's full skill list.
+            "matched_skills": matched_skills,
+            "missing_skills": missing_skills,
             "matched_required_skills": matched_required_skills,
             "missing_required_skills": missing_required_skills,
             "matched_preferred_skills": matched_preferred_skills,

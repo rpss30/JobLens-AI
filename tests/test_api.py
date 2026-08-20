@@ -113,6 +113,44 @@ def test_analyze_returns_candidate_fit_summary() -> None:
     assert "missing_preferred_skills" in first_job_match
     assert "preferred_skill_coverage" in first_job_match
 
+    # A match is saved and sorted by date the same way a browsed posting is,
+    # so it has to arrive carrying both.
+    assert first_job_match["job_id"]
+    assert "date_posted" in first_job_match
+
+    # Every skill the posting asks for, split by whether the candidate has it.
+    posting_skills = (
+        first_job_match["matched_skills"] + first_job_match["missing_skills"]
+    )
+
+    assert posting_skills
+    assert len(set(posting_skills)) == len(posting_skills)
+    assert len(first_job_match["matched_skills"]) == (
+        first_job_match["matched_skills_count"]
+    )
+    assert len(first_job_match["missing_skills"]) == (
+        first_job_match["missing_skills_count"]
+    )
+
+    by_role = data["recommended_skills_by_role"]
+
+    assert by_role
+    assert {entry["role_category"] for entry in by_role} <= {
+        score["role_category"] for score in data["role_scores"]
+    }
+    assert all(len(entry["skills"]) <= 5 for entry in by_role)
+    assert all(entry["job_count"] > 0 for entry in by_role)
+    # Ranked like the role fit bars, so the tabs read in the same order.
+    assert [entry["role_category"] for entry in by_role] == sorted(
+        (entry["role_category"] for entry in by_role),
+        key=lambda role: next(
+            score["weighted_match_score"]
+            for score in data["role_scores"]
+            if score["role_category"] == role
+        ),
+        reverse=True,
+    )
+
 
 def test_analyze_accepts_legacy_top_n_for_result_limits() -> None:
     response = client.post(

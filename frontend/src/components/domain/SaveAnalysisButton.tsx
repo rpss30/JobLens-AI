@@ -79,7 +79,6 @@ export function SaveAnalysisButton() {
   return (
     <Button
       variant="secondary"
-      size="sm"
       onClick={handleSave}
       disabled={saveState === "saving" || isAnalysisSaved}
       disabledCursor={isAnalysisSaved ? "default" : "not-allowed"}
@@ -87,8 +86,8 @@ export function SaveAnalysisButton() {
       {saveState === "saving"
         ? "Saving…"
         : isAnalysisSaved
-          ? "Saved to history"
-          : "Save to history"}
+          ? "Saved to History"
+          : "Save to History"}
     </Button>
   );
 }

@@ -4,7 +4,20 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { useToast } from "@/context/ToastContext";
-import type { JobDetail } from "@/lib/api/types";
+
+/**
+ * What a save is a snapshot of, which both a browsed posting and a matched
+ * job satisfy. Narrower than either so the same control serves both.
+ */
+export interface SavableJob {
+  job_id: string;
+  title: string;
+  company: string;
+  location: string;
+  source_url: string;
+  date_posted: string;
+  experience_level: string;
+}
 
 /**
  * Keeps a posting, or lets it go.
@@ -17,7 +30,7 @@ export function BookmarkButton({
   datasetName,
   initiallySaved,
 }: {
-  job: JobDetail;
+  job: SavableJob;
   datasetName: string;
   initiallySaved: boolean;
 }) {

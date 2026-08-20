@@ -62,7 +62,9 @@ export function JobFilters({
     <form
       method="get"
       action="/jobs"
-      className="rounded-xl border border-border bg-surface p-5"
+      // Its own card on a narrow screen; from lg it is the top of the one it
+      // shares with the list, so only the rule under it survives.
+      className="rounded-xl border border-border bg-surface p-5 lg:rounded-none lg:border-x-0 lg:border-t-0 lg:bg-transparent"
     >
       <input type="hidden" name="dataset" value={datasetName} />
       {/* Chosen beside the heading rather than in here, but it still has to

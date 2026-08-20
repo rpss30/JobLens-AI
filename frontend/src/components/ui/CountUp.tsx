@@ -38,6 +38,18 @@ export function CountUp({
 
     let frame = 0;
 
+    // Frames stop arriving while a tab is in the background, which would
+    // otherwise strand the count part way up. Settle on the figure instead:
+    // a half finished number is worse than no animation at all.
+    const settle = () => {
+      if (document.hidden) {
+        cancelAnimationFrame(frame);
+        setShown(value);
+      }
+    };
+
+    document.addEventListener("visibilitychange", settle);
+
     const observer = new IntersectionObserver(
       (entries) => {
         if (!entries.some((entry) => entry.isIntersecting)) {
@@ -45,6 +57,13 @@ export function CountUp({
         }
 
         observer.disconnect();
+
+        // No frames will arrive if the page is already in the background, so
+        // there is nothing to animate towards. Take the figure and be done.
+        if (document.hidden) {
+          setShown(value);
+          return;
+        }
 
         const startedAt = performance.now();
 
@@ -71,6 +90,7 @@ export function CountUp({
     observer.observe(node);
 
     return () => {
+      document.removeEventListener("visibilitychange", settle);
       observer.disconnect();
       cancelAnimationFrame(frame);
     };

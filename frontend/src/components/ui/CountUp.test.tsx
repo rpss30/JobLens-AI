@@ -85,6 +85,40 @@ describe("CountUp", () => {
     expect(screen.getByText("61")).toBeTruthy();
   });
 
+  it("does not start counting in a tab that is already in the background", () => {
+    stubMotionPreference(false);
+    Object.defineProperty(document, "hidden", { value: true, configurable: true });
+
+    render(<CountUp value={61} durationMs={1000} format={String} />);
+    intersect?.();
+
+    // Nothing was scheduled, so the figure cannot be stranded near zero.
+    expect(frameCallbacks).toHaveLength(0);
+    expect(screen.getByText("61")).toBeTruthy();
+
+    Object.defineProperty(document, "hidden", { value: false, configurable: true });
+  });
+
+  it("settles on the figure when the tab goes away mid-count", () => {
+    stubMotionPreference(false);
+    render(<CountUp value={61} durationMs={1000} format={String} />);
+
+    intersect?.();
+    runFrame(0);
+    runFrame(200);
+    expect(screen.queryByText("61")).toBeNull();
+
+    // Frames stop arriving in a background tab, so the count must not be
+    // left stranded part way up.
+    Object.defineProperty(document, "hidden", { value: true, configurable: true });
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+
+    expect(screen.getByText("61")).toBeTruthy();
+    Object.defineProperty(document, "hidden", { value: false, configurable: true });
+  });
+
   it("leaves the figure alone when less motion is asked for", () => {
     stubMotionPreference(true);
     render(<CountUp value={61} durationMs={1000} format={String} />);

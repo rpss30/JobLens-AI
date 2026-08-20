@@ -19,6 +19,7 @@ import type { JobListing, SearchMode } from "@/lib/api/types";
 import { resolveDataset } from "@/lib/datasets";
 import { formatCount, formatDate, formatDatasetLabel } from "@/lib/format";
 import { pageWindow } from "@/lib/pagination";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 const PAGE_SIZE = 12;
 
@@ -698,15 +699,11 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
           requestedJobId ? "hidden lg:flex" : "flex"
         }`}
       >
-        <div className="min-w-0">
-          <h1 className="text-3xl font-medium tracking-tight text-text sm:text-4xl">
-            Jobs
-          </h1>
-          <p className="mt-2 max-w-2xl text-base text-text-muted">
-            Every job in the selected dataset. Search and filter to narrow the
-            list.
-          </p>
-        </div>
+        
+        <PageHeader
+          title="Jobs"
+          description="Every job in the selected dataset. Search and filter to narrow the list."
+        />
 
         <div className="hidden shrink-0 items-center gap-3 self-end lg:flex">
           <Badge tone="neutral">

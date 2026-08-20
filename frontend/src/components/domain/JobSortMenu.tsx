@@ -59,21 +59,17 @@ export function JobSortMenu({
         </svg>
       </summary>
 
-      <div className="absolute right-0 z-30 mt-2 w-52 overflow-hidden rounded-xl border border-border bg-surface py-1.5 shadow-[0_12px_28px_rgba(16,21,31,0.14)]">
-        {options.map((option, index) => (
+      {/* Hangs from whichever edge the control sits against: anchored right
+          on a narrow screen it ran off the side of the page. */}
+      <div className="absolute left-0 z-30 mt-2 w-52 overflow-hidden rounded-xl border border-border bg-surface py-1.5 shadow-[0_12px_28px_rgba(16,21,31,0.14)] lg:left-auto lg:right-0">
+        {options.map((option) => (
           <Link
             key={option.value}
             href={option.href}
             aria-current={option.value === value ? "true" : undefined}
-            // The rule is inset and belongs to the row above, so a highlighted
-            // row reads as one unbroken band rather than a boxed-in cell.
-            className={`relative block px-4 py-2.5 text-sm transition-colors ${
-              index > 0
-                ? "before:absolute before:inset-x-4 before:top-0 before:h-px before:bg-border before:content-['']"
-                : ""
-            } ${
+            className={`block px-4 py-2.5 text-sm transition-colors ${
               option.value === value
-                ? "bg-accent-soft text-text before:hidden"
+                ? "bg-accent-soft text-text"
                 : "text-text hover:bg-surface-muted"
             }`}
           >

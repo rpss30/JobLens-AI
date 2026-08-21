@@ -161,10 +161,6 @@ export function getAnalysisRuns(
   );
 }
 
-export function getAnalysisRun(analysisRunId: number): Promise<AnalysisRun> {
-  return apiFetch<AnalysisRun>(`/analysis-runs/${analysisRunId}`);
-}
-
 export function createAnalysisRun(
   request: CreateAnalysisRunRequest,
 ): Promise<AnalysisRun> {

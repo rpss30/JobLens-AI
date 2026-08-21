@@ -3,7 +3,9 @@
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 
-import { MenuIcon } from "@/components/layout/NavIcons";
+import { CloseIcon, MenuIcon, MoreIcon } from "@/components/layout/NavIcons";
+import { NavSearch } from "@/components/layout/NavSearch";
+import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { SidebarFooter } from "@/components/layout/SidebarFooter";
 import { ShellSearchParamsProvider } from "@/components/layout/ShellSearchParams";
 import { SidebarNav } from "@/components/layout/SidebarNav";
@@ -29,6 +31,12 @@ export function AppShell({
   children,
 }: AppShellProps) {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  /*
+   * The search and the light switch live behind this on a phone: the bar has
+   * room for the wordmark and two controls, and neither of those is something
+   * you reach for on the way to somewhere.
+   */
+  const [isMobileToolsOpen, setIsMobileToolsOpen] = useState(false);
   // Seeded from the cookie the server already rendered against, so the rail
   // never starts wide and snaps shut.
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(
@@ -42,6 +50,7 @@ export function AppShell({
   if (pathname !== lastPathname) {
     setLastPathname(pathname);
     setIsMobileNavOpen(false);
+    setIsMobileToolsOpen(false);
   }
 
   const footer = <SidebarFooter datasets={datasets} statusSlot={statusSlot} />;
@@ -58,31 +67,108 @@ export function AppShell({
       {/* The provider wraps the chrome only. Keeping the page outside it
           means a suspended query never re-renders the whole route. */}
       <ShellSearchParamsProvider>
-        {/* Below lg the sidebar head becomes a bar and the rest of it a drawer. */}
-        <header className="sticky top-0 z-30 border-b border-border bg-surface lg:hidden">
+        {/* Below lg the sidebar head becomes a bar, and the rest of it a
+            drawer that slides over the page rather than pushing it down. */}
+        <header className="sticky top-0 z-50 border-b border-border bg-surface lg:hidden">
           <div className="flex h-16 items-center gap-3 px-4">
             <button
               type="button"
-              onClick={() => setIsMobileNavOpen((isOpen) => !isOpen)}
+              onClick={() => {
+                // One panel at a time: both hang off the same bar, and the
+                // drawer starts below it, so an open tools row would push
+                // the first nav item out of sight.
+                setIsMobileToolsOpen(false);
+                setIsMobileNavOpen((isOpen) => !isOpen);
+              }}
               aria-expanded={isMobileNavOpen}
               aria-controls="mobile-navigation"
-              className="-ml-1 rounded-lg p-2 text-text-muted hover:bg-surface-muted hover:text-text"
+              className={`-ml-1 shrink-0 rounded-lg p-2 transition-colors ${
+                isMobileNavOpen
+                  ? "bg-surface-muted text-text"
+                  : "text-text hover:bg-surface-muted"
+              }`}
             >
               <span className="sr-only">
                 {isMobileNavOpen ? "Close navigation" : "Open navigation"}
               </span>
-              <MenuIcon />
+              {isMobileNavOpen ? <CloseIcon /> : <MenuIcon />}
             </button>
-            <Wordmark />
+
+            {/* Centred between the two controls rather than pinned left. */}
+            <div className="flex min-w-0 flex-1 justify-center">
+              <Wordmark />
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setIsMobileNavOpen(false);
+                setIsMobileToolsOpen((isOpen) => !isOpen);
+              }}
+              aria-expanded={isMobileToolsOpen}
+              aria-controls="mobile-tools"
+              className={`-mr-1 shrink-0 rounded-lg p-2 transition-colors ${
+                isMobileToolsOpen
+                  ? "bg-surface-muted text-text"
+                  : "text-text hover:bg-surface-muted"
+              }`}
+            >
+              <span className="sr-only">
+                {isMobileToolsOpen
+                  ? "Hide search and appearance"
+                  : "Show search and appearance"}
+              </span>
+              <MoreIcon />
+            </button>
           </div>
 
-          {isMobileNavOpen ? (
-            <div id="mobile-navigation" className="border-t border-border pb-1">
-              <SidebarNav onNavigate={() => setIsMobileNavOpen(false)} />
-              {footer}
+          {/*
+           * Always rendered, opened by growing its row from nothing. Mounting
+           * on the toggle would give it no closing to animate, and a height
+           * this can only know at runtime is what a 0fr-to-1fr row is for.
+           */}
+          <div
+            id="mobile-tools"
+            inert={!isMobileToolsOpen}
+            className={`grid overflow-hidden duration-200 ease-out motion-safe:transition-[grid-template-rows] ${
+              isMobileToolsOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+            }`}
+          >
+            <div className="min-h-0 overflow-hidden">
+              <div className="flex items-center gap-3 border-t border-border px-4 py-3">
+                <NavSearch />
+                <ThemeToggle initialTheme={initialTheme} />
+              </div>
             </div>
-          ) : null}
+          </div>
         </header>
+
+        {/* The page stays put underneath and is dimmed, rather than being
+            pushed down the length of the whole menu. Both parts stay mounted
+            so the drawer slides back out rather than vanishing. */}
+        <button
+          type="button"
+          tabIndex={isMobileNavOpen ? 0 : -1}
+          aria-label="Close navigation"
+          onClick={() => setIsMobileNavOpen(false)}
+          className={`fixed inset-0 top-16 z-30 bg-text/40 duration-200 motion-safe:transition-opacity lg:hidden ${
+            isMobileNavOpen
+              ? "opacity-100"
+              : "pointer-events-none opacity-0"
+          }`}
+        />
+        <div
+          id="mobile-navigation"
+          inert={!isMobileNavOpen}
+          className={`fixed bottom-0 left-0 top-16 z-40 flex w-64 flex-col border-r border-border bg-surface duration-200 ease-out motion-safe:transition-transform lg:hidden ${
+            isMobileNavOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
+        >
+          <div className="flex-1 overflow-y-auto py-2">
+            <SidebarNav onNavigate={() => setIsMobileNavOpen(false)} />
+          </div>
+          {footer}
+        </div>
 
         <aside
           // Above the main column, not just before it: sticky makes this a

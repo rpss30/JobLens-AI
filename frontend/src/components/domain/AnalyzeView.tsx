@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { AnalysisResults } from "@/components/domain/AnalysisResults";
 import { AnalyzeForm } from "@/components/domain/AnalyzeForm";
@@ -38,6 +38,12 @@ export function AnalyzeView({
 }) {
   const { analysis } = useAnalysis();
   const hadAnalysis = useRef(analysis !== null);
+  /*
+   * Below lg a matched posting is a page of its own, the way it is on the
+   * Jobs tab, so the heading over the result stands down with everything
+   * else. It lives up here because that heading does.
+   */
+  const [isReadingOne, setIsReadingOne] = useState(false);
 
   useEffect(() => {
     const hasAnalysis = analysis !== null;
@@ -56,12 +62,16 @@ export function AnalyzeView({
 
   return (
     <>
-      <PageHeader title={heading.title} description={heading.description} />
+      <div className={isReadingOne ? "hidden lg:block" : ""}>
+        <PageHeader title={heading.title} description={heading.description} />
+      </div>
 
       {analysis ? (
         <AnalysisResults
           datasetName={datasetName}
           savedJobIds={savedJobIds}
+          isReadingOne={isReadingOne}
+          onReadingOneChange={setIsReadingOne}
         />
       ) : (
         <AnalyzeForm filterOptions={filterOptions} datasetName={datasetName} />

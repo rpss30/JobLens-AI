@@ -262,8 +262,9 @@ async function JobDetailPane({
           however far down the description you are. */}
       <div className="shrink-0 space-y-4 border-b border-border pb-4 pt-1 lg:px-6 lg:pt-6">
         {/* The buttons drop to their own row rather than squeezing the title
-            into a column a few words wide. */}
-        <div className="flex flex-wrap items-start gap-3">
+            into a column a few words wide. The logo sits level with the
+            middle of the title rather than at the top of it. */}
+        <div className="flex flex-wrap items-center gap-3">
           <CompanyLogo name={job.company} domain={job.company_domain} />
 
           <div className="min-w-[12rem] flex-1">
@@ -533,8 +534,9 @@ async function JobResults({
         className={`min-w-0 lg:relative lg:h-full ${
           requestedJobId
             ? // Bleeds past the page padding so the posting sits on white
-              // rather than the page's own ground.
-              "-mx-5 -my-8 min-h-[calc(100dvh-4rem)] bg-surface px-5 py-6 sm:-mx-8 sm:px-8 lg:mx-0 lg:my-0 lg:min-h-0 lg:border-l lg:border-border lg:bg-transparent lg:p-0"
+              // rather than the page's own ground, and arrives from the left
+              // the way a matched posting does.
+              "animate-posting-in -mx-5 -my-8 min-h-[calc(100dvh-4rem)] bg-surface px-5 py-6 sm:-mx-8 sm:px-8 lg:mx-0 lg:my-0 lg:min-h-0 lg:border-l lg:border-border lg:bg-transparent lg:p-0"
             : "hidden lg:block lg:border-l lg:border-border"
         }`}
       >

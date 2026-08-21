@@ -122,6 +122,8 @@ export function MatchResults({
   datasetName,
   savedJobIds,
   filtersPanel,
+  isReadingOne,
+  onReadingOneChange,
 }: {
   /** Already narrowed and ordered by the section above. */
   jobs: JobMatch[];
@@ -129,12 +131,17 @@ export function MatchResults({
   savedJobIds: string[];
   /** Rendered as the top of the shared card, or nothing while it is shut. */
   filtersPanel: ReactNode;
+  /*
+   * Held by the section above rather than here: below lg an opened posting is
+   * the whole page, so everything else on the result has to know to stand
+   * down. From lg it changes nothing, and the panel simply sits beside the
+   * list as it always does.
+   */
+  isReadingOne: boolean;
+  onReadingOneChange: (isReadingOne: boolean) => void;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [page, setPage] = useState(0);
-  // Below lg the list and the posting are one page at a time, so opening one
-  // is a move rather than a change to the panel beside it.
-  const [isReadingOne, setIsReadingOne] = useState(false);
 
   const savedIds = new Set(savedJobIds);
   const pageCount = Math.max(1, Math.ceil(jobs.length / PAGE_SIZE));
@@ -149,9 +156,23 @@ export function MatchResults({
   const selected =
     pageJobs.find((job) => job.job_id === selectedId) ?? pageJobs[0];
 
+  /*
+   * Below lg the posting and the list swap places rather than sitting side by
+   * side, so each arrival has to start at its own top. Without this the
+   * posting opens at whatever depth the list was scrolled to, and going back
+   * lands somewhere down the middle of the result.
+   */
+  function readOne(isReadingIt: boolean) {
+    onReadingOneChange(isReadingIt);
+
+    if (!window.matchMedia("(min-width: 64rem)").matches) {
+      window.scrollTo({ top: 0 });
+    }
+  }
+
   function openMatch(job: JobMatch) {
     setSelectedId(job.job_id);
-    setIsReadingOne(true);
+    readOne(true);
   }
 
   function turnTo(nextPage: number) {
@@ -278,17 +299,20 @@ export function MatchResults({
             isReadingOne
               ? // Bleeds past the page padding so the posting sits on white
                 // rather than the page's own ground.
-                "-mx-5 rounded-none bg-surface px-5 py-2 sm:-mx-8 sm:px-8 lg:mx-0 lg:border-l lg:border-border lg:bg-transparent lg:p-0"
+                // Bleeds up over the page's own top padding as well as out
+                // past its sides, so the posting starts at the bar rather
+                // than under a band of the page showing through above it.
+                "animate-posting-in -mx-5 -my-8 min-h-[calc(100dvh-4rem)] rounded-none bg-surface px-5 py-6 sm:-mx-8 sm:px-8 lg:mx-0 lg:my-0 lg:min-h-0 lg:border-l lg:border-border lg:bg-transparent lg:p-0"
               : "hidden lg:block lg:border-l lg:border-border"
           }`}
         >
           <button
             type="button"
-            onClick={() => setIsReadingOne(false)}
+            onClick={() => readOne(false)}
             className="mb-3 flex items-center gap-2 text-sm font-medium text-text-muted transition-colors hover:text-text lg:hidden"
           >
             <BackIcon />
-            Back to matches
+            Back to results
           </button>
 
           <div className="lg:absolute lg:inset-0 lg:overflow-hidden">

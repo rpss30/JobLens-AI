@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
 
 import {
   RequiredMark,
@@ -28,6 +35,7 @@ export function SingleSelectCombobox({
   name,
   size = "large",
   required = false,
+  leading,
 }: {
   id: string;
   /** Rendered above the control. Omit where a Field already labels it. */
@@ -43,6 +51,8 @@ export function SingleSelectCombobox({
   name?: string;
   size?: "large" | "compact";
   required?: boolean;
+  /** Drawn inside the control, before the chosen value. */
+  leading?: ReactNode;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -210,9 +220,14 @@ export function SingleSelectCombobox({
           }}
           onKeyDown={handleKeyDown}
         >
-          <span>
-            {options.find((option) => option.value === value)?.label ||
-              placeholder}
+          <span className="flex min-w-0 items-center gap-2">
+            {leading ? (
+              <span className="shrink-0 text-text-muted">{leading}</span>
+            ) : null}
+            <span className="truncate">
+              {options.find((option) => option.value === value)?.label ||
+                placeholder}
+            </span>
           </span>
         </button>
 

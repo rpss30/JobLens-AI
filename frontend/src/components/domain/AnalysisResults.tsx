@@ -70,10 +70,19 @@ function SlidersIcon() {
 export function AnalysisResults({
   datasetName,
   savedJobIds,
+  isReadingOne,
+  onReadingOneChange,
 }: {
   datasetName: string;
   /** Which of these postings are already kept, read once on the server. */
   savedJobIds: string[];
+  /*
+   * Held above, beside the heading it also hides: below lg an opened posting
+   * is the whole page, so the banner, the charts and the heading over them
+   * all stand down together.
+   */
+  isReadingOne: boolean;
+  onReadingOneChange: (isReadingOne: boolean) => void;
 }) {
   const { analysis, clearAnalysis } = useAnalysis();
   // Narrowed to the role the analysis settled on, rather than opening on
@@ -86,6 +95,12 @@ export function AnalysisResults({
   );
   const [sortKey, setSortKey] = useState<MatchSortKey>("match_score");
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  /*
+   * For the blocks that stand down while a posting is open. lg:block is
+   * right for a plain block but would flatten a flex row, so the one row
+   * here restores its own display rather than taking this.
+   */
+  const asideFromOne = isReadingOne ? "hidden lg:block" : "";
 
   // The caller decides what stands in for a result that is not there.
   if (!analysis) {
@@ -111,7 +126,9 @@ export function AnalysisResults({
     <div className="space-y-10">
       {/* The banner and what can be done with it are one block: the actions
           are about the result under them, not about the page. */}
-      <div className="relative z-20 animate-section-in space-y-6">
+      <div
+        className={`relative z-20 animate-section-in space-y-6 ${asideFromOne}`}
+      >
         <ResultsHero
           response={response}
           skillCount={
@@ -123,15 +140,33 @@ export function AnalysisResults({
       </div>
 
       <div
-        className="animate-section-in"
+        /*
+         * The gap to the next section is dead space below a posting that has
+         * taken the whole page, and the sections it separates are not there
+         * to be separated from. Only below lg: from lg they all still are.
+         */
+        className={`animate-section-in ${isReadingOne ? "max-lg:mb-0" : ""}`}
         style={{ animationDelay: `${SECTION_STAGGER_MS}ms` }}
       >
-        <Section
-          title="Matched Jobs"
-          description="These openings ask for the most skills you already have."
-          headingSize="large"
-          action={
-            <div className="flex items-center gap-3">
+        {/* Not Section: on a narrow screen the heading and its controls
+            stand down when a posting is open, and the list below them does
+            not, which is one thing that component cannot express. */}
+        <div className="space-y-4">
+          <div
+            className={`flex-wrap items-end justify-between gap-3 ${
+              isReadingOne ? "hidden lg:flex" : "flex"
+            }`}
+          >
+            <div className="min-w-0">
+              <h2 className="text-2xl font-medium tracking-tight text-text">
+                Matched Jobs
+              </h2>
+              <p className="mt-1 text-sm text-text-muted">
+                These openings ask for the most skills you already have.
+              </p>
+            </div>
+
+            <div className="flex shrink-0 items-center gap-3">
               <JobSortMenu
                 value={sortKey}
                 onSelect={(value) => setSortKey(value as MatchSortKey)}
@@ -156,7 +191,7 @@ export function AnalysisResults({
               >
                 <SlidersIcon />
                 {/* Only worth counting while the panel is shut: open, the
-                  filters speak for themselves. */}
+                    filters speak for themselves. */}
                 {!isFiltersOpen && activeFilterCount > 0 ? (
                   <span className="absolute -right-1.5 -top-1.5 min-w-[1.125rem] rounded-full bg-accent-fill px-1 text-center text-[0.6875rem] font-medium leading-[1.125rem] text-on-accent">
                     {activeFilterCount}
@@ -164,8 +199,8 @@ export function AnalysisResults({
                 ) : null}
               </button>
             </div>
-          }
-        >
+          </div>
+
           {matchedJobs.length === 0 ? (
             <EmptyState
               title={
@@ -201,6 +236,8 @@ export function AnalysisResults({
               jobs={matchedJobs}
               datasetName={datasetName}
               savedJobIds={savedJobIds}
+              isReadingOne={isReadingOne}
+              onReadingOneChange={onReadingOneChange}
               filtersPanel={
                 isFiltersOpen ? (
                   <div className="animate-filters-in">
@@ -214,13 +251,13 @@ export function AnalysisResults({
               }
             />
           )}
-        </Section>
+        </div>
       </div>
 
       {/* Two sections rather than two cards side by side: each chart wants
           the width of the page to be read across. */}
       <div
-        className="animate-section-in"
+        className={`animate-section-in ${asideFromOne}`}
         style={{ animationDelay: `${SECTION_STAGGER_MS * 2}ms` }}
       >
         {/* No description here: both of these carry theirs inside the card,
@@ -234,7 +271,7 @@ export function AnalysisResults({
       </div>
 
       <div
-        className="animate-section-in"
+        className={`animate-section-in ${asideFromOne}`}
         style={{ animationDelay: `${SECTION_STAGGER_MS * 3}ms` }}
       >
         <Section title="Skills worth learning next" headingSize="large">
@@ -248,7 +285,7 @@ export function AnalysisResults({
 
       {response.resume_analysis ? (
         <div
-          className="animate-section-in"
+          className={`animate-section-in ${asideFromOne}`}
           style={{ animationDelay: `${SECTION_STAGGER_MS * 4}ms` }}
         >
           <Section

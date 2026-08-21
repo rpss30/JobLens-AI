@@ -3,7 +3,7 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
 type ButtonVariant = "primary" | "secondary" | "ghost" | "strong";
-type ButtonSize = "sm" | "md" | "lg";
+type ButtonSize = "sm" | "iconOnlyMobile" | "md" | "lg";
 
 const variantStyles: Record<ButtonVariant, string> = {
   primary:
@@ -21,6 +21,10 @@ const variantStyles: Record<ButtonVariant, string> = {
    utilities on one element resolve by stylesheet order, not class order. */
 const sizeStyles: Record<ButtonSize, string> = {
   sm: "h-8 px-3 text-sm font-medium",
+  /* Square and icon-only on a phone, label and all from sm. One key rather
+     than md plus overrides: two padding utilities on one element resolve by
+     stylesheet order, not class order, so the override would lose. */
+  iconOnlyMobile: "h-10 w-10 px-0 text-sm font-medium sm:w-auto sm:px-4",
   md: "h-10 px-4 text-sm font-medium",
   lg: "h-11 px-5 text-lg font-normal",
 };

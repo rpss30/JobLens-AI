@@ -287,7 +287,10 @@ async function JobLocations({ datasetName }: { datasetName: string }) {
          * Ordering rather than reordering the markup keeps the narrow layout
          * exactly as it was, with the map above the list it belongs to.
          */}
-        <div className="grid gap-5 lg:grid-cols-[2fr_3fr]">
+        <div
+          className="animate-section-in grid gap-5 lg:grid-cols-[2fr_3fr]"
+          style={{ animationDelay: "60ms" }}
+        >
           <section className="flex h-full flex-col gap-4 rounded-xl border border-border p-4 lg:order-2">
             <h2 className="flex items-center gap-2 text-base font-medium text-text">
               <MapIcon />

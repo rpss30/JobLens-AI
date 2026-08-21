@@ -96,7 +96,7 @@ async function SkillsDemand({ datasetName }: { datasetName: string }) {
     <Card>
       <CardBody className="min-w-0 space-y-5 p-5 sm:p-6">
         {leader ? (
-          <div className="flex items-start gap-2.5 rounded-xl border border-border bg-surface-muted px-4 py-3 text-sm text-text-muted">
+          <div className="animate-section-in flex items-start gap-2.5 rounded-xl border border-border bg-surface-muted px-4 py-3 text-sm text-text-muted">
             <span className="mt-0.5 text-accent">
               <LightbulbIcon />
             </span>
@@ -110,7 +110,13 @@ async function SkillsDemand({ datasetName }: { datasetName: string }) {
           </div>
         ) : null}
         
-        <div className="grid min-w-0 items-start gap-5 lg:grid-cols-2">
+        {/* One delay for the pair rather than one each: which of them reads
+            first swaps at lg, and a stagger would run against that order on
+            one of the two layouts. */}
+        <div
+          className="animate-section-in grid min-w-0 items-start gap-5 lg:grid-cols-2"
+          style={{ animationDelay: "90ms" }}
+        >
           <section className="order-2 min-w-0 w-full rounded-xl border border-border p-4 lg:order-1">
             <h2 className="text-base font-medium text-text">
               Skills ranked by number of postings

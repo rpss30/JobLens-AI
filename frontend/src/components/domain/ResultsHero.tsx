@@ -24,10 +24,11 @@ function HeroStat({
 }) {
   return (
     <div className="min-w-0">
-      <p className="text-3xl font-semibold leading-tight sm:text-[2.25rem]">
+      <p className="text-xl font-semibold leading-tight sm:text-[2.25rem]">
         {value}
       </p>
-      <p className="mt-2 text-xs">{label}</p>
+      {/* Small enough to stay on one line across a third of a phone. */}
+      <p className="mt-2 text-[0.625rem] leading-tight sm:text-xs">{label}</p>
     </div>
   );
 }
@@ -55,11 +56,14 @@ export function ResultsHero({
       </p>
 
       <div className="mt-5 flex flex-wrap items-end justify-between gap-x-10 gap-y-7">
-        <h2 className="max-w-md text-4xl font-semibold leading-[1.08] tracking-tight sm:text-5xl lg:text-6xl">
+        <h2 className="max-w-md text-[2.5rem] font-semibold leading-[1.08] tracking-tight sm:text-5xl lg:text-6xl">
           {response.best_role}
         </h2>
 
-        <div className="flex flex-wrap items-end gap-x-10 gap-y-7 sm:gap-x-14">
+        {/* Three equal columns across a phone rather than a wrapping row:
+            wrapping let a long gap name push the third onto its own line, and
+            the three only read as one answer while they sit together. */}
+        <div className="grid w-full grid-cols-3 items-start gap-x-4 sm:flex sm:w-auto sm:items-end sm:gap-x-14">
           <HeroStat
             value={
               <CountUp
@@ -77,7 +81,7 @@ export function ResultsHero({
           {/* Not a number, so nothing to count: the gap is a skill's name. */}
           <HeroStat
             value={
-              <span className="block max-w-[10ch]">
+              <span className="block sm:max-w-[10ch]">
                 {formatSkill(response.top_missing_skill)}
               </span>
             }

@@ -12,23 +12,23 @@ const FORMAT_LABELS: Record<ReportFormat, string> = {
   pdf: "PDF",
 };
 
-function ChevronIcon({ isOpen }: { isOpen: boolean }) {
+/** An arrow into a tray: what the menu behind it is for. */
+function DownloadIcon() {
   return (
     <svg
-      width="14"
-      height="14"
+      width="17"
+      height="17"
       viewBox="0 0 20 20"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.7"
+      strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
-      className={`text-text-muted transition-transform ${
-        isOpen ? "rotate-180" : ""
-      }`}
+      className="shrink-0"
     >
-      <path d="m5.5 7.75 4.5 4.5 4.5-4.5" />
+      <path d="M10 3.75v8M6.75 8.75 10 12l3.25-3.25" />
+      <path d="M3.75 13.75v1.5a1 1 0 0 0 1 1h10.5a1 1 0 0 0 1-1v-1.5" />
     </svg>
   );
 }
@@ -44,7 +44,6 @@ export function ReportDownloads() {
   const { analysis } = useAnalysis();
   const { showToast } = useToast();
   const [pendingFormat, setPendingFormat] = useState<ReportFormat | null>(null);
-  const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDetailsElement | null>(null);
 
   /*
@@ -57,14 +56,12 @@ export function ReportDownloads() {
 
       if (menu?.open && !menu.contains(event.target as Node)) {
         menu.open = false;
-        setIsOpen(false);
       }
     };
 
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape" && menuRef.current?.open) {
         menuRef.current.open = false;
-        setIsOpen(false);
       }
     };
 
@@ -90,7 +87,6 @@ export function ReportDownloads() {
       menuRef.current.open = false;
     }
 
-    setIsOpen(false);
     setPendingFormat(reportFormat);
 
     try {
@@ -137,15 +133,19 @@ export function ReportDownloads() {
     }
   }
 
+  const label = pendingFormat ? "Preparing…" : "Download Report";
+
   return (
-    <details
-      ref={menuRef}
-      className="relative"
-      onToggle={(event) => setIsOpen(event.currentTarget.open)}
-    >
-      <summary className="inline-flex h-10 cursor-pointer list-none items-center justify-center gap-2 rounded-lg border border-border-strong bg-surface px-4 text-sm font-medium text-text transition-colors hover:bg-surface-muted [&::-webkit-details-marker]:hidden">
-        {pendingFormat ? "Preparing…" : "Download Report"}
-        <ChevronIcon isOpen={isOpen} />
+    <details ref={menuRef} className="relative">
+      {/* Square and icon-only on a phone, like the save beside it. Written
+          mobile-first so the sm: pair overrides rather than competing. */}
+      <summary
+        aria-label={label}
+        title={label}
+        className="inline-flex h-10 w-10 cursor-pointer list-none items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-border-strong bg-surface px-0 text-sm font-medium text-text transition-colors hover:bg-surface-muted sm:w-auto sm:px-4 [&::-webkit-details-marker]:hidden"
+      >
+        <span className="hidden sm:inline">{label}</span>
+        <DownloadIcon />
       </summary>
 
       <div className="absolute right-0 z-30 mt-2 w-44 overflow-hidden rounded-xl border border-border bg-surface py-1 shadow-[0_12px_28px_rgba(16,21,31,0.14)]">

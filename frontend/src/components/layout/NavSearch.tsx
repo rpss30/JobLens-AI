@@ -50,11 +50,20 @@ export function NavSearch() {
   useEffect(() => {
     const focusOnShortcut = (event: globalThis.KeyboardEvent) => {
       if (event.key.toLowerCase() === "k" && (event.metaKey || event.ctrlKey)) {
+        /*
+         * There are two of these in the page, one in the bar and one behind
+         * the phone's tools row, and only ever one of them on screen. Without
+         * this the shortcut would land on whichever rendered last.
+         */
+        if (!inputRef.current || inputRef.current.offsetParent === null) {
+          return;
+        }
+
         // The browser binds this to its own search on some platforms, and the
         // reader pressing it here means this one.
         event.preventDefault();
-        inputRef.current?.focus();
-        inputRef.current?.select();
+        inputRef.current.focus();
+        inputRef.current.select();
       }
     };
 

@@ -28,6 +28,14 @@ function tintFor(name: string): number {
 /** Card tiles and the row beside a table cell want different weights. */
 const SIZES = {
   md: { box: "h-10 w-10 rounded-xl text-base", pad: "p-1.5", pixels: 40 },
+  /* Beside a posting title, which is held to two lines on a phone and runs
+     free from sm. One key rather than md plus overrides: two height
+     utilities on one element resolve by stylesheet order, not class order. */
+  title: {
+    box: "h-12 w-12 rounded-2xl text-lg sm:h-10 sm:w-10 sm:rounded-xl sm:text-base",
+    pad: "p-2 sm:p-1.5",
+    pixels: 48,
+  },
   sm: { box: "h-6 w-6 rounded-md text-[0.6875rem]", pad: "p-0.5", pixels: 24 },
 } as const;
 

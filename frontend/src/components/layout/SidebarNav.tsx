@@ -78,9 +78,8 @@ export function SidebarNav({
                   aria-expanded={isExpanded}
                   aria-controls="market-insights-views"
                   onClick={() => setIsMarketInsightsOpen((open) => !open)}
-                  title={isCollapsed ? label : undefined}
                   className={cn(
-                    "flex w-full items-center gap-3 rounded-xl py-2.5 text-base font-medium transition-colors",
+                    "peer flex w-full items-center gap-3 rounded-xl py-2.5 text-base font-medium transition-colors",
                     isCollapsed ? "justify-center px-0" : "px-3",
                     isActive
                       ? "bg-accent-fill text-on-accent"
@@ -107,9 +106,8 @@ export function SidebarNav({
                   href={withDataset(href, datasetName)}
                   onClick={onNavigate}
                   aria-current={isActive ? "page" : undefined}
-                  title={isCollapsed ? label : undefined}
                   className={cn(
-                    "flex items-center gap-3 rounded-xl py-2.5 text-base font-medium transition-colors",
+                    "peer flex items-center gap-3 rounded-xl py-2.5 text-base font-medium transition-colors",
                     isCollapsed ? "justify-center px-0" : "px-3",
                     isActive
                       ? "bg-accent-fill text-on-accent"
@@ -120,6 +118,18 @@ export function SidebarNav({
                   {isCollapsed ? <span className="sr-only">{label}</span> : label}
                 </Link>
               )}
+
+              {/* A rail shows marks and no words, so the word arrives beside
+                  the mark it belongs to. Not while the section's own views
+                  are open in the same place. */}
+              {isCollapsed && !isExpanded ? (
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 whitespace-nowrap rounded-lg bg-text px-2.5 py-1.5 text-xs font-medium text-surface opacity-0 shadow-[0_8px_20px_rgba(16,21,31,0.18)] transition-opacity peer-hover:opacity-100 peer-focus-visible:opacity-100"
+                >
+                  {label}
+                </span>
+              ) : null}
 
               {children && isExpanded ? (
                 <ul

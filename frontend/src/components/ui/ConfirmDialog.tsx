@@ -12,6 +12,12 @@ interface ConfirmDialogProps {
   isBusy?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
+  /**
+   * A third way out, for a choice that is not simply yes or no. Losing an
+   * unsaved result offers keeping it as well as going ahead without.
+   */
+  alternativeLabel?: string;
+  onAlternative?: () => void;
 }
 
 /**
@@ -26,6 +32,8 @@ export function ConfirmDialog({
   isBusy = false,
   onConfirm,
   onCancel,
+  alternativeLabel,
+  onAlternative,
 }: ConfirmDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
@@ -66,6 +74,16 @@ export function ConfirmDialog({
           <Button variant="secondary" size="sm" onClick={onCancel}>
             Cancel
           </Button>
+          {alternativeLabel && onAlternative ? (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={onAlternative}
+              disabled={isBusy}
+            >
+              {alternativeLabel}
+            </Button>
+          ) : null}
           <Button size="sm" onClick={onConfirm} disabled={isBusy}>
             {isBusy ? "Working…" : confirmLabel}
           </Button>

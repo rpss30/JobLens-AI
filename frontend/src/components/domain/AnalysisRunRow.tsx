@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import {
@@ -12,16 +12,80 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { controlClassName } from "@/components/ui/Field";
+import { useAnalysis } from "@/context/AnalysisContext";
 import { useToast } from "@/context/ToastContext";
-import type { AnalysisRun } from "@/lib/api/types";
+import type { AnalysisRun, AnalyzeRequest, AnalyzeResponse } from "@/lib/api/types";
+import { withDataset } from "@/lib/datasets";
 import { formatCount, formatDate, formatPercent, formatSkill } from "@/lib/format";
 
 export function AnalysisRunRow({ run }: { run: AnalysisRun }) {
+  const router = useRouter();
   const { showToast } = useToast();
+  const { setAnalysis } = useAnalysis();
   const [isRenaming, setIsRenaming] = useState(false);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const [newName, setNewName] = useState(run.name);
   const [isBusy, setIsBusy] = useState(false);
+  const [isOpening, setIsOpening] = useState(false);
+
+  /*
+   * A saved run keeps what was asked and the headline of what came back, not
+   * the matched postings or the per-role rankings the result view draws. So
+   * opening one runs the analysis again from the inputs it kept. The dataset
+   * may have moved on since, which is the honest answer rather than a
+   * reconstruction from a summary.
+   */
+  async function openRun() {
+    setIsOpening(true);
+
+    const request: AnalyzeRequest = {
+      current_skills: run.current_skills,
+      resume_text: "",
+      target_roles: run.target_roles,
+      search_query: "",
+      search_mode: "tfidf",
+      location: run.location,
+      experience_level: run.experience_level,
+      candidate_experience: "Not specified",
+      dataset_name: run.dataset_name,
+    };
+
+    try {
+      const httpResponse = await fetch("/proxy/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request),
+      });
+
+      if (!httpResponse.ok) {
+        const body = (await httpResponse.json().catch(() => null)) as {
+          detail?: string;
+        } | null;
+
+        showToast(body?.detail ?? "That result could not be opened.", "error");
+        return;
+      }
+
+      const response = (await httpResponse.json()) as AnalyzeResponse;
+
+      setAnalysis(
+        {
+          request,
+          response,
+          completedAt: new Date().toISOString(),
+        },
+        // It came out of history, so offering to save it again would only
+        // write the same run a second time.
+        { alreadySaved: true },
+      );
+
+      router.push(withDataset("/analyze", run.dataset_name));
+    } catch {
+      showToast("Could not reach JobLens. Check your connection.", "error");
+    } finally {
+      setIsOpening(false);
+    }
+  }
 
   async function runAction(action: () => Promise<HistoryActionResult>) {
     setIsBusy(true);
@@ -43,12 +107,14 @@ export function AnalysisRunRow({ run }: { run: AnalysisRun }) {
     <li className="px-5 py-4">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="min-w-0">
-          <Link
-            href={`/history/${run.id}`}
-            className="truncate text-sm font-medium text-text hover:underline"
+          <button
+            type="button"
+            onClick={openRun}
+            disabled={isOpening}
+            className="block max-w-full truncate text-left text-sm font-medium text-text hover:underline disabled:opacity-60"
           >
-            {run.name}
-          </Link>
+            {isOpening ? `Opening ${run.name}…` : run.name}
+          </button>
           <p className="mt-0.5 text-xs text-text-muted">
             {run.dataset_name} · {formatDate(run.created_at)} ·{" "}
             {formatCount(run.jobs_analyzed)} jobs

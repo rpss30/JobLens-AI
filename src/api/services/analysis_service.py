@@ -320,6 +320,23 @@ def build_analyze_response(
         )
     ]
 
+    # The gap the result leads with is the one the skills chart puts first for
+    # that same role. It used to come from the role's own skill weights, which
+    # rank by how much a skill matters to the role rather than by how many of
+    # these postings ask for it, so the headline could name one skill while
+    # the chart under it named another.
+    best_role_gaps = next(
+        (
+            entry["skills"]
+            for entry in recommended_skills_by_role
+            if entry["role_category"] == best_role
+        ),
+        [],
+    )
+
+    if best_role_gaps:
+        top_missing_skill = str(best_role_gaps[0]["skill"])
+
     role_scores = [
         {
             "role_category": str(row["role_category"]),

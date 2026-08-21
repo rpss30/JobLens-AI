@@ -134,6 +134,21 @@ def test_analyze_returns_candidate_fit_summary() -> None:
 
     by_role = data["recommended_skills_by_role"]
 
+    # The headline gap is the one the skills chart puts first for the same
+    # role, rather than the strongest gap across every posting: the two sit on
+    # one screen and must not name different skills.
+    best_role_gaps = next(
+        (
+            entry["skills"]
+            for entry in data["recommended_skills_by_role"]
+            if entry["role_category"] == data["best_role"]
+        ),
+        [],
+    )
+
+    if best_role_gaps:
+        assert data["top_missing_skill"] == best_role_gaps[0]["skill"]
+
     assert by_role
     assert {entry["role_category"] for entry in by_role} <= {
         score["role_category"] for score in data["role_scores"]

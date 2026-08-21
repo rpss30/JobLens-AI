@@ -156,9 +156,13 @@ def test_browser_facing_next_routes_stay_clear_of_the_proxied_api_prefix():
         '"/proxy/analysis-runs"',
         "`/proxy/reports/candidate?format=${reportFormat}`",
     ]
+    # lib as well as components: a fetch shared by more than one caller lives
+    # there, and it is still the browser making it.
     component_text = "\n".join(
         path.read_text()
-        for path in (FRONTEND_DIR / "src" / "components").rglob("*.tsx")
+        for directory in ("components", "lib")
+        for pattern in ("*.tsx", "*.ts")
+        for path in (FRONTEND_DIR / "src" / directory).rglob(pattern)
     )
 
     for fetch_path in browser_fetch_paths:

@@ -68,12 +68,22 @@ export function RoleDistribution({
       return;
     }
 
-    panelRef.current.scrollIntoView({
-      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
-        ? "auto"
-        : "smooth",
-      block: "start",
-    });
+    const behavior = window.matchMedia("(prefers-reduced-motion: reduce)")
+      .matches
+      ? "auto"
+      : "smooth";
+
+    /*
+     * Below lg the opened role is the whole page, so it starts at the top of
+     * it. Scrolling the panel into view instead puts its own top under the
+     * bar that stays fixed above it, which reads as opening part way down.
+     */
+    if (!window.matchMedia("(min-width: 64rem)").matches) {
+      window.scrollTo({ top: 0, behavior });
+      return;
+    }
+
+    panelRef.current.scrollIntoView({ behavior, block: "start" });
   }, [openRole]);
 
   const tiles = layoutTreemap(rows);

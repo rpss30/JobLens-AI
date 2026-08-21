@@ -122,52 +122,67 @@ export function MatchDetail({
       {/* Outside the scrolling part, so which posting is open and how well it
           fits stay readable however far down the description you are. */}
       <div className="shrink-0 space-y-4 border-b border-border pb-4 pt-1 lg:px-6 lg:pt-6">
-        {/* The buttons drop to their own row rather than squeezing the title
-            into a column a few words wide. */}
-        <div className="flex flex-wrap items-start gap-3">
-          <CompanyLogo name={job.company} domain={job.company_domain} />
+        {/* The score stays level with the title at every width, because it
+            is the one thing this panel says that the Jobs tab does not. The
+            title wraps into what is left rather than pushing it down; the
+            floor the Jobs tab puts under its title is for the buttons it
+            keeps on this row, and those sit below here. The logo sits level
+            with the middle of the title rather than at the top of it. */}
+        <div className="flex items-center gap-3">
+          <CompanyLogo
+            name={job.company}
+            domain={job.company_domain}
+            size="title"
+          />
 
-          <div className="min-w-[12rem] flex-1">
-            <h2 className="text-xl font-medium text-text">{job.title}</h2>
+          <div className="min-w-0 flex-1">
+            {/* Two lines on a phone whatever the title is: held to two so a
+                long one cannot push the score down, and given two so a short
+                one does not leave the logo floating in a taller row. */}
+            <h2 className="line-clamp-2 min-h-[2lh] text-lg font-semibold leading-snug text-text sm:line-clamp-none sm:min-h-0 sm:text-xl sm:font-medium">
+              {job.title}
+            </h2>
             <p className="mt-0.5 flex items-center gap-1.5 text-sm text-text-muted">
               <BuildingIcon />
               <span className="truncate">{job.company}</span>
             </p>
           </div>
 
-          <div className="flex shrink-0 items-center gap-2">
-            {/* A dataset that never recorded an id has nothing to save
-                against. */}
-            {job.job_id ? (
-              <BookmarkButton
-                job={job}
-                datasetName={datasetName}
-                initiallySaved={isSaved}
-              />
-            ) : null}
-
-            {job.source_url ? (
-              <a
-                href={job.source_url}
-                target="_blank"
-                rel="noreferrer noopener"
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-accent-fill px-4 py-2.5 text-sm font-medium text-on-accent transition-opacity hover:opacity-90"
-              >
-                Apply
-                <span aria-hidden="true">↗</span>
-              </a>
-            ) : null}
-          </div>
+          {/* Stacked on a phone so the pair takes a column rather than a
+              line, which is the width the title needs. */}
+          <p className="shrink-0 text-right sm:text-left">
+            <span className="block text-2xl font-semibold tabular-nums text-text sm:inline">
+              {Math.round(job.skill_match_score)}%
+            </span>
+            <span className="block text-xs text-text-muted sm:ml-1.5 sm:inline sm:text-sm">
+              skill fit
+            </span>
+          </p>
         </div>
 
-        {/* What this panel has that the Jobs tab does not: how much of the
-            posting the reader already covers. */}
-        <p className="text-2xl font-semibold tabular-nums text-text">
-          {Math.round(job.skill_match_score)}%
-          <span className="ml-1.5 text-sm font-normal text-text-muted">
-            skill fit
-          </span>
-        </p>
+        <div className="flex items-center gap-2">
+          {/* A dataset that never recorded an id has nothing to save
+              against. */}
+          {job.job_id ? (
+            <BookmarkButton
+              job={job}
+              datasetName={datasetName}
+              initiallySaved={isSaved}
+            />
+          ) : null}
+
+          {job.source_url ? (
+            <a
+              href={job.source_url}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-accent-fill px-4 py-2.5 text-sm font-medium text-on-accent transition-opacity hover:opacity-90"
+            >
+              Apply
+              <span aria-hidden="true">↗</span>
+            </a>
+          ) : null}
+        </div>
 
         <div className="flex flex-wrap gap-2">
           {job.location ? (

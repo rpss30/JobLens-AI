@@ -340,10 +340,33 @@ body {
   animation: dot-slide 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/*
+ * A matched posting arrives from the left rather than appearing where the
+ * list stood. The animation restarts every time the panel stops being
+ * display:none, which below lg is exactly when one is opened; from lg the
+ * panel is always there and beside the list, so nothing should move.
+ */
+@keyframes posting-slide-in {
+  from {
+    transform: translateX(-100%);
+  }
+}
+
+.animate-posting-in {
+  animation: posting-slide-in 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (min-width: 64rem) {
+  .animate-posting-in {
+    animation: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-section-in,
   .animate-bar-grow,
-  .animate-dot-in {
+  .animate-dot-in,
+  .animate-posting-in {
     animation: none;
   }
 }

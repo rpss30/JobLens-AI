@@ -62,16 +62,23 @@ export default function DatasetsPage() {
         description="Bring your own job postings, or manage the ones you have already added."
       />
 
-      <DatasetUploadForm />
+      <div className="animate-section-in">
+        <DatasetUploadForm />
+      </div>
 
-      <Section
-        title="Saved datasets"
-        description="Sets you upload can be renamed or deleted. The ones that ship with JobLens are read-only."
+      <div
+        className="animate-section-in"
+        style={{ animationDelay: "90ms" }}
       >
-        <Suspense fallback={<CardSkeleton rows={5} />}>
-          <SavedDatasets />
-        </Suspense>
-      </Section>
+        <Section
+          title="Saved datasets"
+          description="Sets you upload can be renamed or deleted. The ones that ship with JobLens are read-only."
+        >
+          <Suspense fallback={<CardSkeleton rows={5} />}>
+            <SavedDatasets />
+          </Suspense>
+        </Section>
+      </div>
     </>
   );
 }

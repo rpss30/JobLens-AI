@@ -733,7 +733,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/jobs">) {
       {/* From lg the filters and the results share one surface, so the panel
           reads as the top of the list rather than a card floating above it.
           Below lg they stay two cards with the page's own gap between. */}
-      <div className="space-y-8 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:space-y-0 lg:overflow-hidden lg:rounded-xl lg:border lg:border-border lg:bg-surface lg:shadow-[0_1px_2px_rgba(16,21,31,0.04)]">
+      <div className="animate-section-in space-y-8 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:space-y-0 lg:overflow-hidden lg:rounded-xl lg:border lg:border-border lg:bg-surface lg:shadow-[0_1px_2px_rgba(16,21,31,0.04)]">
         <div
           // Closed on arrival so the list gets the height instead. A posting
           // opened on a narrow screen is still a page of its own.

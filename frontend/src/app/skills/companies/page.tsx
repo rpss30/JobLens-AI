@@ -221,7 +221,7 @@ async function TopCompanies({ datasetName }: { datasetName: string }) {
   return (
     <Card>
       <CardBody className="space-y-5 p-4 sm:p-5">
-        <div className="flex items-start gap-3">
+        <div className="animate-section-in flex items-start gap-3">
           <span className="inline-flex rounded-xl bg-accent-soft p-2.5 text-accent">
             <BuildingIcon />
           </span>
@@ -235,7 +235,10 @@ async function TopCompanies({ datasetName }: { datasetName: string }) {
           </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div
+          className="animate-section-in grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
+          style={{ animationDelay: "80ms" }}
+        >
           {carded.map((company) => (
             <CompanyCard
               key={company.company}
@@ -246,7 +249,10 @@ async function TopCompanies({ datasetName }: { datasetName: string }) {
         </div>
 
         {remaining.length > 0 ? (
-          <section className="border-t border-border pt-4">
+          <section
+            className="animate-section-in border-t border-border pt-4"
+            style={{ animationDelay: "160ms" }}
+          >
             <h3 className="text-sm font-medium text-text">
               More companies hiring
             </h3>

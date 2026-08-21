@@ -22,30 +22,37 @@ export function SidebarNav({
   const datasetName = useDatasetParam();
   const isInsideMarketInsights = pathname.startsWith("/skills");
   /*
-   * Opens itself when you are inside the section, and can then be closed by
-   * hand. Deriving it from the route alone would take the toggle away; keeping
-   * it purely in state would hide where you currently are.
+   * Expanded, the section opens itself when you are inside it and can then be
+   * closed by hand: deriving it from the route alone would take the toggle
+   * away, and pure state would hide where you currently are.
+   *
+   * On a rail it never opens itself. The same state draws a flyout over the
+   * page there, and one of those covering the page on arrival is something
+   * nobody asked for.
    */
   const [isMarketInsightsOpen, setIsMarketInsightsOpen] = useState(
-    isInsideMarketInsights,
+    isInsideMarketInsights && !isCollapsed,
   );
   const [lastSectionState, setLastSectionState] = useState(
     isInsideMarketInsights,
   );
   const [lastPathname, setLastPathname] = useState(pathname);
+  const [lastCollapsed, setLastCollapsed] = useState(isCollapsed);
 
   if (isInsideMarketInsights !== lastSectionState) {
     setLastSectionState(isInsideMarketInsights);
-    setIsMarketInsightsOpen(isInsideMarketInsights);
+    setIsMarketInsightsOpen(isInsideMarketInsights && !isCollapsed);
   }
 
   /*
-   * On a rail the section is a flyout over the page, so it has to shut once
-   * it has taken you somewhere. Expanded it is part of the sidebar and stays
-   * open, which is how you see where you are.
+   * A flyout has to shut once it has taken you somewhere, and folding the
+   * sidebar away must not leave one hanging over the page. Expanded the
+   * section is part of the sidebar and stays open, which is how you see
+   * where you are.
    */
-  if (pathname !== lastPathname) {
+  if (pathname !== lastPathname || isCollapsed !== lastCollapsed) {
     setLastPathname(pathname);
+    setLastCollapsed(isCollapsed);
 
     if (isCollapsed) {
       setIsMarketInsightsOpen(false);

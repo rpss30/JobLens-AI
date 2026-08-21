@@ -98,11 +98,15 @@ export function RoleDistribution({
           not a card at all: it bleeds past the page padding and the panel
           reads as the page, the way an opened job posting does. */}
       <section
-        className={
+        // Outside the ternary so opening a role does not restart it: the
+        // entrance belongs to arriving on the subtab, and the panel that
+        // opens has an entrance of its own.
+        className={`animate-section-in ${
           selected
             ? "-mx-5 -mb-8 -mt-8 bg-surface pb-8 sm:-mx-8 lg:mx-0 lg:mb-0 lg:mt-0 lg:pb-0 lg:rounded-xl lg:border lg:border-border lg:shadow-[0_1px_2px_rgba(16,21,31,0.04)]"
             : "rounded-xl border border-border bg-surface shadow-[0_1px_2px_rgba(16,21,31,0.04)]"
-        }
+        }`}
+        style={{ animationDelay: "60ms" }}
       >
         <div className={`p-4 sm:p-5 ${selected ? "hidden lg:block" : ""}`}>
           <div className="relative h-[26rem] w-full sm:h-[32rem]">

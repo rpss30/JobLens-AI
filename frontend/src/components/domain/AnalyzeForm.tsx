@@ -325,7 +325,7 @@ export function AnalyzeForm({
 
   return (
     <form onSubmit={handleSubmit} className="w-full">
-      <Card className="relative overflow-visible">
+      <Card className="animate-section-in relative overflow-visible">
         <CardBody className="overflow-visible p-5 pb-24 sm:px-6 sm:pt-7 sm:pb-24">
           <SectionHeading icon={<ProfileIcon />}>Your profile</SectionHeading>
 

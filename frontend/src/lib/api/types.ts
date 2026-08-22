@@ -331,6 +331,7 @@ export interface AnalysisRun {
   target_roles: string[];
   location: string;
   experience_level: string;
+  candidate_experience: string;
   current_skills: string[];
   best_role: string | null;
   weighted_match_score: number | null;
@@ -347,6 +348,7 @@ export interface CreateAnalysisRunRequest {
   target_roles: string[];
   location: string;
   experience_level: string;
+  candidate_experience: string;
   current_skills: string[];
   best_role: string | null;
   weighted_match_score: number | null;

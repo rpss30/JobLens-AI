@@ -282,6 +282,10 @@ class CreateAnalysisRunRequest(BaseModel):
     )
     location: str = Field(default="Any", max_length=120)
     experience_level: str = Field(default="Any", max_length=80)
+    candidate_experience: str = Field(
+        default=NO_CANDIDATE_EXPERIENCE,
+        max_length=40,
+    )
     current_skills: list[str] = Field(
         default_factory=list,
         max_length=MAX_SKILL_COUNT,
@@ -320,6 +324,19 @@ class CreateAnalysisRunRequest(BaseModel):
 
         return cleaned_values
 
+    @field_validator("candidate_experience")
+    @classmethod
+    def clean_candidate_experience(cls, value: str) -> str:
+        cleaned_value = str(value or "").strip()
+
+        if not cleaned_value:
+            return NO_CANDIDATE_EXPERIENCE
+
+        if cleaned_value not in EXPERIENCE_BUCKETS:
+            return normalize_candidate_experience_bucket(cleaned_value)
+
+        return cleaned_value
+
 
 class RenameAnalysisRunRequest(BaseModel):
     new_name: str = Field(..., min_length=1, max_length=255)
@@ -343,6 +360,7 @@ class AnalysisRunResponse(BaseModel):
     target_roles: list[str]
     location: str
     experience_level: str
+    candidate_experience: str
     current_skills: list[str]
     best_role: str | None
     weighted_match_score: float | None

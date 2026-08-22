@@ -46,7 +46,7 @@ export function AnalysisRunRow({ run }: { run: AnalysisRun }) {
       search_mode: "tfidf",
       location: run.location,
       experience_level: run.experience_level,
-      candidate_experience: "Not specified",
+      candidate_experience: run.candidate_experience || "Not specified",
       dataset_name: run.dataset_name,
     };
 

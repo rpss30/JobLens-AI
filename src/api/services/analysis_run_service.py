@@ -58,6 +58,7 @@ def create_analysis_run(request: CreateAnalysisRunRequest) -> dict:
             target_roles=request.target_roles,
             location=request.location,
             experience_level=request.experience_level,
+            candidate_experience=request.candidate_experience,
             current_skills=request.current_skills,
             best_role=request.best_role,
             weighted_match_score=request.weighted_match_score,

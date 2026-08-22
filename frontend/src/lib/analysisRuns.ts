@@ -19,6 +19,7 @@ export function buildAnalysisRunPayload(
     target_roles: request.target_roles,
     location: request.location,
     experience_level: request.experience_level,
+    candidate_experience: request.candidate_experience,
     current_skills:
       response.resume_analysis?.combined_skills.slice(0, 50) ??
       request.current_skills,

@@ -12,8 +12,10 @@ from src.api.services import (
     analysis_service,
     dataset_service,
     job_listing_service,
+    report_service,
     saved_job_service,
 )
+from src.api.schemas import AnalyzeRequest
 from src.api.services.analysis_service import load_jobs_for_analysis
 
 client = TestClient(app)
@@ -250,6 +252,14 @@ def test_candidate_report_downloads_markdown_and_pdf() -> None:
     assert ".md" in markdown_response.headers["content-disposition"]
     assert "JobLens AI Candidate Skill-Gap Report" in markdown_response.text
 
+    analyze_response = client.post("/analyze", json=request_body)
+
+    assert analyze_response.status_code == 200
+    assert (
+        f"- Top recommended skill gap: {analyze_response.json()['top_missing_skill']}"
+        in markdown_response.text
+    )
+
     pdf_response = client.post(
         "/reports/candidate",
         params={"format": "pdf"},
@@ -267,6 +277,73 @@ def test_candidate_report_downloads_markdown_and_pdf() -> None:
     )
 
     assert unsupported_response.status_code == 422
+
+
+def test_candidate_report_uses_role_specific_top_gap(monkeypatch) -> None:
+    frames = analysis_service.AnalysisFrames(
+        dataset_name="test_dataset",
+        filtered_jobs=pd.DataFrame([{"title": "Backend Engineer"}]),
+        analysis_skills=["Python"],
+        role_scores_df=pd.DataFrame(
+            [
+                {
+                    "role_category": "Software Engineering",
+                    "weighted_match_score": 72.0,
+                    "missing_skills": ["role-row gap"],
+                    "representative_job_count": 3,
+                    "sample_confidence": "Moderate",
+                    "headline_eligible": True,
+                }
+            ]
+        ),
+        recommended_skills_df=pd.DataFrame([{"skill": "flat-list gap"}]),
+        recommended_skills_by_role={
+            "Software Engineering": pd.DataFrame(
+                [{"skill": "per-role ranked gap"}]
+            ),
+        },
+        resume_analysis=None,
+    )
+    captured_arguments = {}
+
+    def fake_compute_analysis_frames(request: AnalyzeRequest):
+        return frames
+
+    def fake_candidate_report_markdown(**kwargs) -> str:
+        captured_arguments.update(kwargs)
+        return f"gap={kwargs['top_missing_skill_override']}"
+
+    monkeypatch.setattr(
+        report_service,
+        "compute_analysis_frames",
+        fake_compute_analysis_frames,
+    )
+    monkeypatch.setattr(
+        report_service,
+        "get_job_match_details",
+        lambda **kwargs: pd.DataFrame(),
+    )
+    monkeypatch.setattr(
+        report_service,
+        "get_candidate_fit_summary",
+        lambda **kwargs: {},
+    )
+    monkeypatch.setattr(
+        report_service,
+        "generate_candidate_report_markdown",
+        fake_candidate_report_markdown,
+    )
+
+    content, _, _ = report_service.generate_candidate_report(
+        AnalyzeRequest(current_skills=["Python"]),
+        "markdown",
+    )
+
+    assert content.decode("utf-8") == "gap=per-role ranked gap"
+    assert (
+        captured_arguments["top_missing_skill_override"]
+        == "per-role ranked gap"
+    )
 
 
 def test_jobs_support_search_sorting_and_pagination() -> None:
@@ -680,6 +757,7 @@ def make_saved_analysis_run() -> dict:
         "target_roles": ["Data Scientist"],
         "location": "Any",
         "experience_level": "Entry Level",
+        "candidate_experience": "3-5 years",
         "current_skills": ["Python", "SQL", "Pandas"],
         "best_role": "Data Science",
         "weighted_match_score": 75.5,
@@ -916,6 +994,7 @@ def test_create_analysis_run_saves_and_returns_the_run(monkeypatch) -> None:
         json={
             "dataset_name": "sample_jobs",
             "target_roles": ["Data Scientist"],
+            "candidate_experience": "3-5 years",
             "current_skills": ["Python", "SQL"],
             "best_role": "Data Science",
             "weighted_match_score": 75.5,
@@ -928,9 +1007,11 @@ def test_create_analysis_run_saves_and_returns_the_run(monkeypatch) -> None:
 
     assert response.status_code == 201
     assert response.json()["id"] == 1
+    assert response.json()["candidate_experience"] == "3-5 years"
 
     # An omitted name falls back to a generated dated name.
     assert saved_calls[0]["name"].endswith("sample_jobs")
+    assert saved_calls[0]["candidate_experience"] == "3-5 years"
 
 
 def test_create_analysis_run_returns_503_when_database_unavailable(monkeypatch) -> None:
@@ -1008,6 +1089,7 @@ def test_list_analysis_runs_returns_saved_runs(monkeypatch) -> None:
     assert data[0]["name"] == "analysis_20260101_data_science_sample_jobs"
     assert data[0]["dataset_name"] == "sample_jobs"
     assert data[0]["target_roles"] == ["Data Scientist"]
+    assert data[0]["candidate_experience"] == "3-5 years"
     assert data[0]["current_skills"] == ["Python", "SQL", "Pandas"]
     assert data[0]["best_role"] == "Data Science"
     assert data[0]["weighted_match_score"] == 75.5
@@ -1120,6 +1202,7 @@ def test_get_analysis_run_returns_saved_run(monkeypatch) -> None:
     assert data["id"] == 1
     assert data["dataset_name"] == "sample_jobs"
     assert data["target_roles"] == ["Data Scientist"]
+    assert data["candidate_experience"] == "3-5 years"
     assert data["current_skills"] == ["Python", "SQL", "Pandas"]
     assert data["best_role"] == "Data Science"
     assert data["recommended_skills"] == ["spark", "statistics"]

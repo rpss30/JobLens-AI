@@ -177,6 +177,11 @@ class AnalysisRun(Base):
     target_roles: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
     location: Mapped[str] = mapped_column(String(255), nullable=False, default="Any")
     experience_level: Mapped[str] = mapped_column(String(100), nullable=False, default="Any")
+    candidate_experience: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+        default="Not specified",
+    )
     current_skills: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
 
     best_role: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)

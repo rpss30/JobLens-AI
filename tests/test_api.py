@@ -757,6 +757,7 @@ def make_saved_analysis_run() -> dict:
         "target_roles": ["Data Scientist"],
         "location": "Any",
         "experience_level": "Entry Level",
+        "candidate_experience": "3-5 years",
         "current_skills": ["Python", "SQL", "Pandas"],
         "best_role": "Data Science",
         "weighted_match_score": 75.5,
@@ -993,6 +994,7 @@ def test_create_analysis_run_saves_and_returns_the_run(monkeypatch) -> None:
         json={
             "dataset_name": "sample_jobs",
             "target_roles": ["Data Scientist"],
+            "candidate_experience": "3-5 years",
             "current_skills": ["Python", "SQL"],
             "best_role": "Data Science",
             "weighted_match_score": 75.5,
@@ -1005,9 +1007,11 @@ def test_create_analysis_run_saves_and_returns_the_run(monkeypatch) -> None:
 
     assert response.status_code == 201
     assert response.json()["id"] == 1
+    assert response.json()["candidate_experience"] == "3-5 years"
 
     # An omitted name falls back to a generated dated name.
     assert saved_calls[0]["name"].endswith("sample_jobs")
+    assert saved_calls[0]["candidate_experience"] == "3-5 years"
 
 
 def test_create_analysis_run_returns_503_when_database_unavailable(monkeypatch) -> None:
@@ -1085,6 +1089,7 @@ def test_list_analysis_runs_returns_saved_runs(monkeypatch) -> None:
     assert data[0]["name"] == "analysis_20260101_data_science_sample_jobs"
     assert data[0]["dataset_name"] == "sample_jobs"
     assert data[0]["target_roles"] == ["Data Scientist"]
+    assert data[0]["candidate_experience"] == "3-5 years"
     assert data[0]["current_skills"] == ["Python", "SQL", "Pandas"]
     assert data[0]["best_role"] == "Data Science"
     assert data[0]["weighted_match_score"] == 75.5
@@ -1197,6 +1202,7 @@ def test_get_analysis_run_returns_saved_run(monkeypatch) -> None:
     assert data["id"] == 1
     assert data["dataset_name"] == "sample_jobs"
     assert data["target_roles"] == ["Data Scientist"]
+    assert data["candidate_experience"] == "3-5 years"
     assert data["current_skills"] == ["Python", "SQL", "Pandas"]
     assert data["best_role"] == "Data Science"
     assert data["recommended_skills"] == ["spark", "statistics"]

@@ -1223,6 +1223,7 @@ def generate_candidate_report_markdown(
     dataset_name: str = "Current dataset",
     search_query: str = "",
     search_mode: str = TFIDF_SEARCH_MODE,
+    top_missing_skill_override: str | None = None,
 ) -> str:
     """
     Generate a downloadable Markdown candidate skill-gap report.
@@ -1262,7 +1263,7 @@ def generate_candidate_report_markdown(
 
     best_role = "N/A"
     best_score = 0.0
-    top_missing_skill = "N/A"
+    top_missing_skill = top_missing_skill_override or "N/A"
     representative_job_count = 0
     sample_confidence = "Insufficient"
 
@@ -1279,7 +1280,11 @@ def generate_candidate_report_markdown(
         )
 
         missing_skills = best_role_row.get("missing_skills", [])
-        if isinstance(missing_skills, list) and missing_skills:
+        if (
+            top_missing_skill == "N/A"
+            and isinstance(missing_skills, list)
+            and missing_skills
+        ):
             top_missing_skill = str(missing_skills[0])
 
     if (
@@ -1443,6 +1448,7 @@ def generate_candidate_report_pdf(
     dataset_name: str = "Current dataset",
     search_query: str = "",
     search_mode: str = TFIDF_SEARCH_MODE,
+    top_missing_skill_override: str | None = None,
 ) -> bytes:
     """
     Generate a downloadable PDF candidate skill-gap report.
@@ -1539,7 +1545,7 @@ def generate_candidate_report_pdf(
 
     best_role = "N/A"
     best_score = 0.0
-    top_missing_skill = "N/A"
+    top_missing_skill = top_missing_skill_override or "N/A"
     representative_job_count = 0
     sample_confidence = "Insufficient"
 
@@ -1556,7 +1562,11 @@ def generate_candidate_report_pdf(
         )
 
         missing_skills = best_role_row.get("missing_skills", [])
-        if isinstance(missing_skills, list) and missing_skills:
+        if (
+            top_missing_skill == "N/A"
+            and isinstance(missing_skills, list)
+            and missing_skills
+        ):
             top_missing_skill = str(missing_skills[0])
 
     if (

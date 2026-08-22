@@ -12,8 +12,10 @@ from src.api.services import (
     analysis_service,
     dataset_service,
     job_listing_service,
+    report_service,
     saved_job_service,
 )
+from src.api.schemas import AnalyzeRequest
 from src.api.services.analysis_service import load_jobs_for_analysis
 
 client = TestClient(app)
@@ -250,6 +252,14 @@ def test_candidate_report_downloads_markdown_and_pdf() -> None:
     assert ".md" in markdown_response.headers["content-disposition"]
     assert "JobLens AI Candidate Skill-Gap Report" in markdown_response.text
 
+    analyze_response = client.post("/analyze", json=request_body)
+
+    assert analyze_response.status_code == 200
+    assert (
+        f"- Top recommended skill gap: {analyze_response.json()['top_missing_skill']}"
+        in markdown_response.text
+    )
+
     pdf_response = client.post(
         "/reports/candidate",
         params={"format": "pdf"},
@@ -267,6 +277,73 @@ def test_candidate_report_downloads_markdown_and_pdf() -> None:
     )
 
     assert unsupported_response.status_code == 422
+
+
+def test_candidate_report_uses_role_specific_top_gap(monkeypatch) -> None:
+    frames = analysis_service.AnalysisFrames(
+        dataset_name="test_dataset",
+        filtered_jobs=pd.DataFrame([{"title": "Backend Engineer"}]),
+        analysis_skills=["Python"],
+        role_scores_df=pd.DataFrame(
+            [
+                {
+                    "role_category": "Software Engineering",
+                    "weighted_match_score": 72.0,
+                    "missing_skills": ["role-row gap"],
+                    "representative_job_count": 3,
+                    "sample_confidence": "Moderate",
+                    "headline_eligible": True,
+                }
+            ]
+        ),
+        recommended_skills_df=pd.DataFrame([{"skill": "flat-list gap"}]),
+        recommended_skills_by_role={
+            "Software Engineering": pd.DataFrame(
+                [{"skill": "per-role ranked gap"}]
+            ),
+        },
+        resume_analysis=None,
+    )
+    captured_arguments = {}
+
+    def fake_compute_analysis_frames(request: AnalyzeRequest):
+        return frames
+
+    def fake_candidate_report_markdown(**kwargs) -> str:
+        captured_arguments.update(kwargs)
+        return f"gap={kwargs['top_missing_skill_override']}"
+
+    monkeypatch.setattr(
+        report_service,
+        "compute_analysis_frames",
+        fake_compute_analysis_frames,
+    )
+    monkeypatch.setattr(
+        report_service,
+        "get_job_match_details",
+        lambda **kwargs: pd.DataFrame(),
+    )
+    monkeypatch.setattr(
+        report_service,
+        "get_candidate_fit_summary",
+        lambda **kwargs: {},
+    )
+    monkeypatch.setattr(
+        report_service,
+        "generate_candidate_report_markdown",
+        fake_candidate_report_markdown,
+    )
+
+    content, _, _ = report_service.generate_candidate_report(
+        AnalyzeRequest(current_skills=["Python"]),
+        "markdown",
+    )
+
+    assert content.decode("utf-8") == "gap=per-role ranked gap"
+    assert (
+        captured_arguments["top_missing_skill_override"]
+        == "per-role ranked gap"
+    )
 
 
 def test_jobs_support_search_sorting_and_pagination() -> None:

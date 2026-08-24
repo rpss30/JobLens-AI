@@ -146,6 +146,52 @@ def test_simplify_rows_can_reuse_canada_filtering() -> None:
     assert prepared[0]["role_category"] == "Software Engineering"
 
 
+def test_prepare_simplify_new_grad_jobs_defaults_to_global_target_roles() -> None:
+    rows = [
+        normalize_simplify_new_grad_posting(
+            SimplifyNewGradPosting(
+                company="CanadaCo",
+                title="Software Engineer New Grad",
+                location="Toronto, ON",
+                category="Software Engineering",
+                listing_age="0d",
+                apply_url="https://canada.example/apply",
+            ),
+            fetched_at=datetime(2026, 8, 24, tzinfo=UTC),
+        ),
+        normalize_simplify_new_grad_posting(
+            SimplifyNewGradPosting(
+                company="UsCo",
+                title="Software Engineer New Grad",
+                location="Seattle, WA",
+                category="Software Engineering",
+                listing_age="0d",
+                apply_url="https://us.example/apply",
+            ),
+            fetched_at=datetime(2026, 8, 24, tzinfo=UTC),
+        ),
+        normalize_simplify_new_grad_posting(
+            SimplifyNewGradPosting(
+                company="PmCo",
+                title="Associate Product Manager",
+                location="New York, NY",
+                category="Product Management",
+                listing_age="0d",
+                apply_url="https://pm.example/apply",
+            ),
+            fetched_at=datetime(2026, 8, 24, tzinfo=UTC),
+        ),
+    ]
+
+    prepared, metrics = fetch_simplify_new_grad_jobs.prepare_simplify_new_grad_jobs(
+        rows
+    )
+
+    assert [row["company"] for row in prepared] == ["CanadaCo", "UsCo"]
+    assert metrics["target_role_rejected_count"] == 1
+    assert metrics["dedup_rejected_count"] == 0
+
+
 def test_fetch_simplify_new_grad_script_writes_csv_and_summaries(
     monkeypatch,
     tmp_path,
@@ -195,6 +241,54 @@ def test_fetch_simplify_new_grad_script_writes_csv_and_summaries(
     assert '"target_role_rejected_count": 1' in summary_path.read_text(
         encoding="utf-8"
     )
+    assert '"location_scope": "canada"' in summary_path.read_text(
+        encoding="utf-8"
+    )
     assert "## Simplify New Grad Fetch Run" in markdown_path.read_text(
+        encoding="utf-8"
+    )
+
+
+def test_fetch_simplify_new_grad_script_defaults_to_global_scope(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    postings = [
+        SimplifyNewGradPosting(
+            company="CanadaCo",
+            title="Software Engineer New Grad",
+            location="Toronto, ON",
+            category="Software Engineering",
+            listing_age="0d",
+            apply_url="https://canada.example/apply",
+        ),
+        SimplifyNewGradPosting(
+            company="UsCo",
+            title="Software Engineer New Grad",
+            location="Seattle, WA",
+            category="Software Engineering",
+            listing_age="0d",
+            apply_url="https://us.example/apply",
+        ),
+    ]
+
+    monkeypatch.setattr(
+        fetch_simplify_new_grad_jobs,
+        "fetch_simplify_new_grad_postings",
+        lambda readme_url: postings,
+    )
+    output_path = tmp_path / "simplify.csv"
+    summary_path = tmp_path / "summary.json"
+
+    fetch_simplify_new_grad_jobs.main(
+        readme_url="https://example.com/readme",
+        output_path=output_path,
+        summary_path=summary_path,
+    )
+
+    output_df = pd.read_csv(output_path)
+
+    assert output_df["company"].tolist() == ["CanadaCo", "UsCo"]
+    assert '"location_scope": "global"' in summary_path.read_text(
         encoding="utf-8"
     )

@@ -66,6 +66,7 @@ describe("formatSkill", () => {
 describe("formatDatasetLabel", () => {
   it("uses friendly names for bundled datasets", () => {
     expect(formatDatasetLabel("canada_snapshot")).toBe("Canada snapshot");
+    expect(formatDatasetLabel("early_career_global")).toBe("Global early career");
     expect(formatDatasetLabel("local_sample")).toBe("Local sample");
   });
 

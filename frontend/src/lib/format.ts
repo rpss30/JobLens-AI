@@ -96,6 +96,7 @@ export function formatDatasetLabel(datasetName: string): string {
   const labels: Record<string, string> = {
     local_sample: "Local sample",
     canada_snapshot: "Canada snapshot",
+    early_career_global: "Global early career",
   };
 
   return labels[datasetName] ?? datasetName;

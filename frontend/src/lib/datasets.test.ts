@@ -1,6 +1,21 @@
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_DATASET, resolveDataset, withDataset } from "@/lib/datasets";
+import {
+  DEFAULT_DATASET,
+  LOCAL_DATASETS,
+  resolveDataset,
+  withDataset,
+} from "@/lib/datasets";
+
+describe("LOCAL_DATASETS", () => {
+  it("includes the global early-career dataset as a bundled option", () => {
+    expect(LOCAL_DATASETS).toContainEqual({
+      value: "early_career_global",
+      label: "Global early career",
+      group: "Bundled datasets",
+    });
+  });
+});
 
 describe("resolveDataset", () => {
   it("falls back to the default when the param is missing or blank", () => {

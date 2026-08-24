@@ -9,6 +9,7 @@ from src.api.errors import ApiError
 from src.api.schemas import AnalyzeRequest, AnalyzeResponse
 from src.analysis.job_services import (
     CANADA_JOBS_SNAPSHOT_PATH,
+    EARLY_CAREER_GLOBAL_PATH,
     filter_jobs,
     get_job_match_details,
     get_positive_job_matches,
@@ -29,6 +30,7 @@ RAW_DATA_PATH = "data/raw/sample_jobs.csv"
 PROCESSED_DATA_PATH = "data/processed/processed_jobs.csv"
 LOCAL_SAMPLE_DATASET_NAME = "local_sample"
 CANADA_SNAPSHOT_DATASET_NAME = "canada_snapshot"
+EARLY_CAREER_GLOBAL_DATASET_NAME = "early_career_global"
 
 
 def clean_optional_text(value: object) -> str:
@@ -69,9 +71,21 @@ def load_canada_snapshot_jobs() -> pd.DataFrame:
     return prepare_processed_jobs_for_dashboard(pd.read_csv(snapshot_path))
 
 
+@lru_cache(maxsize=1)
+def load_early_career_global_jobs() -> pd.DataFrame:
+    """Load the bundled global early-career jobs dataset for API analysis."""
+    snapshot_path = Path(EARLY_CAREER_GLOBAL_PATH)
+
+    if not snapshot_path.exists():
+        return pd.DataFrame()
+
+    return prepare_processed_jobs_for_dashboard(pd.read_csv(snapshot_path))
+
+
 LOCAL_DATASET_LOADERS = {
     LOCAL_SAMPLE_DATASET_NAME: load_api_jobs,
     CANADA_SNAPSHOT_DATASET_NAME: load_canada_snapshot_jobs,
+    EARLY_CAREER_GLOBAL_DATASET_NAME: load_early_career_global_jobs,
 }
 
 

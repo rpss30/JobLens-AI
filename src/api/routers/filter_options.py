@@ -26,8 +26,9 @@ def get_filter_options(
             max_length=120,
             description=(
                 "Optional dataset name. Use 'canada_snapshot' for the bundled "
-                "Canadian postings, a PostgreSQL dataset name, or omit for the "
-                "local sample dataset."
+                "Canadian postings, 'early_career_global' for bundled global "
+                "early-career postings, a PostgreSQL dataset name, or omit for "
+                "the local sample dataset."
             ),
         ),
     ] = None,

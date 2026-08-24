@@ -85,6 +85,8 @@ commands.
 - `scripts/fetch_canada_jobs.py` builds the Canada-only raw posting set.
 - `scripts/build_canada_jobs_snapshot.py` creates the packaged Groq-enriched snapshot.
 - `scripts/validate_canada_jobs_snapshot.py` blocks low-quality snapshot replacements.
+- `scripts/fetch_simplify_new_grad_jobs.py` builds the global early-career raw posting set.
+- `scripts/build_early_career_jobs_snapshot.py` creates the packaged early-career dataset.
 - `src/ingestion/pipeline_runs.py` validates normalized records and builds run summaries.
 - `scripts/process_greenhouse_jobs.py` applies deterministic processing.
 - `scripts/process_greenhouse_jobs_ai_first.py` runs the AI-first extraction experiment.
@@ -108,6 +110,11 @@ python scripts/fetch_simplify_new_grad_jobs.py \
   --output-path data/raw/simplify_new_grad_jobs.csv \
   --summary-path tmp/simplify-fetch-summary.json \
   --summary-markdown-path tmp/simplify-fetch-summary.md
+python scripts/build_early_career_jobs_snapshot.py \
+  --input-path data/raw/simplify_new_grad_jobs.csv \
+  --output-path data/processed/early_career_global_jobs.csv \
+  --summary-path tmp/early-career-build-summary.json \
+  --summary-markdown-path tmp/early-career-build-summary.md
 ```
 
 Use `--canada-only` only for compatibility checks against Canada-specific
@@ -119,9 +126,11 @@ python scripts/fetch_simplify_new_grad_jobs.py \
   --output-path tmp/simplify_canada_jobs.csv
 ```
 
-The Simplify index is a discovery source, not a complete processed matching
-snapshot. It provides strong company, title, location, apply-link, and
-new-grad metadata, but not complete job-description text for every posting.
-Before it becomes a first-class scoring dataset, the apply URLs should be
-hydrated into full job descriptions and then passed through the normal skill
-extraction and validation gates.
+The `early_career_global` bundled dataset is available in the app's dataset
+selector. It is intentionally separate from `canada_snapshot`: it keeps global
+locations and does not use Canada-specific quality gates. The builder
+opportunistically hydrates apply pages into fuller descriptions and falls back
+to the Simplify index text when a page is JavaScript-only, blocked, or too
+thin. The committed dataset records the hydration provider per row so future
+work can tighten quality gates or add source-specific hydrators without hiding
+which rows came from fallback text.

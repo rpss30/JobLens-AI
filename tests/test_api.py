@@ -212,6 +212,26 @@ def test_filter_options_expose_canada_snapshot_selections() -> None:
     assert data["summary"]["company_count"] > 0
 
 
+def test_filter_options_expose_early_career_global_selections() -> None:
+    response = client.get(
+        "/filter-options",
+        params={"dataset_name": "early_career_global"},
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["dataset_name"] == "early_career_global"
+    assert data["target_roles"]
+    assert data["role_categories"]
+    assert data["skills"]
+    assert data["locations"]
+    assert data["experience_levels"] == ["Entry Level"]
+    assert data["summary"]["job_count"] == 298
+    assert data["summary"]["company_count"] >= 150
+
+
 def test_filter_options_return_404_for_unavailable_local_dataset(monkeypatch) -> None:
     monkeypatch.setattr(
         analysis_service,
@@ -412,6 +432,23 @@ def test_jobs_support_search_sorting_and_pagination() -> None:
 
     assert categories == {first["role_category"]}
     assert narrowed.json()["total"] < data["total"]
+
+
+def test_jobs_browse_early_career_global_dataset() -> None:
+    response = client.get(
+        "/jobs",
+        params={"dataset_name": "early_career_global", "limit": 5},
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["dataset_name"] == "early_career_global"
+    assert data["total"] == 298
+    assert len(data["jobs"]) == 5
+    assert {job["experience_level"] for job in data["jobs"]} == {"Entry Level"}
+    assert {job["source"] for job in data["jobs"]} == {"simplify_new_grad"}
 
 
 def test_market_insights_summarize_demand_without_a_candidate_profile() -> None:

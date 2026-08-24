@@ -55,6 +55,7 @@ from src.search.semantic_search import (
 RAW_DATA_PATH = "data/raw/sample_jobs.csv"
 PROCESSED_DATA_PATH = "data/processed/processed_jobs.csv"
 CANADA_JOBS_SNAPSHOT_PATH = "data/processed/canada_jobs_snapshot.csv"
+EARLY_CAREER_GLOBAL_PATH = "data/processed/early_career_global_jobs.csv"
 MAX_UPLOADED_CSV_BYTES = 2 * 1024 * 1024
 MAX_UPLOADED_CSV_ROWS = 5_000
 ALLOWED_UPLOAD_EXTENSIONS = {".csv"}

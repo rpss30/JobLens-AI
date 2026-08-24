@@ -232,7 +232,7 @@ A GitHub Actions workflow refreshes the snapshot weekly. It runs the quality
 gates and the full test suite first, and only then opens a pull request, merges
 it, and deploys. The gates decide whether the refresh ships: a snapshot that
 falls under 65% of the previous one, loses employers or locations, or drops below
-95% Groq coverage fails the job and no pull request is created. The merged pull
+85% Groq coverage fails the job and no pull request is created. The merged pull
 request stays as the audit trail and the revert handle.
 
 The Canada jobs snapshot is the app's default dataset. The bundled sample

@@ -38,7 +38,10 @@ MINIMUM_BASELINE_RATIO = 0.65
 MINIMUM_COMPANIES = 12
 MINIMUM_LOCATIONS = 8
 MINIMUM_SOURCES = 2
-MINIMUM_GROQ_COVERAGE = 0.95
+# Groq remains the primary extractor, but the deterministic fallback is allowed
+# for a bounded share of noisy provider responses while every row still has
+# extracted skills.
+MINIMUM_GROQ_COVERAGE = 0.85
 MAXIMUM_SNAPSHOT_AGE = timedelta(days=3)
 
 

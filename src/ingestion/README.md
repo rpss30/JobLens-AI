@@ -94,3 +94,34 @@ commands.
 External APIs and LLMs are not required at dashboard runtime. The committed
 snapshot keeps the application stable while retaining current first-party
 source URLs, refresh metadata, and realistic job descriptions.
+
+### Global Early-Career Discovery
+
+`scripts/fetch_simplify_new_grad_jobs.py` fetches active listings from the
+public SimplifyJobs/New-Grad-Positions index. This source is global by default:
+it keeps target technical roles from every listed location and writes normalized
+rows that preserve the original apply URL, Simplify source record, listing age,
+new-grad signal, and entry-level signal.
+
+```bash
+python scripts/fetch_simplify_new_grad_jobs.py \
+  --output-path data/raw/simplify_new_grad_jobs.csv \
+  --summary-path tmp/simplify-fetch-summary.json \
+  --summary-markdown-path tmp/simplify-fetch-summary.md
+```
+
+Use `--canada-only` only for compatibility checks against Canada-specific
+location normalization:
+
+```bash
+python scripts/fetch_simplify_new_grad_jobs.py \
+  --canada-only \
+  --output-path tmp/simplify_canada_jobs.csv
+```
+
+The Simplify index is a discovery source, not a complete processed matching
+snapshot. It provides strong company, title, location, apply-link, and
+new-grad metadata, but not complete job-description text for every posting.
+Before it becomes a first-class scoring dataset, the apply URLs should be
+hydrated into full job descriptions and then passed through the normal skill
+extraction and validation gates.

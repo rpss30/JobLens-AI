@@ -105,6 +105,7 @@ def main(
             "source": SIMPLIFY_SOURCE,
             "target_roles_only": target_roles_only,
             "canada_only": canada_only,
+            "location_scope": "canada" if canada_only else "global",
             **pipeline_metrics,
         },
     )
@@ -119,7 +120,11 @@ def main(
         write_markdown_run_summary(summary, summary_markdown_path)
 
     print(f"\nFetched {len(postings)} active Simplify new-grad postings.")
-    print(f"Saved {len(prepared_jobs)} normalized postings to {output_path}.")
+    scope_label = "Canada-only" if canada_only else "global"
+    print(
+        f"Saved {len(prepared_jobs)} {scope_label} normalized postings "
+        f"to {output_path}."
+    )
     print()
     print(build_markdown_run_summary(summary))
 
@@ -132,7 +137,10 @@ def main(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Fetch new-grad jobs from Simplify's public index."
+        description=(
+            "Fetch global new-grad jobs from Simplify's public index. "
+            "Use --canada-only only when testing Canada snapshot compatibility."
+        )
     )
     parser.add_argument(
         "--readme-url",

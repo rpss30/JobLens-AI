@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from scripts import validate_canada_jobs_snapshot
 from src.dashboard.services import (
     CANADA_JOBS_SNAPSHOT_PATH,
     filter_jobs,
@@ -117,7 +118,7 @@ def test_canada_jobs_snapshot_is_packaged_and_enriched():
     assert jobs_df["extracted_skills"].apply(bool).all()
     assert (
         jobs_df["skill_extraction_provider"].eq("groq").mean()
-        >= 0.95
+        >= validate_canada_jobs_snapshot.MINIMUM_GROQ_COVERAGE
     )
     assert jobs_df["source"].nunique() >= 2
     assert TARGET_ROLE_CATEGORIES.issubset(set(jobs_df["role_category"]))

@@ -9,6 +9,7 @@ from src.ingestion.canada_jobs import TARGET_ROLE_CATEGORIES
 def build_snapshot_rows(
     *,
     job_count: int = 48,
+    fallback_count: int = 0,
     fetched_at: str = "2026-06-21T12:00:00+00:00",
 ) -> list[dict[str, object]]:
     role_categories = sorted(TARGET_ROLE_CATEGORIES)
@@ -25,7 +26,9 @@ def build_snapshot_rows(
             "fetched_at": fetched_at,
             "role_category": role_categories[index % len(role_categories)],
             "skills_text": "python, sql",
-            "skill_extraction_provider": "groq",
+            "skill_extraction_provider": (
+                "deterministic_fallback" if index < fallback_count else "groq"
+            ),
         }
         for index in range(job_count)
     ]
@@ -44,6 +47,34 @@ def test_validate_snapshot_accepts_diverse_fresh_candidate():
     assert errors == []
     assert metrics["job_count"] == 48
     assert metrics["groq_coverage"] == 1.0
+
+
+def test_validate_snapshot_accepts_bounded_fallback_coverage():
+    candidate_df = pd.DataFrame(
+        build_snapshot_rows(job_count=48, fallback_count=7)
+    )
+
+    errors, metrics = validate_canada_jobs_snapshot.validate_snapshot(
+        candidate_df,
+        now=datetime(2026, 6, 21, 18, tzinfo=UTC),
+    )
+
+    assert errors == []
+    assert metrics["groq_coverage"] == 41 / 48
+
+
+def test_validate_snapshot_rejects_excessive_fallback_coverage():
+    candidate_df = pd.DataFrame(
+        build_snapshot_rows(job_count=48, fallback_count=8)
+    )
+
+    errors, _ = validate_canada_jobs_snapshot.validate_snapshot(
+        candidate_df,
+        now=datetime(2026, 6, 21, 18, tzinfo=UTC),
+    )
+
+    assert any("Groq coverage 83.3%" in error for error in errors)
+    assert any("minimum of 85%" in error for error in errors)
 
 
 def test_validate_snapshot_rejects_large_baseline_drop():

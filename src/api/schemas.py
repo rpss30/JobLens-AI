@@ -162,16 +162,30 @@ class AnalyzeRequest(BaseModel):
                 "Provide at least one current skill or pasted resume text."
             )
 
-        if (
-            not self.resume_text.strip()
-            and not self.search_query.strip()
-            and not any(role.strip() for role in self.target_roles)
-        ):
-            raise ValueError(
-                "Provide a search query, at least one target role, or pasted resume text."
-            )
-
         return self
+
+
+class ResumeSkillsRequest(BaseModel):
+    resume_text: str = Field(
+        default="",
+        max_length=12_000,
+        description=(
+            "Pasted resume text. Matched against the skill taxonomy in memory; "
+            "the raw text is never persisted, logged, or returned."
+        ),
+    )
+    dataset_name: str | None = Field(
+        default=None,
+        max_length=120,
+        description=(
+            "Optional dataset to read skills from, so anything its jobs ask "
+            "for can be found in the resume. Omit for the curated taxonomy."
+        ),
+    )
+
+
+class ResumeSkillsResponse(BaseModel):
+    skills: list[str]
 
 
 class DatasetSummary(BaseModel):
@@ -193,8 +207,40 @@ class FilterOptionsResponse(BaseModel):
     role_categories: list[str]
     skills: list[str]
     locations: list[str]
+    companies: list[str]
     experience_levels: list[str]
     summary: DatasetSnapshotSummary
+
+
+class SaveJobRequest(BaseModel):
+    job_id: str = Field(min_length=1, max_length=255)
+    dataset_name: str = Field(min_length=1, max_length=255)
+    # Copied in so a kept posting still reads correctly after the dataset
+    # behind it is refreshed.
+    title: str = Field(default="", max_length=500)
+    company: str = Field(default="", max_length=255)
+    location: str = Field(default="", max_length=255)
+    source_url: str = Field(default="", max_length=2000)
+    date_posted: str = Field(default="", max_length=64)
+    experience_level: str = Field(default="", max_length=100)
+
+
+class SavedJobResponse(BaseModel):
+    id: int
+    job_id: str
+    dataset_name: str
+    title: str
+    company: str
+    location: str
+    source_url: str
+    date_posted: str = ""
+    experience_level: str = ""
+    created_at: datetime | None = None
+
+
+class DeleteSavedJobResponse(BaseModel):
+    job_id: str
+    deleted: bool
 
 
 class UploadDatasetResponse(BaseModel):
@@ -236,6 +282,10 @@ class CreateAnalysisRunRequest(BaseModel):
     )
     location: str = Field(default="Any", max_length=120)
     experience_level: str = Field(default="Any", max_length=80)
+    candidate_experience: str = Field(
+        default=NO_CANDIDATE_EXPERIENCE,
+        max_length=40,
+    )
     current_skills: list[str] = Field(
         default_factory=list,
         max_length=MAX_SKILL_COUNT,
@@ -274,6 +324,19 @@ class CreateAnalysisRunRequest(BaseModel):
 
         return cleaned_values
 
+    @field_validator("candidate_experience")
+    @classmethod
+    def clean_candidate_experience(cls, value: str) -> str:
+        cleaned_value = str(value or "").strip()
+
+        if not cleaned_value:
+            return NO_CANDIDATE_EXPERIENCE
+
+        if cleaned_value not in EXPERIENCE_BUCKETS:
+            return normalize_candidate_experience_bucket(cleaned_value)
+
+        return cleaned_value
+
 
 class RenameAnalysisRunRequest(BaseModel):
     new_name: str = Field(..., min_length=1, max_length=255)
@@ -297,6 +360,7 @@ class AnalysisRunResponse(BaseModel):
     target_roles: list[str]
     location: str
     experience_level: str
+    candidate_experience: str
     current_skills: list[str]
     best_role: str | None
     weighted_match_score: float | None
@@ -310,6 +374,8 @@ class JobListing(BaseModel):
     job_id: str = ""
     title: str
     company: str
+    # Best-effort employer domain, used only to look up a logo.
+    company_domain: str = ""
     location: str
     experience_level: str
     role_category: str
@@ -321,6 +387,15 @@ class JobListing(BaseModel):
     source_url: str = ""
     skills: list[str] = Field(default_factory=list)
     search_relevance: float = 0.0
+
+
+class JobDetail(JobListing):
+    dataset_name: str = ""
+    # The posting's own words, carried only for the one being read.
+    description: str = ""
+    # The same words with the board's own paragraphs and lists, where the
+    # posting was still up when the dataset was last filled in.
+    description_formatted: str = ""
 
 
 class JobListResponse(BaseModel):
@@ -401,21 +476,52 @@ class SkillDemand(BaseModel):
 
 
 class RoleSkillImportance(BaseModel):
+    """Role-specific demand, with the evidence behind each label.
+
+    role_weight and weighted_importance are internal scoring artifacts kept for
+    existing callers; the signals and counts beside them are what a reader can
+    actually interpret.
+    """
     role_category: str
     skill: str
     job_count: int
+    role_job_count: int = 0
     role_weight: int
     weighted_importance: float
+    demand_signal: str = "specialized"
+    required_count: int = 0
+    preferred_count: int = 0
+    unclear_count: int = 0
+    requirement_signal: str = "unclear"
 
 
 class LocationDemand(BaseModel):
     location: str
+    job_count: int
+    # The parts behind the label, so the page can group without re-parsing.
+    city: str = ""
+    region: str = ""
+    country: str = ""
+    # Remote work is a place a posting can be done from, unlike hybrid or
+    # on-site, which only say how it happens.
+    remote: bool = False
+
+
+class WorkplaceTypeDemand(BaseModel):
+    workplace_type: str
     job_count: int
 
 
 class CompanyDemand(BaseModel):
     company: str
     job_count: int
+    # What the card shows beside the name.
+    role_categories: list[str] = Field(default_factory=list)
+    top_skills: list[str] = Field(default_factory=list)
+    location: str = ""
+    workplace_type: str = ""
+    # Best-effort employer domain, used only to look up a logo.
+    domain: str = ""
 
 
 class RoleDistribution(BaseModel):
@@ -429,6 +535,12 @@ class MarketInsightsResponse(BaseModel):
     skill_demand: list[SkillDemand]
     role_skill_importance: list[RoleSkillImportance]
     jobs_by_location: list[LocationDemand]
+    # How the work is done is its own dimension. Left in the location field it
+    # ranked "Hybrid" above every real city.
+    workplace_types: list[WorkplaceTypeDemand]
+    # Postings whose location named no place at all, so the counts above can
+    # be read against the right total.
+    postings_without_location: int
     top_companies: list[CompanyDemand]
     role_distribution: list[RoleDistribution]
 
@@ -438,6 +550,20 @@ class RecommendedSkill(BaseModel):
     score: float
     job_count: int
     avg_weight: float
+
+
+class RoleRecommendedSkills(BaseModel):
+    """The skills worth learning next for one type of role.
+
+    The flat ``recommended_skills`` list ranks across every posting in the
+    analysis, so a skill that only matters for one kind of role is buried
+    under the ones that matter everywhere. This splits the same calculation
+    per role category so each can be read on its own.
+    """
+
+    role_category: str
+    job_count: int
+    skills: list[RecommendedSkill]
 
 
 class RoleScore(BaseModel):
@@ -456,11 +582,15 @@ class RoleScore(BaseModel):
 
 
 class JobMatch(BaseModel):
+    job_id: str = ""
     title: str
     company: str
+    """Best-effort employer domain, used only to look up a logo."""
+    company_domain: str = ""
     location: str
     experience_level: str
     role_category: str
+    date_posted: str = ""
     source: str = ""
     source_url: str = ""
     search_relevance: float
@@ -481,6 +611,8 @@ class JobMatch(BaseModel):
     matched_skills_preview: str
     related_skills_preview: str
     missing_skills_preview: str
+    matched_skills: list[str] = Field(default_factory=list)
+    missing_skills: list[str] = Field(default_factory=list)
     matched_required_skills: list[str] = Field(default_factory=list)
     missing_required_skills: list[str] = Field(default_factory=list)
     matched_preferred_skills: list[str] = Field(default_factory=list)
@@ -531,6 +663,9 @@ class AnalyzeResponse(BaseModel):
     top_missing_skill: str
     jobs_analyzed: int
     recommended_skills: list[RecommendedSkill]
+    recommended_skills_by_role: list[RoleRecommendedSkills] = Field(
+        default_factory=list
+    )
     role_scores: list[RoleScore]
     top_matching_jobs: list[JobMatch]
     resume_analysis: ResumeAnalysis | None = None

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Nunito } from "next/font/google";
+import { cookies } from "next/headers";
 
 import { ApiStatus } from "@/components/layout/ApiStatus";
 import { AppShell } from "@/components/layout/AppShell";
@@ -8,11 +9,23 @@ import { AnalysisProvider } from "@/context/AnalysisContext";
 import { ToastProvider } from "@/context/ToastContext";
 import { getDatasets } from "@/lib/api/endpoints";
 import { LOCAL_DATASETS } from "@/lib/datasets";
+import {
+  SIDEBAR_COOKIE,
+  THEME_COOKIE,
+  readSidebarCookie,
+  readThemeCookie,
+} from "@/lib/theme";
 
 import "./globals.css";
 
-const inter = Inter({
-  variable: "--font-inter",
+/*
+ * The design calls for SF Pro Rounded, which Apple licenses for its own
+ * platforms only and which cannot be shipped as a web font. --font-sans asks
+ * for it by keyword first, so Apple devices render the real face; Nunito is
+ * the closest freely licensable rounded fallback for everyone else.
+ */
+const roundedSans = Nunito({
+  variable: "--font-rounded",
   subsets: ["latin"],
 });
 
@@ -41,14 +54,36 @@ async function loadDatasetOptions(): Promise<DatasetOption[]> {
 }
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const datasets = await loadDatasetOptions();
+  const [datasets, cookieStore] = await Promise.all([
+    loadDatasetOptions(),
+    cookies(),
+  ]);
+
+  /*
+   * Rendered into the HTML rather than applied afterwards, so the first paint
+   * is already the theme the reader chose. No cookie leaves the attribute
+   * off and the root's `light dark` color-scheme follows the system.
+   */
+  const theme = readThemeCookie(cookieStore.get(THEME_COOKIE)?.value);
+  const isSidebarCollapsed = readSidebarCookie(
+    cookieStore.get(SIDEBAR_COOKIE)?.value,
+  );
 
   return (
-    <html lang="en" className={`${inter.variable} h-full antialiased`}>
+    <html
+      lang="en"
+      data-theme={theme ?? undefined}
+      className={`${roundedSans.variable} h-full antialiased`}
+    >
       <body className="min-h-full font-sans">
         <ToastProvider>
           <AnalysisProvider>
-            <AppShell datasets={datasets} statusSlot={<ApiStatus />}>
+            <AppShell
+              datasets={datasets}
+              statusSlot={<ApiStatus />}
+              initialTheme={theme}
+              initialSidebarCollapsed={isSidebarCollapsed}
+            >
               {children}
             </AppShell>
           </AnalysisProvider>

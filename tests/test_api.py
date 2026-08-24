@@ -7,7 +7,16 @@ import sys
 
 import pandas as pd
 
-from src.api.services import analysis_run_service, analysis_service, dataset_service
+from src.api.services import (
+    analysis_run_service,
+    analysis_service,
+    dataset_service,
+    job_listing_service,
+    report_service,
+    saved_job_service,
+)
+from src.api.schemas import AnalyzeRequest
+from src.api.services.analysis_service import load_jobs_for_analysis
 
 client = TestClient(app)
 
@@ -106,6 +115,59 @@ def test_analyze_returns_candidate_fit_summary() -> None:
     assert "missing_preferred_skills" in first_job_match
     assert "preferred_skill_coverage" in first_job_match
 
+    # A match is saved and sorted by date the same way a browsed posting is,
+    # so it has to arrive carrying both.
+    assert first_job_match["job_id"]
+    assert "date_posted" in first_job_match
+
+    # Every skill the posting asks for, split by whether the candidate has it.
+    posting_skills = (
+        first_job_match["matched_skills"] + first_job_match["missing_skills"]
+    )
+
+    assert posting_skills
+    assert len(set(posting_skills)) == len(posting_skills)
+    assert len(first_job_match["matched_skills"]) == (
+        first_job_match["matched_skills_count"]
+    )
+    assert len(first_job_match["missing_skills"]) == (
+        first_job_match["missing_skills_count"]
+    )
+
+    by_role = data["recommended_skills_by_role"]
+
+    # The headline gap is the one the skills chart puts first for the same
+    # role, rather than the strongest gap across every posting: the two sit on
+    # one screen and must not name different skills.
+    best_role_gaps = next(
+        (
+            entry["skills"]
+            for entry in data["recommended_skills_by_role"]
+            if entry["role_category"] == data["best_role"]
+        ),
+        [],
+    )
+
+    if best_role_gaps:
+        assert data["top_missing_skill"] == best_role_gaps[0]["skill"]
+
+    assert by_role
+    assert {entry["role_category"] for entry in by_role} <= {
+        score["role_category"] for score in data["role_scores"]
+    }
+    assert all(len(entry["skills"]) <= 5 for entry in by_role)
+    assert all(entry["job_count"] > 0 for entry in by_role)
+    # Ranked like the role fit bars, so the tabs read in the same order.
+    assert [entry["role_category"] for entry in by_role] == sorted(
+        (entry["role_category"] for entry in by_role),
+        key=lambda role: next(
+            score["weighted_match_score"]
+            for score in data["role_scores"]
+            if score["role_category"] == role
+        ),
+        reverse=True,
+    )
+
 
 def test_analyze_accepts_legacy_top_n_for_result_limits() -> None:
     response = client.post(
@@ -190,6 +252,14 @@ def test_candidate_report_downloads_markdown_and_pdf() -> None:
     assert ".md" in markdown_response.headers["content-disposition"]
     assert "JobLens AI Candidate Skill-Gap Report" in markdown_response.text
 
+    analyze_response = client.post("/analyze", json=request_body)
+
+    assert analyze_response.status_code == 200
+    assert (
+        f"- Top recommended skill gap: {analyze_response.json()['top_missing_skill']}"
+        in markdown_response.text
+    )
+
     pdf_response = client.post(
         "/reports/candidate",
         params={"format": "pdf"},
@@ -207,6 +277,73 @@ def test_candidate_report_downloads_markdown_and_pdf() -> None:
     )
 
     assert unsupported_response.status_code == 422
+
+
+def test_candidate_report_uses_role_specific_top_gap(monkeypatch) -> None:
+    frames = analysis_service.AnalysisFrames(
+        dataset_name="test_dataset",
+        filtered_jobs=pd.DataFrame([{"title": "Backend Engineer"}]),
+        analysis_skills=["Python"],
+        role_scores_df=pd.DataFrame(
+            [
+                {
+                    "role_category": "Software Engineering",
+                    "weighted_match_score": 72.0,
+                    "missing_skills": ["role-row gap"],
+                    "representative_job_count": 3,
+                    "sample_confidence": "Moderate",
+                    "headline_eligible": True,
+                }
+            ]
+        ),
+        recommended_skills_df=pd.DataFrame([{"skill": "flat-list gap"}]),
+        recommended_skills_by_role={
+            "Software Engineering": pd.DataFrame(
+                [{"skill": "per-role ranked gap"}]
+            ),
+        },
+        resume_analysis=None,
+    )
+    captured_arguments = {}
+
+    def fake_compute_analysis_frames(request: AnalyzeRequest):
+        return frames
+
+    def fake_candidate_report_markdown(**kwargs) -> str:
+        captured_arguments.update(kwargs)
+        return f"gap={kwargs['top_missing_skill_override']}"
+
+    monkeypatch.setattr(
+        report_service,
+        "compute_analysis_frames",
+        fake_compute_analysis_frames,
+    )
+    monkeypatch.setattr(
+        report_service,
+        "get_job_match_details",
+        lambda **kwargs: pd.DataFrame(),
+    )
+    monkeypatch.setattr(
+        report_service,
+        "get_candidate_fit_summary",
+        lambda **kwargs: {},
+    )
+    monkeypatch.setattr(
+        report_service,
+        "generate_candidate_report_markdown",
+        fake_candidate_report_markdown,
+    )
+
+    content, _, _ = report_service.generate_candidate_report(
+        AnalyzeRequest(current_skills=["Python"]),
+        "markdown",
+    )
+
+    assert content.decode("utf-8") == "gap=per-role ranked gap"
+    assert (
+        captured_arguments["top_missing_skill_override"]
+        == "per-role ranked gap"
+    )
 
 
 def test_jobs_support_search_sorting_and_pagination() -> None:
@@ -256,6 +393,26 @@ def test_jobs_support_search_sorting_and_pagination() -> None:
 
     assert client.get("/jobs", params={"sort_by": "unsupported"}).status_code == 422
 
+    # Role category is matched whole, like the employer filter beside it: the
+    # categories are a fixed set the extractor assigns, not words to search for.
+    first = sorted_response.json()["jobs"][0]
+
+    narrowed = client.get(
+        "/jobs",
+        params={
+            "dataset_name": "canada_snapshot",
+            "role_category": first["role_category"],
+            "limit": 50,
+        },
+    )
+
+    assert narrowed.status_code == 200
+
+    categories = {job["role_category"] for job in narrowed.json()["jobs"]}
+
+    assert categories == {first["role_category"]}
+    assert narrowed.json()["total"] < data["total"]
+
 
 def test_market_insights_summarize_demand_without_a_candidate_profile() -> None:
     response = client.post(
@@ -272,8 +429,73 @@ def test_market_insights_summarize_demand_without_a_candidate_profile() -> None:
     assert 0 < len(data["skill_demand"]) <= 5
     assert data["skill_demand"][0]["job_count"] > 0
     assert data["role_skill_importance"]
+    # Skills are ranked per role. Taking the top rows across all roles at once
+    # let the busiest category crowd smaller ones out entirely.
+    roles_with_skills = {
+        row["role_category"] for row in data["role_skill_importance"]
+    }
+    # role_distribution is capped by top_n, so this is a subset check: the
+    # point is that no listed role comes back with nothing.
+    assert {
+        row["role_category"] for row in data["role_distribution"]
+    } <= roles_with_skills
+
+    first_skill = data["role_skill_importance"][0]
+
+    assert first_skill["demand_signal"] in {"leading", "common", "specialized"}
+    assert first_skill["requirement_signal"] in {
+        "required",
+        "preferred",
+        "mixed",
+        "unclear",
+    }
+    # The counts behind the labels travel with them, so the page can show its
+    # evidence rather than asking anyone to trust a hidden weighting.
+    assert first_skill["role_job_count"] >= first_skill["job_count"] > 0
+
     assert data["jobs_by_location"]
+    # Locations rank places only. "Hybrid" used to outrank every real city.
+    assert all(row["location"] for row in data["jobs_by_location"])
+    assert not {row["location"] for row in data["jobs_by_location"]} & {
+        "Hybrid",
+        "Remote",
+        "On-site",
+    }
+
+    # Every posting lands in exactly one workplace type, including the ones
+    # that never say which, so the rollup accounts for the whole slice.
+    assert {row["workplace_type"] for row in data["workplace_types"]} <= {
+        "Remote",
+        "Hybrid",
+        "On-site",
+        "Not stated",
+    }
+    assert (
+        sum(row["job_count"] for row in data["workplace_types"])
+        == data["jobs_analyzed"]
+    )
+    assert data["postings_without_location"] >= 0
+
     assert data["top_companies"]
+
+    # Each employer carries what its card shows, so the page does not have to
+    # go back to the dataset for any of it.
+    leading_employer = data["top_companies"][0]
+
+    assert leading_employer["job_count"] > 0
+    assert leading_employer["role_categories"]
+    assert leading_employer["top_skills"]
+    assert leading_employer["location"]
+    assert leading_employer["workplace_type"] in {
+        "Remote",
+        "Hybrid",
+        "On-site",
+        "Not stated",
+    }
+    # A guess at the employer's own site, never the job board it advertises on.
+    assert "greenhouse.io" not in leading_employer["domain"]
+    assert "ashbyhq.com" not in leading_employer["domain"]
+
     assert data["role_distribution"]
 
     no_match_response = client.post(
@@ -338,6 +560,69 @@ def test_analyze_supports_semantic_search_mode() -> None:
     ]
 
 
+def test_resume_skills_extracts_without_running_an_analysis() -> None:
+    """The analyze form needs the skills before the whole request is ready."""
+    resume_text = """
+    Built FastAPI REST APIs with Python, PostgreSQL, Docker, and AWS,
+    plus SQL-backed analytics dashboards.
+    """
+
+    response = client.post("/resume/skills", json={"resume_text": resume_text})
+
+    assert response.status_code == 200
+
+    skills = response.json()["skills"]
+
+    assert "python" in skills
+    assert "postgresql" in skills
+    # The pasted text is never echoed back to the caller.
+    assert resume_text.strip() not in str(response.json())
+
+
+def test_resume_skills_reads_dataset_skills_beyond_the_curated_list() -> None:
+    """The curated taxonomy covered barely half of what jobs actually ask for.
+
+    Naming a dataset adds the skills its postings list, so the resume box and
+    the skills list on the analyze form recognise the same vocabulary.
+    """
+    resume_text = "Built pipelines with Delta Lake and Unity Catalog on Databricks."
+
+    curated = client.post("/resume/skills", json={"resume_text": resume_text})
+    with_dataset = client.post(
+        "/resume/skills",
+        json={"resume_text": resume_text, "dataset_name": "canada_snapshot"},
+    )
+
+    assert curated.status_code == 200
+    assert with_dataset.status_code == 200
+
+    found = with_dataset.json()["skills"]
+
+    assert "delta lake" in found
+    assert "delta lake" not in curated.json()["skills"]
+
+
+def test_resume_skills_ignores_words_too_generic_to_infer() -> None:
+    """A heading or a profile URL is not a claim to a skill."""
+    response = client.post(
+        "/resume/skills",
+        json={
+            "resume_text": "I work with data in the cloud and push to github.",
+            "dataset_name": "canada_snapshot",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["skills"] == []
+
+
+def test_resume_skills_returns_nothing_for_empty_text() -> None:
+    response = client.post("/resume/skills", json={"resume_text": "   "})
+
+    assert response.status_code == 200
+    assert response.json()["skills"] == []
+
+
 def test_analyze_supports_resume_text_without_manual_skills_or_search_scope() -> None:
     resume_text = """
     Built FastAPI REST APIs with Python, PostgreSQL, Docker, AWS, CI/CD,
@@ -388,7 +673,7 @@ def test_analyze_returns_404_when_no_jobs_match() -> None:
     )
 
     assert response.status_code == 404
-    assert "No matching jobs found" in response.json()["detail"]
+    assert "No jobs match the filters" in response.json()["detail"]
 
 
 def test_analyze_validates_required_skills_and_roles() -> None:
@@ -405,7 +690,8 @@ def test_analyze_validates_required_skills_and_roles() -> None:
     assert response.status_code == 422
 
 
-def test_analyze_requires_a_search_query_or_target_role() -> None:
+def test_analyze_accepts_skills_without_a_search_query_or_target_role() -> None:
+    """Skills alone are enough scope: the analyze form asks for nothing else."""
     response = client.post(
         "/analyze",
         json={
@@ -417,7 +703,13 @@ def test_analyze_requires_a_search_query_or_target_role() -> None:
         },
     )
 
-    assert response.status_code == 422
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["jobs_analyzed"] > 0
+    # Every match carries the category the results view filters on.
+    assert all(job["role_category"] for job in data["top_matching_jobs"])
 
 def make_api_processed_jobs_df() -> pd.DataFrame:
     return pd.DataFrame(
@@ -465,6 +757,7 @@ def make_saved_analysis_run() -> dict:
         "target_roles": ["Data Scientist"],
         "location": "Any",
         "experience_level": "Entry Level",
+        "candidate_experience": "3-5 years",
         "current_skills": ["Python", "SQL", "Pandas"],
         "best_role": "Data Science",
         "weighted_match_score": 75.5,
@@ -701,6 +994,7 @@ def test_create_analysis_run_saves_and_returns_the_run(monkeypatch) -> None:
         json={
             "dataset_name": "sample_jobs",
             "target_roles": ["Data Scientist"],
+            "candidate_experience": "3-5 years",
             "current_skills": ["Python", "SQL"],
             "best_role": "Data Science",
             "weighted_match_score": 75.5,
@@ -713,9 +1007,11 @@ def test_create_analysis_run_saves_and_returns_the_run(monkeypatch) -> None:
 
     assert response.status_code == 201
     assert response.json()["id"] == 1
+    assert response.json()["candidate_experience"] == "3-5 years"
 
     # An omitted name falls back to a generated dated name.
     assert saved_calls[0]["name"].endswith("sample_jobs")
+    assert saved_calls[0]["candidate_experience"] == "3-5 years"
 
 
 def test_create_analysis_run_returns_503_when_database_unavailable(monkeypatch) -> None:
@@ -793,6 +1089,7 @@ def test_list_analysis_runs_returns_saved_runs(monkeypatch) -> None:
     assert data[0]["name"] == "analysis_20260101_data_science_sample_jobs"
     assert data[0]["dataset_name"] == "sample_jobs"
     assert data[0]["target_roles"] == ["Data Scientist"]
+    assert data[0]["candidate_experience"] == "3-5 years"
     assert data[0]["current_skills"] == ["Python", "SQL", "Pandas"]
     assert data[0]["best_role"] == "Data Science"
     assert data[0]["weighted_match_score"] == 75.5
@@ -905,6 +1202,7 @@ def test_get_analysis_run_returns_saved_run(monkeypatch) -> None:
     assert data["id"] == 1
     assert data["dataset_name"] == "sample_jobs"
     assert data["target_roles"] == ["Data Scientist"]
+    assert data["candidate_experience"] == "3-5 years"
     assert data["current_skills"] == ["Python", "SQL", "Pandas"]
     assert data["best_role"] == "Data Science"
     assert data["recommended_skills"] == ["spark", "statistics"]
@@ -1192,3 +1490,223 @@ def test_rename_dataset_returns_503_when_database_unavailable(monkeypatch) -> No
 
     assert response.status_code == 503
     assert "PostgreSQL is unavailable" in response.json()["detail"]
+
+
+def test_reading_one_job_returns_its_description() -> None:
+    """The list leaves descriptions out; the detail carries exactly one.
+
+    Also pins the route under /jobs. Mounted at the root it was a catch-all
+    that answered /saved-jobs and everything else beside it.
+    """
+    listing = client.get("/jobs", params={"dataset_name": "canada_snapshot", "limit": 1})
+
+    assert listing.status_code == 200
+
+    first = listing.json()["jobs"][0]
+
+    assert "description" not in first
+    # The employer's mark is looked up from this, so the list carries it.
+    assert first["company_domain"]
+
+    detail = client.get(
+        f"/jobs/{first['job_id']}",
+        params={"dataset_name": "canada_snapshot"},
+    )
+
+    assert detail.status_code == 200
+    assert detail.json()["job_id"] == first["job_id"]
+    assert len(detail.json()["description"]) > 0
+
+    assert client.get("/jobs/does-not-exist").status_code == 404
+
+
+def test_a_posting_missing_its_formatted_description_reads_its_own_words() -> None:
+    """A missing value reaches the service as NaN rather than as nothing.
+
+    Read with `or ""` that survived as the string "nan", and because the
+    formatted description is preferred over the plain one, "nan" was what a
+    reader saw in place of a posting that did carry its own words.
+    """
+    _, jobs = load_jobs_for_analysis("canada_snapshot")
+    missing = jobs[jobs["description_formatted"].isna()]
+
+    assert not missing.empty, "the bundled dataset no longer covers this case"
+
+    detail = job_listing_service.get_job(
+        dataset_name="canada_snapshot",
+        job_id=str(missing.iloc[0]["job_id"]),
+    )
+
+    assert detail["description_formatted"] == ""
+    assert detail["description"]
+    assert "nan" not in detail["description_formatted"]
+
+
+def test_saving_a_job_twice_keeps_one_copy(monkeypatch) -> None:
+    """A second click on the bookmark is not an error, and changes nothing.
+
+    The answer describes the row that is held rather than what the click
+    sent, so a re-save cannot appear to blank out the details.
+    """
+    stored: dict[str, dict] = {}
+
+    def fake_save_job(**kwargs):
+        key = (kwargs["dataset_name"], kwargs["job_id"])
+
+        if key not in stored:
+            stored[key] = {"id": len(stored) + 1, "created_at": None, **kwargs}
+
+        return stored[key]
+
+    monkeypatch.setattr(
+        saved_job_service.database_repository,
+        "check_database_connection",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        saved_job_service.database_repository,
+        "save_job",
+        fake_save_job,
+    )
+
+    payload = {
+        "job_id": "job-1",
+        "dataset_name": "canada_snapshot",
+        "title": "Applied AI Engineer",
+        "company": "Cohere",
+        # Kept alongside the title so the saved list can draw and filter the
+        # row once the posting behind it has left the dataset.
+        "date_posted": "2026-08-07",
+        "experience_level": "Mid Level",
+    }
+
+    first = client.post("/saved-jobs", json=payload)
+    second = client.post("/saved-jobs", json={**payload, "title": "", "company": ""})
+
+    assert first.status_code == 201
+    assert second.status_code == 201
+    assert first.json()["id"] == second.json()["id"]
+    assert second.json()["title"] == "Applied AI Engineer"
+    assert len(stored) == 1
+
+    assert first.json()["date_posted"] == "2026-08-07"
+    assert first.json()["experience_level"] == "Mid Level"
+    assert stored[("canada_snapshot", "job-1")]["experience_level"] == "Mid Level"
+
+
+def test_unsaving_a_job_that_was_never_saved_is_a_404(monkeypatch) -> None:
+    monkeypatch.setattr(
+        saved_job_service.database_repository,
+        "check_database_connection",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        saved_job_service.database_repository,
+        "delete_saved_job",
+        lambda **kwargs: False,
+    )
+
+    response = client.delete("/saved-jobs/missing?dataset_name=canada_snapshot")
+
+    assert response.status_code == 404
+
+
+def test_saved_only_listing_keeps_a_posting_the_dataset_has_dropped(
+    monkeypatch,
+) -> None:
+    """A save outlives the posting it came from.
+
+    The dataset row is preferred while it exists, because it is the fresher
+    of the two. Once the posting has gone the copied details stand in on
+    their own, which is the reason they are copied at all.
+    """
+    listing = client.get(
+        "/jobs",
+        params={"dataset_name": "canada_snapshot", "limit": 1},
+    )
+    still_listed = listing.json()["jobs"][0]
+
+    saved_rows = [
+        {
+            "job_id": "retired:posting:1",
+            "title": "Retired Data Engineer",
+            "company": "Gone Corp",
+            "location": "Toronto, ON",
+            "source_url": "https://example.com/retired",
+            "date_posted": "2026-01-01",
+            "experience_level": "Senior",
+        },
+        {
+            "job_id": still_listed["job_id"],
+            "title": still_listed["title"],
+            "company": still_listed["company"],
+            "location": still_listed["location"],
+            "source_url": still_listed["source_url"],
+            "date_posted": still_listed["date_posted"],
+            "experience_level": still_listed["experience_level"],
+        },
+    ]
+
+    monkeypatch.setattr(
+        job_listing_service.database_repository,
+        "check_database_connection",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        job_listing_service.database_repository,
+        "list_saved_jobs",
+        lambda dataset_name=None: saved_rows,
+    )
+
+    response = client.get(
+        "/jobs",
+        params={"dataset_name": "canada_snapshot", "saved_only": "true"},
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+    returned = {job["job_id"]: job for job in data["jobs"]}
+
+    assert data["total"] == 2
+    assert set(returned) == {"retired:posting:1", still_listed["job_id"]}
+
+    # The dropped posting reads from its snapshot alone.
+    retired = returned["retired:posting:1"]
+    assert retired["title"] == "Retired Data Engineer"
+    assert retired["company"] == "Gone Corp"
+    assert retired["experience_level"] == "Senior"
+
+    # The one still in the dataset keeps everything the dataset knows.
+    assert returned[still_listed["job_id"]]["company_domain"]
+
+    # Filters run over the saved set the same way they run over the dataset.
+    narrowed = client.get(
+        "/jobs",
+        params={
+            "dataset_name": "canada_snapshot",
+            "saved_only": "true",
+            "company": "Gone Corp",
+        },
+    )
+
+    assert [job["job_id"] for job in narrowed.json()["jobs"]] == [
+        "retired:posting:1"
+    ]
+
+
+def test_saved_jobs_return_503_when_database_unavailable(monkeypatch) -> None:
+    monkeypatch.setattr(
+        saved_job_service.database_repository,
+        "check_database_connection",
+        lambda: False,
+    )
+
+    assert client.get("/saved-jobs").status_code == 503
+    assert (
+        client.post(
+            "/saved-jobs",
+            json={"job_id": "job-1", "dataset_name": "canada_snapshot"},
+        ).status_code
+        == 503
+    )

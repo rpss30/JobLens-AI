@@ -41,6 +41,7 @@ from src.matching.skill_requirements import (
     classify_job_skill_requirements,
     requirement_weight_multiplier,
 )
+from src.analysis.location_demand import place_labels_by_row
 from src.processing.job_processor import process_jobs
 from src.search.semantic_search import (
     HYBRID_SEARCH_MODE,
@@ -467,6 +468,8 @@ def filter_jobs(
     experience_level: str,
     search_query: str = "",
     search_mode: str = TFIDF_SEARCH_MODE,
+    company: str = "Any",
+    role_category: str = "Any",
 ) -> pd.DataFrame:
     """
     Filter jobs based on user input.
@@ -596,29 +599,83 @@ def filter_jobs(
             return filtered_df
 
     if location and location != "Any":
-        location_lower = location.strip().lower()
+        wanted = location.strip()
+        row_labels = place_labels_by_row(filtered_df)
 
-        # "Toronto, ON" should still match "Toronto" or "Toronto ON"
-        location_parts = [
-            part.strip()
-            for part in location_lower.replace(",", " ").split()
-            if part.strip()
-        ]
-
-        location_mask = (
-            filtered_df["location"]
-            .astype(str)
-            .str.lower()
-            .apply(
-                lambda job_location: any(
-                    part in job_location
-                    for part in location_parts
-                )
+        # Market Insights links here with the label it counted a place under,
+        # and the filter's own options are dataset strings that normalize to
+        # one. Matching that label exactly returns precisely the postings
+        # behind the number. Matching on words instead let "Canada" pull in
+        # "Remote, Canada" and "Ontario, Canada", and "Toronto, ON" pull in
+        # every location holding "on", Montreal included.
+        if any(wanted in labels for labels in row_labels):
+            location_mask = pd.Series(
+                [wanted in labels for labels in row_labels],
+                index=filtered_df.index,
             )
-            .astype(bool)
-        )
+        else:
+            # Anything else is free text, where the older, looser match is
+            # the more forgiving answer.
+            location_lower = wanted.lower()
+
+            # "Toronto, ON" should still match "Toronto" or "Toronto ON"
+            location_parts = [
+                part.strip()
+                for part in location_lower.replace(",", " ").split()
+                if part.strip()
+            ]
+
+            location_mask = (
+                filtered_df["location"]
+                .astype(str)
+                .str.lower()
+                .apply(
+                    lambda job_location: any(
+                        part in job_location
+                        for part in location_parts
+                    )
+                )
+                .astype(bool)
+            )
 
         filtered_df = filtered_df[location_mask]
+
+        if filtered_df.empty:
+            return filtered_df
+
+    if company and company != "Any" and "company" in filtered_df.columns:
+        # Matched whole, not searched for. Several employers here are named
+        # after the tools other postings ask for, so a free-text search for
+        # "MongoDB" or "Stripe" returns their competitors' jobs as well.
+        wanted_company = company.strip().casefold()
+
+        filtered_df = filtered_df[
+            filtered_df["company"]
+            .astype(str)
+            .str.strip()
+            .str.casefold()
+            == wanted_company
+        ]
+
+        if filtered_df.empty:
+            return filtered_df
+
+    if (
+        role_category
+        and role_category != "Any"
+        and "role_category" in filtered_df.columns
+    ):
+        # Matched whole, like the employer above it: the categories are a
+        # fixed set the extractor assigns, not words to search postings for.
+        wanted_category = role_category.strip().casefold()
+
+        filtered_df = filtered_df[
+            filtered_df["role_category"]
+            .astype(str)
+            .str.strip()
+            .str.casefold()
+            == wanted_category
+        ]
 
         if filtered_df.empty:
             return filtered_df
@@ -838,11 +895,15 @@ def get_job_match_details(
         )
 
         rows.append({
+            # Carried through so a match can be saved and sorted by date the
+            # same way a posting in the job listing can.
+            "job_id": str(row.get("job_id", "") or ""),
             "title": row["title"],
             "company": row["company"],
             "location": row["location"],
             "experience_level": row["experience_level"],
             "role_category": role_category,
+            "date_posted": str(row.get("date_posted", "") or ""),
             "skills_text": row["skills_text"],
             "source": row.get("source", ""),
             "source_url": row.get("source_url", ""),
@@ -867,6 +928,11 @@ def get_job_match_details(
             "matched_skills_preview": ", ".join(matched_skills[:5]) if matched_skills else "None",
             "related_skills_preview": ", ".join(related_skills[:3]) if related_skills else "None",
             "missing_skills_preview": ", ".join(missing_skills[:5]) if missing_skills else "None",
+            # Every skill the posting asks for, split by whether the candidate
+            # has it. The previews above are truncated summary text; these two
+            # together are the posting's full skill list.
+            "matched_skills": matched_skills,
+            "missing_skills": missing_skills,
             "matched_required_skills": matched_required_skills,
             "missing_required_skills": missing_required_skills,
             "matched_preferred_skills": matched_preferred_skills,
@@ -1157,6 +1223,7 @@ def generate_candidate_report_markdown(
     dataset_name: str = "Current dataset",
     search_query: str = "",
     search_mode: str = TFIDF_SEARCH_MODE,
+    top_missing_skill_override: str | None = None,
 ) -> str:
     """
     Generate a downloadable Markdown candidate skill-gap report.
@@ -1196,7 +1263,7 @@ def generate_candidate_report_markdown(
 
     best_role = "N/A"
     best_score = 0.0
-    top_missing_skill = "N/A"
+    top_missing_skill = top_missing_skill_override or "N/A"
     representative_job_count = 0
     sample_confidence = "Insufficient"
 
@@ -1213,7 +1280,11 @@ def generate_candidate_report_markdown(
         )
 
         missing_skills = best_role_row.get("missing_skills", [])
-        if isinstance(missing_skills, list) and missing_skills:
+        if (
+            top_missing_skill == "N/A"
+            and isinstance(missing_skills, list)
+            and missing_skills
+        ):
             top_missing_skill = str(missing_skills[0])
 
     if (
@@ -1377,6 +1448,7 @@ def generate_candidate_report_pdf(
     dataset_name: str = "Current dataset",
     search_query: str = "",
     search_mode: str = TFIDF_SEARCH_MODE,
+    top_missing_skill_override: str | None = None,
 ) -> bytes:
     """
     Generate a downloadable PDF candidate skill-gap report.
@@ -1473,7 +1545,7 @@ def generate_candidate_report_pdf(
 
     best_role = "N/A"
     best_score = 0.0
-    top_missing_skill = "N/A"
+    top_missing_skill = top_missing_skill_override or "N/A"
     representative_job_count = 0
     sample_confidence = "Insufficient"
 
@@ -1490,7 +1562,11 @@ def generate_candidate_report_pdf(
         )
 
         missing_skills = best_role_row.get("missing_skills", [])
-        if isinstance(missing_skills, list) and missing_skills:
+        if (
+            top_missing_skill == "N/A"
+            and isinstance(missing_skills, list)
+            and missing_skills
+        ):
             top_missing_skill = str(missing_skills[0])
 
     if (

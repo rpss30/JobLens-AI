@@ -161,3 +161,42 @@ def requirement_weight_multiplier(requirement_type: str) -> float:
         return PREFERRED_SKILL_WEIGHT_MULTIPLIER
 
     return 1.0
+
+
+def summarize_skill_requirement(
+    skill: str,
+    descriptions: list[object],
+) -> dict[str, int | str]:
+    """
+    Roll up how postings treat one skill: as a must-have, or a nice-to-have.
+
+    Deliberately cautious. The classifier reads cue words near the skill and
+    often finds none, so a verdict is only given when the classified mentions
+    agree clearly. When most mentions are unreadable the answer is "unclear"
+    rather than a guess dressed up as a finding.
+    """
+    counts = {REQUIRED_SKILL: 0, PREFERRED_SKILL: 0, UNKNOWN_SKILL_REQUIREMENT: 0}
+
+    for description in descriptions:
+        counts[classify_skill_requirement(skill, description)] += 1
+
+    required = counts[REQUIRED_SKILL]
+    preferred = counts[PREFERRED_SKILL]
+    classified = required + preferred
+    total = classified + counts[UNKNOWN_SKILL_REQUIREMENT]
+
+    if total == 0 or classified * 2 < total:
+        signal = "unclear"
+    elif required >= classified * 0.6:
+        signal = "required"
+    elif preferred >= classified * 0.6:
+        signal = "preferred"
+    else:
+        signal = "mixed"
+
+    return {
+        "required_count": required,
+        "preferred_count": preferred,
+        "unclear_count": counts[UNKNOWN_SKILL_REQUIREMENT],
+        "requirement_signal": signal,
+    }

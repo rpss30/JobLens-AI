@@ -97,7 +97,7 @@ One ECS Fargate task --> Private RDS PostgreSQL
 ## Demo Preview
 
 Screens from the Next.js app. The sidebar carries Overview, Analyze, Jobs,
-Skills & Market, History, and Datasets, with a dataset switcher and a live
+Market Insights, History, and Datasets, with a dataset switcher and a live
 backend status indicator in the header.
 
 ### Role Fit Overview
@@ -116,7 +116,7 @@ The strongest individual job matches appear as cards with match score, company, 
 
 ![Market Insights](assets/screenshots/market-insights.png)
 
-The Skills & Market section  shows market-level insights such as top required skills, role-specific skill importance, jobs by location, top hiring companies, and role distribution.
+The Market Insights section  shows market-level insights such as top required skills, role-specific skill importance, jobs by location, top hiring companies, and role distribution.
 
 
 

@@ -600,8 +600,16 @@ def get_role_weighted_top_skills(
     df: pd.DataFrame,
     role_skill_weights: dict[str, dict[str, int]],
     top_n: int = 10,
+    per_role: bool = False,
 ) -> pd.DataFrame:
-    """Rank skills by role-specific weighted importance."""
+    """
+    Rank skills by role-specific weighted importance.
+
+    With `per_role`, each role keeps its own top `top_n`. Taking the top rows
+    across every role together lets the busiest category crowd the rest out
+    entirely: on the shipped Canadian snapshot, two of the six categories came
+    back with no skills at all.
+    """
     rows = []
 
     for role_category, group in df.groupby("role_category"):
@@ -641,11 +649,19 @@ def get_role_weighted_top_skills(
             ]
         )
 
-    return (
-        pd.DataFrame(rows)
-        .sort_values(by="weighted_importance", ascending=False)
-        .head(top_n)
+    ranked_df = pd.DataFrame(rows).sort_values(
+        by="weighted_importance",
+        ascending=False,
     )
+
+    if per_role:
+        return (
+            ranked_df.groupby("role_category", group_keys=False)
+            .head(top_n)
+            .reset_index(drop=True)
+        )
+
+    return ranked_df.head(top_n)
 
 
 def score_roles(df: pd.DataFrame, user_skills: list[str]) -> pd.DataFrame:

@@ -1,24 +1,35 @@
 import { Suspense } from "react";
 
-import { AnalyzeForm } from "@/components/domain/AnalyzeForm";
+import {
+  ANALYZE_HEADING,
+  AnalyzeView,
+} from "@/components/domain/AnalyzeView";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { Badge } from "@/components/ui/Badge";
 import { CardSkeleton } from "@/components/ui/States";
-import { getFilterOptions } from "@/lib/api/endpoints";
+import { getFilterOptions, getSavedJobs } from "@/lib/api/endpoints";
 import { resolveDataset } from "@/lib/datasets";
-import { formatCount } from "@/lib/format";
 
-async function AnalyzeFormSection({ datasetName }: { datasetName: string }) {
+async function AnalyzeSection({ datasetName }: { datasetName: string }) {
   const filterOptions = await getFilterOptions(datasetName);
 
-  return (
-    <>
-      <Badge tone="neutral">
-        Comparing against {formatCount(filterOptions.summary.job_count)} jobs
-      </Badge>
+  /*
+   * Saved jobs need PostgreSQL. Reading a result should not stop when it is
+   * down, so an unreachable list only means nothing is known to be saved.
+   */
+  let savedJobIds: string[] = [];
 
-      <AnalyzeForm filterOptions={filterOptions} datasetName={datasetName} />
-    </>
+  try {
+    savedJobIds = (await getSavedJobs(datasetName)).map((entry) => entry.job_id);
+  } catch {
+    savedJobIds = [];
+  }
+
+  return (
+    <AnalyzeView
+      filterOptions={filterOptions}
+      datasetName={datasetName}
+      savedJobIds={savedJobIds}
+    />
   );
 }
 
@@ -27,23 +38,22 @@ export default async function AnalyzePage({ searchParams }: PageProps<"/analyze"
   const datasetName = resolveDataset(params.dataset);
 
   return (
-    <>
-      <PageHeader
-        title="Analyze"
-        description="Tell us what you can do, and we will show you which jobs you fit and what you are missing."
-      />
-
-      <Suspense
-        key={datasetName}
-        fallback={
-          <div className="grid gap-6 lg:grid-cols-2">
-            <CardSkeleton rows={6} />
-            <CardSkeleton rows={6} />
-          </div>
-        }
-      >
-        <AnalyzeFormSection datasetName={datasetName} />
-      </Suspense>
-    </>
+    // The heading depends on whether a result exists, which only the client
+    // knows, so it is drawn inside. The fallback carries the form's heading
+    // so it does not arrive late.
+    <Suspense
+      key={datasetName}
+      fallback={
+        <>
+          <PageHeader
+            title={ANALYZE_HEADING.title}
+            description={ANALYZE_HEADING.description}
+          />
+          <CardSkeleton rows={8} />
+        </>
+      }
+    >
+      <AnalyzeSection datasetName={datasetName} />
+    </Suspense>
   );
 }

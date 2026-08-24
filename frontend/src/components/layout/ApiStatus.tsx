@@ -21,15 +21,10 @@ export async function ApiStatus() {
         aria-hidden="true"
       />
 
-      {/* The word is hidden on narrow screens, but the info icon stays so the
-          explanation is still reachable there. */}
       <InfoTooltip
-        label={
-          <span className="hidden sm:inline">
-            {isOnline ? "Connected" : "Disconnected"}
-          </span>
-        }
+        label={isOnline ? "Connected" : "Disconnected"}
         variant="plain"
+        align="start"
       >
         {isOnline ? (
           <>

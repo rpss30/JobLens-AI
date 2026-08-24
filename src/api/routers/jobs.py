@@ -3,7 +3,7 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, Query
 
 from src.api.query_params import ListQueryParams, pagination_params
-from src.api.schemas import ErrorResponse, JobListResponse
+from src.api.schemas import ErrorResponse, JobDetail, JobListResponse
 from src.api.services import job_listing_service
 from src.api.services.job_listing_service import JobSortBy
 
@@ -63,10 +63,32 @@ def get_jobs(
             description="Experience level filter. Use 'Any' to disable filtering.",
         ),
     ] = "Any",
+    company: Annotated[
+        str,
+        Query(
+            max_length=200,
+            description=(
+                "Employer filter, matched in full. Use 'Any' to disable it."
+            ),
+        ),
+    ] = "Any",
+    role_category: Annotated[
+        str,
+        Query(
+            max_length=120,
+            description=(
+                "Role category filter, matched in full. Use 'Any' to disable it."
+            ),
+        ),
+    ] = "Any",
     sort_by: Annotated[
         JobSortBy,
         Query(description="Job field to sort by."),
     ] = "search_relevance",
+    saved_only: Annotated[
+        bool,
+        Query(description="Limit the listing to postings that have been saved."),
+    ] = False,
 ) -> JobListResponse:
     return job_listing_service.list_jobs(
         dataset_name=dataset_name,
@@ -75,8 +97,27 @@ def get_jobs(
         search_mode=search_mode,
         location=location,
         experience_level=experience_level,
+        company=company,
+        role_category=role_category,
         sort_by=sort_by,
         sort_order=query.sort_order,
         limit=query.limit,
         offset=query.offset,
+        saved_only=saved_only,
     )
+
+
+@router.get(
+    "/jobs/{job_id}",
+    response_model=JobDetail,
+    summary="Read one job posting",
+    responses={404: {"model": ErrorResponse}},
+)
+def get_job(
+    job_id: str,
+    dataset_name: Annotated[
+        str | None,
+        Query(max_length=120, description="Optional dataset name."),
+    ] = None,
+) -> JobDetail:
+    return job_listing_service.get_job(dataset_name=dataset_name, job_id=job_id)

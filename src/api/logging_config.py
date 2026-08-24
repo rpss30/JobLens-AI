@@ -6,7 +6,7 @@ JSON for any application log record, so container logs can be filtered and
 correlated by request instead of read by eye.
 
 Request bodies, query strings, and headers are deliberately never logged: the
-analyze and report endpoints receive resume text.
+analyze, report, and resume-skills endpoints receive resume text.
 """
 
 from __future__ import annotations

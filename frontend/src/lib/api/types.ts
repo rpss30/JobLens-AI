@@ -48,6 +48,7 @@ export interface FilterOptions {
   role_categories: string[];
   skills: string[];
   locations: string[];
+  companies: string[];
   experience_levels: string[];
   summary: DatasetSnapshotSummary;
 }
@@ -56,6 +57,8 @@ export interface JobListing {
   job_id: string;
   title: string;
   company: string;
+  /** Best-effort employer domain, used only to look up a logo. */
+  company_domain: string;
   location: string;
   experience_level: string;
   role_category: string;
@@ -67,6 +70,38 @@ export interface JobListing {
   source_url: string;
   skills: string[];
   search_relevance: number;
+}
+
+export interface JobDetail extends JobListing {
+  dataset_name: string;
+  /** The posting's own words, fetched only for the one being read. */
+  description: string;
+  /** The same words with the board's own paragraphs, where they survived. */
+  description_formatted: string;
+}
+
+export interface SavedJob {
+  id: number;
+  job_id: string;
+  dataset_name: string;
+  title: string;
+  company: string;
+  location: string;
+  source_url: string;
+  date_posted: string;
+  experience_level: string;
+  created_at: string | null;
+}
+
+export interface SaveJobRequest {
+  job_id: string;
+  dataset_name: string;
+  title?: string;
+  company?: string;
+  location?: string;
+  source_url?: string;
+  date_posted?: string;
+  experience_level?: string;
 }
 
 export interface JobListResponse {
@@ -86,18 +121,45 @@ export interface RoleSkillImportance {
   role_category: string;
   skill: string;
   job_count: number;
+  /** Postings in this role, so a count can be shown against its total. */
+  role_job_count: number;
+  /** Internal scoring artifacts. Not shown: nobody can interpret them. */
   role_weight: number;
   weighted_importance: number;
+  demand_signal: "leading" | "common" | "specialized";
+  required_count: number;
+  preferred_count: number;
+  unclear_count: number;
+  requirement_signal: "required" | "preferred" | "mixed" | "unclear";
 }
 
 export interface LocationDemand {
   location: string;
+  job_count: number;
+  /** The parts behind the label, so the page can group without re-parsing. */
+  city: string;
+  region: string;
+  country: string;
+  /** Remote work, which is a place a job is done from rather than a city. */
+  remote: boolean;
+}
+
+export interface WorkplaceTypeDemand {
+  /** Remote, Hybrid, On-site, or "Not stated" when the posting never says. */
+  workplace_type: string;
   job_count: number;
 }
 
 export interface CompanyDemand {
   company: string;
   job_count: number;
+  /** What the card shows beside the name. */
+  role_categories: string[];
+  top_skills: string[];
+  location: string;
+  workplace_type: string;
+  /** Best-effort employer domain, used only to look up a logo. */
+  domain: string;
 }
 
 export interface RoleDistribution {
@@ -111,6 +173,10 @@ export interface MarketInsights {
   skill_demand: SkillDemand[];
   role_skill_importance: RoleSkillImportance[];
   jobs_by_location: LocationDemand[];
+  /** How the work is done, kept out of the location ranking. */
+  workplace_types: WorkplaceTypeDemand[];
+  /** Postings whose location named no place, so counts read against a total. */
+  postings_without_location: number;
   top_companies: CompanyDemand[];
   role_distribution: RoleDistribution[];
 }
@@ -120,6 +186,13 @@ export interface RecommendedSkill {
   score: number;
   job_count: number;
   avg_weight: number;
+}
+
+/** The same recommendation, ranked within one type of role rather than across all. */
+export interface RoleRecommendedSkills {
+  role_category: string;
+  job_count: number;
+  skills: RecommendedSkill[];
 }
 
 export interface RoleScore {
@@ -138,11 +211,16 @@ export interface RoleScore {
 }
 
 export interface JobMatch {
+  /** Empty on a dataset that never recorded one, which makes a match unsavable. */
+  job_id: string;
   title: string;
   company: string;
+  /** Best-effort employer domain, used only to look up a logo. */
+  company_domain: string;
   location: string;
   experience_level: string;
   role_category: string;
+  date_posted: string;
   source: string;
   source_url: string;
   search_relevance: number;
@@ -163,6 +241,9 @@ export interface JobMatch {
   matched_skills_preview: string;
   related_skills_preview: string;
   missing_skills_preview: string;
+  /** Together, every skill the posting asks for, split by whether you have it. */
+  matched_skills: string[];
+  missing_skills: string[];
   matched_required_skills: string[];
   missing_required_skills: string[];
   matched_preferred_skills: string[];
@@ -206,6 +287,15 @@ export interface ResumeAnalysis {
   explanation: string;
 }
 
+export interface ResumeSkillsRequest {
+  resume_text: string;
+  dataset_name?: string | null;
+}
+
+export interface ResumeSkillsResponse {
+  skills: string[];
+}
+
 export interface AnalyzeRequest {
   current_skills: string[];
   resume_text: string;
@@ -228,6 +318,7 @@ export interface AnalyzeResponse {
   top_missing_skill: string;
   jobs_analyzed: number;
   recommended_skills: RecommendedSkill[];
+  recommended_skills_by_role: RoleRecommendedSkills[];
   role_scores: RoleScore[];
   top_matching_jobs: JobMatch[];
   resume_analysis: ResumeAnalysis | null;
@@ -240,6 +331,7 @@ export interface AnalysisRun {
   target_roles: string[];
   location: string;
   experience_level: string;
+  candidate_experience: string;
   current_skills: string[];
   best_role: string | null;
   weighted_match_score: number | null;
@@ -256,6 +348,7 @@ export interface CreateAnalysisRunRequest {
   target_roles: string[];
   location: string;
   experience_level: string;
+  candidate_experience: string;
   current_skills: string[];
   best_role: string | null;
   weighted_match_score: number | null;

@@ -1,7 +1,11 @@
 from typing import Literal
 
 from src.api.schemas import AnalyzeRequest
-from src.api.services.analysis_service import compute_analysis_frames
+from src.api.services.analysis_service import (
+    choose_top_missing_skill,
+    compute_analysis_frames,
+    get_top_insights,
+)
 from src.analysis.job_services import (
     generate_candidate_report_markdown,
     generate_candidate_report_pdf,
@@ -40,6 +44,16 @@ def generate_candidate_report(
         role_scores_df=frames.role_scores_df,
         recommended_skills_df=frames.recommended_skills_df,
     )
+    best_role, _, top_missing_skill, _ = get_top_insights(
+        role_scores_df=frames.role_scores_df,
+        recommended_skills_df=frames.recommended_skills_df,
+        filtered_jobs_df=frames.filtered_jobs,
+    )
+    top_missing_skill = choose_top_missing_skill(
+        best_role=best_role,
+        fallback_skill=top_missing_skill,
+        recommended_skills_by_role=frames.recommended_skills_by_role,
+    )
 
     report_arguments = {
         "current_skills": frames.analysis_skills,
@@ -54,6 +68,7 @@ def generate_candidate_report(
         "dataset_name": frames.dataset_name,
         "search_query": request.search_query,
         "search_mode": request.search_mode,
+        "top_missing_skill_override": top_missing_skill,
     }
 
     if report_format == "pdf":

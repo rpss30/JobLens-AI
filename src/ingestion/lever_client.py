@@ -8,6 +8,7 @@ import requests
 
 from src.ingestion.ats_normalizers import (
     build_ats_job_id,
+    clean_html_document,
     clean_html_text,
     current_utc_timestamp,
     epoch_milliseconds_to_iso,
@@ -76,6 +77,11 @@ def normalize_lever_posting(
             description_text_parts.append(clean_html_text(part))
 
     description = clean_html_text(" ".join(description_text_parts))
+    description_formatted = clean_html_document(
+        posting.get("descriptionPlain")
+        or posting.get("descriptionHtml")
+        or posting.get("description")
+    )
     workplace_type = clean_html_text(
         posting.get("workplaceType")
         or posting.get("categories", {}).get("commitment")
@@ -87,6 +93,7 @@ def normalize_lever_posting(
         "company": company,
         "location": location,
         "description": description,
+        "description_formatted": description_formatted,
         "experience_level": infer_experience_level_from_text(title, description),
         "source": "lever",
         "source_url": posting.get("hostedUrl", ""),

@@ -1464,6 +1464,7 @@ def main() -> None:
                         target_roles=target_roles,
                         location=location,
                         experience_level=experience_level,
+                        candidate_experience="Not specified",
                         current_skills=analysis_skills,
                         best_role=best_role,
                         weighted_match_score=float(best_score),

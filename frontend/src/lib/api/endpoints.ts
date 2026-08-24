@@ -8,9 +8,13 @@ import type {
   DeleteDatasetResult,
   FilterOptions,
   HealthResponse,
+  JobDetail,
   JobListResponse,
   MarketInsights,
   RenameDatasetResult,
+  ResumeSkillsResponse,
+  SavedJob,
+  SaveJobRequest,
   SearchMode,
   SortOrder,
   UploadDatasetResult,
@@ -66,10 +70,14 @@ export interface JobQuery {
   searchMode?: SearchMode;
   location?: string;
   experienceLevel?: string;
+  company?: string;
+  roleCategory?: string;
   sortBy?: string;
   sortOrder?: SortOrder;
   limit?: number;
   offset?: number;
+  /** Narrow the listing to postings that have been saved. */
+  savedOnly?: boolean;
 }
 
 export function getJobs(query: JobQuery = {}): Promise<JobListResponse> {
@@ -81,10 +89,13 @@ export function getJobs(query: JobQuery = {}): Promise<JobListResponse> {
       search_mode: query.searchMode,
       location: query.location,
       experience_level: query.experienceLevel,
+      company: query.company,
+      role_category: query.roleCategory,
       sort_by: query.sortBy,
       sort_order: query.sortOrder,
       limit: query.limit,
       offset: query.offset,
+      saved_only: query.savedOnly ? "true" : undefined,
     })}`,
   );
 }
@@ -125,6 +136,19 @@ export function analyzeJobs(
   });
 }
 
+export function extractResumeSkills(
+  resumeText: string,
+  datasetName?: string,
+): Promise<ResumeSkillsResponse> {
+  return apiFetch<ResumeSkillsResponse>("/resume/skills", {
+    method: "POST",
+    body: JSON.stringify({
+      resume_text: resumeText,
+      dataset_name: datasetName ?? null,
+    }),
+  });
+}
+
 export function getAnalysisRuns(
   query: { datasetName?: string | null; sortBy?: string; sortOrder?: SortOrder } = {},
 ): Promise<AnalysisRun[]> {
@@ -135,10 +159,6 @@ export function getAnalysisRuns(
       sort_order: query.sortOrder,
     })}`,
   );
-}
-
-export function getAnalysisRun(analysisRunId: number): Promise<AnalysisRun> {
-  return apiFetch<AnalysisRun>(`/analysis-runs/${analysisRunId}`);
 }
 
 export function createAnalysisRun(
@@ -164,4 +184,40 @@ export function deleteAnalysisRun(
   analysisRunId: number,
 ): Promise<{ id: number; deleted: boolean }> {
   return apiFetch(`/analysis-runs/${analysisRunId}`, { method: "DELETE" });
+}
+
+export function getJob(
+  jobId: string,
+  datasetName?: string | null,
+): Promise<JobDetail> {
+  return apiFetch<JobDetail>(
+    `/jobs/${encodeURIComponent(jobId)}${buildQueryString({
+      dataset_name: datasetName,
+    })}`,
+  );
+}
+
+export function getSavedJobs(datasetName?: string | null): Promise<SavedJob[]> {
+  return apiFetch<SavedJob[]>(
+    `/saved-jobs${buildQueryString({ dataset_name: datasetName })}`,
+  );
+}
+
+export function saveJob(request: SaveJobRequest): Promise<SavedJob> {
+  return apiFetch<SavedJob>("/saved-jobs", {
+    method: "POST",
+    body: JSON.stringify(request),
+  });
+}
+
+export function unsaveJob(
+  jobId: string,
+  datasetName: string,
+): Promise<{ job_id: string; deleted: boolean }> {
+  return apiFetch<{ job_id: string; deleted: boolean }>(
+    `/saved-jobs/${encodeURIComponent(jobId)}${buildQueryString({
+      dataset_name: datasetName,
+    })}`,
+    { method: "DELETE" },
+  );
 }

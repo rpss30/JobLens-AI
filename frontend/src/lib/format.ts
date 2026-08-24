@@ -92,18 +92,6 @@ export function formatSkill(skill: string): string {
     .join(" ");
 }
 
-/** Split the API's comma-joined preview strings back into chips. */
-export function parseSkillPreview(preview: string): string[] {
-  if (!preview || preview === "None") {
-    return [];
-  }
-
-  return preview
-    .split(",")
-    .map((skill) => skill.trim())
-    .filter(Boolean);
-}
-
 export function formatDatasetLabel(datasetName: string): string {
   const labels: Record<string, string> = {
     local_sample: "Local sample",

@@ -48,7 +48,7 @@ async function SavedRuns({ datasetName }: { datasetName: string }) {
   }
 
   return (
-    <Card>
+    <Card className="animate-section-in">
       <ul className="divide-y divide-border">
         {runs.map((run) => (
           <AnalysisRunRow key={run.id} run={run} />

@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from src.database.db import get_db_session
 from src.database.models import (
     AnalysisRun,
+    SavedJob,
     Dataset,
     ExtractionResult,
     IngestionRun,
@@ -684,6 +685,7 @@ def save_analysis_run(
     target_roles: list[str],
     location: str,
     experience_level: str,
+    candidate_experience: str,
     current_skills: list[str],
     best_role: str | None,
     weighted_match_score: float | None,
@@ -706,6 +708,7 @@ def save_analysis_run(
             target_roles=target_roles,
             location=location,
             experience_level=experience_level,
+            candidate_experience=candidate_experience,
             current_skills=current_skills,
             best_role=best_role,
             weighted_match_score=weighted_match_score,
@@ -733,6 +736,7 @@ def list_analysis_runs() -> list[dict[str, Any]]:
             AnalysisRun.target_roles,
             AnalysisRun.location,
             AnalysisRun.experience_level,
+            AnalysisRun.candidate_experience,
             AnalysisRun.current_skills,
             AnalysisRun.best_role,
             AnalysisRun.weighted_match_score,
@@ -753,6 +757,7 @@ def list_analysis_runs() -> list[dict[str, Any]]:
             "target_roles": row.target_roles,
             "location": row.location,
             "experience_level": row.experience_level,
+            "candidate_experience": row.candidate_experience,
             "current_skills": row.current_skills,
             "best_role": row.best_role,
             "weighted_match_score": row.weighted_match_score,
@@ -782,6 +787,7 @@ def load_analysis_run(analysis_run_id: int) -> dict[str, Any] | None:
             "target_roles": analysis_run.target_roles,
             "location": analysis_run.location,
             "experience_level": analysis_run.experience_level,
+            "candidate_experience": analysis_run.candidate_experience,
             "current_skills": analysis_run.current_skills,
             "best_role": analysis_run.best_role,
             "weighted_match_score": analysis_run.weighted_match_score,
@@ -829,6 +835,115 @@ def delete_analysis_run(analysis_run_id: int) -> bool:
             return False
 
         session.delete(analysis_run)
+        session.flush()
+
+        return True
+
+
+def save_job(
+    *,
+    job_id: str,
+    dataset_name: str,
+    title: str = "",
+    company: str = "",
+    location: str = "",
+    source_url: str = "",
+    date_posted: str = "",
+    experience_level: str = "",
+) -> dict[str, Any]:
+    """Keep a posting, or leave an already-kept one alone.
+
+    Returns the stored row either way, so saving twice is not an error to the
+    caller that clicked twice, and the answer describes what is actually held
+    rather than what the second click happened to send.
+    """
+    with get_db_session() as session:
+        stmt = select(SavedJob).where(
+            SavedJob.dataset_name == dataset_name,
+            SavedJob.job_id == job_id,
+        )
+        saved_job = session.execute(stmt).scalar_one_or_none()
+
+        if saved_job is None:
+            saved_job = SavedJob(
+                job_id=job_id,
+                dataset_name=dataset_name,
+                title=title,
+                company=company,
+                location=location,
+                source_url=source_url,
+                date_posted=date_posted,
+                experience_level=experience_level,
+            )
+            session.add(saved_job)
+
+        session.flush()
+
+        return {
+            "id": saved_job.id,
+            "job_id": saved_job.job_id,
+            "dataset_name": saved_job.dataset_name,
+            "title": saved_job.title,
+            "company": saved_job.company,
+            "location": saved_job.location,
+            "source_url": saved_job.source_url,
+            "date_posted": saved_job.date_posted,
+            "experience_level": saved_job.experience_level,
+            "created_at": saved_job.created_at,
+        }
+
+
+def list_saved_jobs(dataset_name: str | None = None) -> list[dict[str, Any]]:
+    """List kept postings from newest to oldest."""
+    with get_db_session() as session:
+        stmt = select(
+            SavedJob.id,
+            SavedJob.job_id,
+            SavedJob.dataset_name,
+            SavedJob.title,
+            SavedJob.company,
+            SavedJob.location,
+            SavedJob.source_url,
+            SavedJob.date_posted,
+            SavedJob.experience_level,
+            SavedJob.created_at,
+        ).order_by(SavedJob.created_at.desc())
+
+        if dataset_name:
+            stmt = stmt.where(SavedJob.dataset_name == dataset_name)
+
+        rows = session.execute(stmt).all()
+
+    return [
+        {
+            "id": row.id,
+            "job_id": row.job_id,
+            "dataset_name": row.dataset_name,
+            "title": row.title,
+            "company": row.company,
+            "location": row.location,
+            "source_url": row.source_url,
+            "date_posted": row.date_posted,
+            "experience_level": row.experience_level,
+            "created_at": row.created_at,
+        }
+        for row in rows
+    ]
+
+
+def delete_saved_job(*, job_id: str, dataset_name: str) -> bool:
+    """Drop a kept posting. Returns whether there was one to drop."""
+    with get_db_session() as session:
+        stmt = select(SavedJob).where(
+            SavedJob.dataset_name == dataset_name,
+            SavedJob.job_id == job_id,
+        )
+        saved_job = session.execute(stmt).scalar_one_or_none()
+
+        if saved_job is None:
+            return False
+
+        session.delete(saved_job)
         session.flush()
 
         return True

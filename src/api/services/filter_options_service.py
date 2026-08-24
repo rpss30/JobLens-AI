@@ -33,6 +33,7 @@ def get_filter_options(dataset_name: str | None = None) -> dict:
         "role_categories": get_unique_column_values(jobs_df, "role_category"),
         "skills": get_available_skills(jobs_df),
         "locations": get_available_locations(jobs_df),
+        "companies": get_unique_column_values(jobs_df, "company"),
         "experience_levels": get_unique_column_values(jobs_df, "experience_level"),
         "summary": get_dataset_snapshot_summary(jobs_df),
     }

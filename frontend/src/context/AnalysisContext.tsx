@@ -4,11 +4,15 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
 
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { useToast } from "@/context/ToastContext";
+import { saveAnalysisRun } from "@/lib/analysisRuns";
 import type { AnalyzeRequest, AnalyzeResponse } from "@/lib/api/types";
 
 export interface StoredAnalysis {
@@ -19,7 +23,15 @@ export interface StoredAnalysis {
 
 interface AnalysisContextValue {
   analysis: StoredAnalysis | null;
-  setAnalysis: (analysis: StoredAnalysis) => void;
+  /**
+   * Set alreadySaved for a result that came back out of history: it is the
+   * same run, so offering to save it again would only duplicate it.
+   */
+  setAnalysis: (
+    analysis: StoredAnalysis,
+    options?: { alreadySaved?: boolean },
+  ) => void;
+  /** Asks first when the result would be lost unsaved. */
   clearAnalysis: () => void;
   /** True once the current result has been written to history. */
   isAnalysisSaved: boolean;
@@ -38,6 +50,7 @@ const AnalysisContext = createContext<AnalysisContextValue | null>(null);
  * JobLens wordmark, always returns to the first-run state.
  */
 export function AnalysisProvider({ children }: { children: ReactNode }) {
+  const { showToast } = useToast();
   const [analysis, setStoredAnalysis] = useState<StoredAnalysis | null>(null);
   /*
    * Which result has already been saved. This lives beside the analysis rather
@@ -45,23 +58,86 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
    * moves to another tab; keeping it there let the same result be saved twice.
    */
   const [savedCompletedAt, setSavedCompletedAt] = useState<string | null>(null);
+  const [isConfirmingClear, setIsConfirmingClear] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const setAnalysis = useCallback((nextAnalysis: StoredAnalysis) => {
-    setStoredAnalysis(nextAnalysis);
+  const isAnalysisSaved =
+    analysis !== null && savedCompletedAt === analysis.completedAt;
+
+  const setAnalysis = useCallback(
+    (nextAnalysis: StoredAnalysis, options?: { alreadySaved?: boolean }) => {
+      setStoredAnalysis(nextAnalysis);
+      /*
+       * Set from the incoming result rather than through markAnalysisSaved,
+       * which reads the analysis in scope when it was made and would mark the
+       * one being replaced.
+       */
+      setSavedCompletedAt(
+        options?.alreadySaved ? nextAnalysis.completedAt : null,
+      );
+    },
+    [],
+  );
+
+  const discardAnalysis = useCallback(() => {
+    setStoredAnalysis(null);
     setSavedCompletedAt(null);
+    setIsConfirmingClear(false);
   }, []);
 
   const clearAnalysis = useCallback(() => {
-    setStoredAnalysis(null);
-    setSavedCompletedAt(null);
-  }, []);
+    // Nothing to lose: no result, or one already in history.
+    if (analysis === null || isAnalysisSaved) {
+      discardAnalysis();
+      return;
+    }
+
+    setIsConfirmingClear(true);
+  }, [analysis, isAnalysisSaved, discardAnalysis]);
 
   const markAnalysisSaved = useCallback(() => {
     setSavedCompletedAt(analysis?.completedAt ?? null);
   }, [analysis?.completedAt]);
 
-  const isAnalysisSaved =
-    analysis !== null && savedCompletedAt === analysis.completedAt;
+  /*
+   * A reload or a closed tab takes the result with it, and the browser will
+   * only ask on our behalf while something is genuinely unsaved.
+   */
+  useEffect(() => {
+    if (analysis === null || isAnalysisSaved) {
+      return;
+    }
+
+    const warnBeforeLeaving = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      // Deprecated, and still what some browsers actually read.
+      event.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", warnBeforeLeaving);
+
+    return () => window.removeEventListener("beforeunload", warnBeforeLeaving);
+  }, [analysis, isAnalysisSaved]);
+
+  async function saveThenClear() {
+    if (!analysis) {
+      return;
+    }
+
+    setIsSaving(true);
+
+    const error = await saveAnalysisRun(analysis);
+
+    setIsSaving(false);
+
+    if (error) {
+      showToast(error, "error");
+      return;
+    }
+
+    showToast("Saved to your history.");
+    discardAnalysis();
+  }
 
   const value = useMemo(
     () => ({
@@ -77,6 +153,20 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
   return (
     <AnalysisContext.Provider value={value}>
       {children}
+
+      {/* Here rather than beside any one button, because every way of losing
+          a result ends up calling clearAnalysis. */}
+      <ConfirmDialog
+        open={isConfirmingClear}
+        title="Save this result first?"
+        description="This result is not in your history yet. Starting again will lose it."
+        confirmLabel="Save and continue"
+        alternativeLabel="Discard"
+        isBusy={isSaving}
+        onConfirm={saveThenClear}
+        onAlternative={discardAnalysis}
+        onCancel={() => setIsConfirmingClear(false)}
+      />
     </AnalysisContext.Provider>
   );
 }

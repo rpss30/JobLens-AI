@@ -1,58 +1,141 @@
 @import "tailwindcss";
 
 /*
- * Warm neutral palette anchored on #000000, #D1D0D0, #988686, and #5C4E4E.
- * Intermediate tints are derived from those four so text keeps a WCAG AA
- * contrast ratio: #988686 clears 3:1 and is reserved for borders and large
- * text, while small text uses #5C4E4E or darker.
+ * Cool neutral palette on a near-white canvas, accented with a powder blue.
+ *
+ * The accent is split in two because one value cannot do both jobs: the
+ * powder blue reads well as a fill behind dark text, but fails contrast as
+ * text itself. --color-accent-fill paints buttons and the active nav pill,
+ * while --color-accent is the deeper teal used for links, icons, and any
+ * accented text. Anything sitting on the fill uses --color-on-accent, which
+ * holds its dark value in both themes because the fill does too. Small text
+ * uses --color-text-muted or darker; every pairing below clears WCAG AA.
  */
 :root {
-  --color-canvas: #f4f2f2;
-  --color-surface: #ffffff;
-  --color-surface-muted: #eceaea;
-  --color-border: #d1d0d0;
-  --color-border-strong: #988686;
-  --color-text: #000000;
-  --color-text-muted: #5c4e4e;
-  --color-text-subtle: #7a6a6a;
-  --color-accent: #5c4e4e;
-  --color-accent-hover: #000000;
-  --color-accent-soft: #e9e5e5;
-  --color-positive: #5c4e4e;
-  --color-positive-soft: #5c4e4e;
-  --color-warning: #7a6a6a;
+  /*
+   * Both themes in one place. light-dark() picks a side from the used
+   * color-scheme, so a token is declared once rather than in two mirrored
+   * blocks that drift apart; a value with no second argument is one that is
+   * deliberately the same in both.
+   */
+  color-scheme: light dark;
+
+  --color-canvas: light-dark(#f7f9fa, #0e1315);
+  --color-surface: light-dark(#ffffff, #161c1f);
+  --color-surface-muted: light-dark(#f1f4f5, #1e262a);
+  --color-border: light-dark(#e3e8ea, #2a3438);
+  --color-border-strong: light-dark(#c6ced1, #47545a);
+  --color-text: light-dark(#14181a, #e6edef);
+  --color-text-muted: light-dark(#4c5559, #a8b4b8);
+  --color-text-subtle: light-dark(#6e787c, #8b989d);
+  --color-accent: light-dark(#11626f, #7fc8d9);
+  --color-accent-hover: light-dark(#0c4b55, #a4dbe8);
+  /* The fill and the text on it hold one value across both themes: the
+     pairing is what makes the accent legible, so inverting either half of it
+     breaks the other. */
+  --color-accent-fill: #b7dee8;
+  --color-accent-fill-hover: light-dark(#a4d4e1, #cbe8ef);
+  --color-on-accent: #14181a;
+  --color-accent-soft: light-dark(#e8f4f8, #1c2c31);
+  /* The solid accent, for a control that has to read as the one thing on the
+     page worth pressing. Fixed for the same reason the fill is: the white on
+     it is what makes it legible. */
+  --color-accent-strong: #11626f;
+  --color-accent-strong-hover: #0c4b55;
+  --color-on-accent-strong: #ffffff;
+  --color-positive: light-dark(#11626f, #7fc8d9);
+  --color-positive-soft: light-dark(#11626f, #7fc8d9);
+  --color-warning: light-dark(#6e787c, #8b989d);
   --color-warning-soft: transparent;
-  --color-danger: #000000;
-  --color-danger-soft: #eceaea;
+  --color-danger: light-dark(#14181a, #e6edef);
+  --color-danger-soft: light-dark(#f1f4f5, #1e262a);
+  --color-required: light-dark(#d93025, #f28b82);
+
+  /*
+   * Sequential chart ramp, dark to light, derived from the accent. Fixed
+   * across themes like --color-accent-fill, because each step is paired with
+   * a text colour that has to keep working: 1-3 carry light text, 4-5 dark.
+   */
+  --color-chart-1: #0b4650;
+  --color-chart-2: #11626f;
+  --color-chart-3: #1c7d8d;
+  --color-chart-4: #6fbccb;
+  --color-chart-5: #b7dee8;
+
+  /*
+   * Requirement signals sit outside the brand ramp on purpose. They are four
+   * unordered states, and shades of one hue were near-impossible to tell apart
+   * at the size of a dot or a thin bar. The dark values are lifted, because
+   * the light ones go muddy on a dark ground.
+   */
+  --color-signal-required: light-dark(#2e7d32, #5cbf68);
+  --color-signal-preferred: light-dark(#4a9fe3, #7ec0f5);
+  --color-signal-mixed: light-dark(#f6c445, #f7d070);
+  --color-signal-unclear: light-dark(#d24b45, #ef7a74);
+
+  /*
+   * The banner a result opens on. The light value is a step darker than the
+   * mockup's, which put the small labels under 4.5:1; the dark one is darker
+   * again, because a mid teal that reads as a filled card on white glares on
+   * a dark page. White holds on both.
+   */
+  --color-hero: light-dark(#3a7a8f, #2b5c6c);
+  --color-on-hero: #ffffff;
+
+  /*
+   * The one mark colour both result charts use. They each draw a single
+   * series, so a ramp would be colouring things that mean the same. A shade
+   * deeper than the mockup's, to clear 3:1 against the card behind it.
+   */
+  --color-chart-mark: #009cbc;
+
+  /*
+   * How far a role's ranking can be trusted. High and medium reuse the fit
+   * green and amber below, since it is the same three-step judgement; only
+   * the red at the bottom of the scale is its own.
+   */
+  --color-confidence-low: light-dark(#a80000, #ef7a74);
+  --color-confidence-low-soft: light-dark(#ffebeb, #2b1618);
+
+  /*
+   * How a posting's experience requirement lines up with the candidate's.
+   * Three unordered states, so they sit outside the brand ramp for the same
+   * reason the requirement signals do. The stretch amber is darker than a
+   * pure orange because the pale one it was drawn as reads at 2.3:1. The soft
+   * grounds go dark rather than pale, so a pill does not glare on a dark card.
+   */
+  --color-fit-met: light-dark(#007c43, #5cbf68);
+  --color-fit-met-soft: light-dark(#eff8f4, #16261c);
+  --color-fit-close: light-dark(#006ca8, #7ec0f5);
+  --color-fit-close-soft: light-dark(#ebf4ff, #14222e);
+  --color-fit-stretch: light-dark(#a85f00, #e0a355);
+  --color-fit-stretch-soft: light-dark(#fff9ec, #2a2113);
+
+  /*
+   * Solid blue for a skill the candidate already has, the role fit bars, and
+   * the tab the skills table is showing. Fixed across themes like
+   * --color-accent-fill, because the white on it is what makes it legible.
+   */
+  --color-match: #44759f;
+  --color-on-match: #ffffff;
 
   /* Status colours sit outside the brand palette on purpose: online and
      offline must be told apart at a glance, which shape alone does not do. */
-  --color-status-online: #1a7f4b;
-  --color-status-offline: #b3261e;
+  --color-status-online: light-dark(#1a7f4b, #4ade80);
+  --color-status-offline: light-dark(#b3261e, #f28b82);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-canvas: #000000;
-    --color-surface: #171414;
-    --color-surface-muted: #241f1f;
-    --color-border: #363030;
-    --color-border-strong: #5c4e4e;
-    --color-text: #d1d0d0;
-    --color-text-muted: #988686;
-    --color-text-subtle: #8a7a7a;
-    --color-accent: #988686;
-    --color-accent-hover: #d1d0d0;
-    --color-accent-soft: #2a2323;
-    --color-positive: #988686;
-    --color-positive-soft: #988686;
-    --color-warning: #988686;
-    --color-warning-soft: transparent;
-    --color-danger: #d1d0d0;
-    --color-danger-soft: #241f1f;
-    --color-status-online: #4ade80;
-    --color-status-offline: #f28b82;
-  }
+/*
+ * The reader's own choice, written by the script in the document head before
+ * anything paints. Without an attribute the root keeps `light dark` above and
+ * follows the operating system.
+ */
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
 }
 
 @theme inline {
@@ -66,21 +149,129 @@
   --color-text-subtle: var(--color-text-subtle);
   --color-accent: var(--color-accent);
   --color-accent-hover: var(--color-accent-hover);
+  --color-accent-fill: var(--color-accent-fill);
+  --color-accent-fill-hover: var(--color-accent-fill-hover);
+  --color-on-accent: var(--color-on-accent);
   --color-accent-soft: var(--color-accent-soft);
+  --color-accent-strong: var(--color-accent-strong);
+  --color-accent-strong-hover: var(--color-accent-strong-hover);
+  --color-on-accent-strong: var(--color-on-accent-strong);
   --color-positive: var(--color-positive);
   --color-positive-soft: var(--color-positive-soft);
   --color-warning: var(--color-warning);
   --color-warning-soft: var(--color-warning-soft);
   --color-danger: var(--color-danger);
   --color-danger-soft: var(--color-danger-soft);
+  --color-required: var(--color-required);
+  --color-chart-1: var(--color-chart-1);
+  --color-chart-2: var(--color-chart-2);
+  --color-chart-3: var(--color-chart-3);
+  --color-chart-4: var(--color-chart-4);
+  --color-chart-5: var(--color-chart-5);
+  --color-signal-required: var(--color-signal-required);
+  --color-signal-preferred: var(--color-signal-preferred);
+  --color-signal-mixed: var(--color-signal-mixed);
+  --color-signal-unclear: var(--color-signal-unclear);
+  --color-hero: var(--color-hero);
+  --color-on-hero: var(--color-on-hero);
+  --color-chart-mark: var(--color-chart-mark);
+  --color-confidence-low: var(--color-confidence-low);
+  --color-confidence-low-soft: var(--color-confidence-low-soft);
+  --color-fit-met: var(--color-fit-met);
+  --color-fit-met-soft: var(--color-fit-met-soft);
+  --color-fit-close: var(--color-fit-close);
+  --color-fit-close-soft: var(--color-fit-close-soft);
+  --color-fit-stretch: var(--color-fit-stretch);
+  --color-fit-stretch-soft: var(--color-fit-stretch-soft);
+  --color-match: var(--color-match);
+  --color-on-match: var(--color-on-match);
   --color-status-online: var(--color-status-online);
   --color-status-offline: var(--color-status-offline);
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: ui-rounded, "SF Pro Rounded", var(--font-rounded), ui-sans-serif,
+    system-ui, sans-serif;
 }
 
 body {
   background: var(--color-canvas);
   color: var(--color-text);
+}
+
+/*
+ * Tailwind v4 gives buttons the arrow cursor rather than the pointer v3 used.
+ * Restore it, in the base layer so utilities still win, and skip disabled
+ * buttons so the Button component's own not-allowed and default cursors hold.
+ */
+@layer base {
+  button:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+@keyframes panel-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(1rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Marks the detail panel as newly swapped, so switching role reads as a move
+   rather than a redraw. */
+.animate-panel-in {
+  animation: panel-slide-in 240ms ease-out;
+}
+
+/* The jobs filter panel drops in rather than appearing outright. It only
+   runs when the panel is opened: navigating with it already open keeps the
+   same element and the same class, so nothing restarts. */
+@keyframes filters-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.5rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-filters-in {
+  animation: filters-slide-in 220ms ease-out;
+}
+
+@keyframes ring-fill {
+  from {
+    stroke-dashoffset: var(--ring-circumference);
+  }
+}
+
+/* Draws each workplace ring on from empty. There is no `to`: the implicit one
+   is the element's own stroke-dashoffset, so the ring lands on its real share
+   without the figure being repeated in CSS. */
+.animate-ring-fill {
+  animation: ring-fill 900ms ease-out;
+}
+
+/* Sections arrive rather than appearing, staggered by an inline delay. The
+   reduced-motion block below collapses this to its finished state. */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rise-in {
+  animation: rise-in 850ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 /* Keyboard focus stays visible everywhere; pointer focus does not draw a ring. */
@@ -98,5 +289,84 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/*
+ * A result arrives section by section rather than all at once. Each runs
+ * once, on mount, which is exactly when a result is drawn; a later filter or
+ * sort re-renders in place and is left alone.
+ */
+@keyframes section-rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.75rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-section-in {
+  animation: section-rise 460ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* A bar grows out of the baseline it is measured from. */
+@keyframes bar-grow {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+.animate-bar-grow {
+  transform-origin: bottom;
+  animation: bar-grow 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/*
+ * A dot travels out to the figure it marks. Only a from: the element's own
+ * left is where the data put it, so that is where the animation ends.
+ */
+@keyframes dot-slide {
+  from {
+    left: 0;
+    opacity: 0;
+  }
+}
+
+.animate-dot-in {
+  animation: dot-slide 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/*
+ * A matched posting arrives from the left rather than appearing where the
+ * list stood. The animation restarts every time the panel stops being
+ * display:none, which below lg is exactly when one is opened; from lg the
+ * panel is always there and beside the list, so nothing should move.
+ */
+@keyframes posting-slide-in {
+  from {
+    transform: translateX(-100%);
+  }
+}
+
+.animate-posting-in {
+  animation: posting-slide-in 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (min-width: 64rem) {
+  .animate-posting-in {
+    animation: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-section-in,
+  .animate-bar-grow,
+  .animate-dot-in,
+  .animate-posting-in {
+    animation: none;
   }
 }

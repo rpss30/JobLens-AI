@@ -1,4 +1,5 @@
 from src.ingestion.ats_normalizers import (
+    clean_html_document,
     build_ats_job_id,
     clean_html_text,
     epoch_milliseconds_to_iso,
@@ -63,3 +64,45 @@ def test_infer_experience_level_uses_required_years():
         "Software Engineer",
         "Requires 5+ years of Python experience.",
     ) == "Senior"
+
+
+def test_clean_html_document_keeps_paragraphs_and_lists() -> None:
+    text = clean_html_document(
+        "<p>About the role</p><p>We ship weekly.</p><ul><li>Go</li><li>SQL</li></ul>"
+    )
+
+    assert text == "About the role\n\nWe ship weekly.\n\n- Go\n- SQL"
+
+
+def test_clean_html_document_reads_escaped_markup() -> None:
+    """Greenhouse sends its body as escaped HTML.
+
+    Stripping tags before decoding entities left every tag standing in the
+    text, because there were no tags to strip until the entities were read.
+    """
+    text = clean_html_document(
+        "&lt;p&gt;&lt;strong&gt;About Faire&lt;/strong&gt;&lt;/p&gt;&lt;ul&gt;&lt;li&gt;Go&lt;/li&gt;&lt;/ul&gt;"
+    )
+
+    assert "<" not in text
+    assert text == "About Faire\n\n- Go"
+
+
+def test_clean_html_document_reads_doubly_escaped_markup() -> None:
+    """Greenhouse escapes its body twice, so one pass is not enough.
+
+    A single decode turned &amp;amp;nbsp; into a visible &nbsp; rather than a
+    space.
+    """
+    text = clean_html_document(
+        "&amp;lt;p&amp;gt;Tools &amp;amp;nbsp;and teams&amp;lt;/p&amp;gt;"
+    )
+
+    assert "&" not in text
+    assert "<" not in text
+    assert text == "Tools and teams"
+
+
+def test_clean_html_text_still_flattens_a_title() -> None:
+    """The sibling used for titles and locations is deliberately unchanged."""
+    assert clean_html_text("  Senior   Engineer\n(Remote)  ") == "Senior Engineer (Remote)"

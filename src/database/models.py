@@ -177,6 +177,11 @@ class AnalysisRun(Base):
     target_roles: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
     location: Mapped[str] = mapped_column(String(255), nullable=False, default="Any")
     experience_level: Mapped[str] = mapped_column(String(100), nullable=False, default="Any")
+    candidate_experience: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+        default="Not specified",
+    )
     current_skills: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
 
     best_role: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
@@ -197,6 +202,46 @@ class AnalysisRun(Base):
     __table_args__ = (
         Index("ix_analysis_runs_dataset_created_at", "dataset_id", "created_at"),
         Index("ix_analysis_runs_dataset_name_created_at", "dataset_name", "created_at"),
+    )
+
+
+class SavedJob(Base):
+    """A posting someone kept, so it survives a filter change or a reload.
+
+    The posting's own details are copied in rather than referenced. Datasets
+    are replaced wholesale when they are refreshed, and a saved job should
+    still say what it was even once the posting behind it has gone.
+    """
+
+    __tablename__ = "saved_jobs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+
+    job_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    dataset_name: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    title: Mapped[str] = mapped_column(String(500), nullable=False, default="")
+    company: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    location: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    source_url: Mapped[str] = mapped_column(Text, nullable=False, default="")
+
+    # Carried so the saved list can draw and filter a row on its own, without
+    # the dataset the posting came from. The company mark is not, being
+    # derived from the company and the source url already held here.
+    date_posted: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    experience_level: Mapped[str] = mapped_column(
+        String(100), nullable=False, default=""
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=lambda: datetime.now(UTC),
+    )
+
+    __table_args__ = (
+        # Saving twice is the same as saving once.
+        UniqueConstraint("dataset_name", "job_id", name="uq_saved_jobs_dataset_job"),
+        Index("ix_saved_jobs_dataset_created_at", "dataset_name", "created_at"),
     )
 
 

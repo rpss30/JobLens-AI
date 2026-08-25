@@ -501,6 +501,47 @@ def test_get_job_match_details_explains_experience_fit() -> None:
                 "extracted_skills": ["Python", "REST APIs", "PostgreSQL"],
                 "skills_text": "Python, REST APIs, PostgreSQL",
             },
+            {
+                "title": "Entry Level Software Developer",
+                "company": "TenureCo",
+                "location": "Toronto ON",
+                "experience_level": "Entry Level",
+                "role_category": "Software Engineering",
+                "description": (
+                    "Come experience why so many employees have been with us "
+                    "for 5 to 10+ years and continue to make it their home."
+                ),
+                "extracted_skills": ["Python", "REST APIs", "PostgreSQL"],
+                "skills_text": "Python, REST APIs, PostgreSQL",
+            },
+            {
+                "title": "Cleared Software Engineer",
+                "company": "ClearedCo",
+                "location": "Toronto ON",
+                "experience_level": "Entry Level",
+                "role_category": "Software Engineering",
+                "description": (
+                    "Required skills: must hold an active clearance with "
+                    "polygraph (within last 5 years). No demonstrated "
+                    "experience is required."
+                ),
+                "extracted_skills": ["Python", "REST APIs", "PostgreSQL"],
+                "skills_text": "Python, REST APIs, PostgreSQL",
+            },
+            {
+                "title": "Cloud Engineer 1",
+                "company": "LadderCo",
+                "location": "Toronto ON",
+                "experience_level": "Any",
+                "role_category": "Software Engineering",
+                "description": (
+                    "A bachelor's degree and 0 years of experience in cloud "
+                    "engineering, or a minimum of 4 years of experience in a "
+                    "related technical field."
+                ),
+                "extracted_skills": ["Python", "REST APIs", "PostgreSQL"],
+                "skills_text": "Python, REST APIs, PostgreSQL",
+            },
         ]
     )
 
@@ -523,6 +564,27 @@ def test_get_job_match_details_explains_experience_fit() -> None:
     assert junior_job["required_experience"] == "Entry Level inferred"
     assert junior_job["experience_requirement_source"] == "experience_level"
     assert junior_job["experience_fit"] == "Meets requirement"
+
+    # How long the staff have stayed is not what the opening asks of the
+    # reader. Read as a requirement, it turned an entry-level posting into a
+    # ten-year stretch.
+    tenure_job = job_match_df[job_match_df["company"] == "TenureCo"].iloc[0]
+
+    assert tenure_job["required_experience_years"] == 0
+    assert tenure_job["experience_fit"] == "Meets requirement"
+
+    # A recency window on a credential, sitting beside a sentence saying the
+    # role wants no experience at all.
+    cleared_job = job_match_df[job_match_df["company"] == "ClearedCo"].iloc[0]
+
+    assert cleared_job["required_experience_years"] == 0
+    assert cleared_job["experience_fit"] == "Meets requirement"
+
+    # Alternative routes in state one bar each, not several to clear at once.
+    ladder_job = job_match_df[job_match_df["company"] == "LadderCo"].iloc[0]
+
+    assert ladder_job["required_experience_years"] == 0
+    assert ladder_job["experience_requirement_source"] == "description"
 
 
 def test_get_job_match_details_explains_required_and_preferred_skills() -> None:

@@ -44,6 +44,25 @@ _NON_REQUIREMENT_CUE_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+# A years figure inside one of these clauses is describing the employer rather
+# than the opening: how long its people have stayed, or how recently a
+# clearance was granted. They veto a match outright, because a requirement cue
+# elsewhere in the window would otherwise let a company-history sentence set
+# the bar for the role. "employees have been with EAI for 5 to 10+ years" read
+# as a ten-year requirement on an entry-level posting.
+_TENURE_CONTEXT_PATTERN = re.compile(
+    r"\b(employees?|staff|our team|our people|been with|stayed with|"
+    r"tenure|founded|established|celebrating|anniversary|"
+    r"combined experience|in business)\b",
+    re.IGNORECASE,
+)
+# "active TS/SCI clearance with polygraph (within last 5 years)" is a recency
+# window on a credential, not experience the role asks for.
+_CLEARANCE_CONTEXT_PATTERN = re.compile(
+    r"\b(clearance|polygraph|within (?:the )?last|within (?:the )?past)\b",
+    re.IGNORECASE,
+)
+
 
 @dataclass(frozen=True)
 class ExperienceRequirement:
@@ -72,6 +91,28 @@ def normalize_candidate_experience_bucket(candidate_experience: str | None) -> s
     return NO_CANDIDATE_EXPERIENCE
 
 
+def clause_around(text: str, start: int, end: int) -> str:
+    """Return the sentence a match sits in.
+
+    The cue windows are measured in characters, so they reach across sentence
+    boundaries and let an unrelated neighbour vouch for a figure. Whether a
+    number is a requirement is decided by the sentence making the claim, so
+    the veto patterns read that instead.
+    """
+    opening = max(
+        text.rfind(". ", 0, start),
+        text.rfind("! ", 0, start),
+        text.rfind("? ", 0, start),
+    )
+    closing = [
+        position
+        for position in (text.find(mark, end) for mark in (". ", "! ", "? "))
+        if position != -1
+    ]
+
+    return text[0 if opening < 0 else opening + 2 : min(closing) if closing else len(text)]
+
+
 def extract_required_experience_years(description: object) -> int | None:
     """Extract explicit minimum experience years from requirement-like context."""
     text = re.sub(r"\s+", " ", str(description or "")).strip()
@@ -79,7 +120,7 @@ def extract_required_experience_years(description: object) -> int | None:
     if not text:
         return None
 
-    required_years = []
+    years_by_clause: dict[str, list[int]] = {}
 
     for match in _YEAR_REQUIREMENT_PATTERN.finditer(text):
         year_value = int(match.group("minimum"))
@@ -94,16 +135,32 @@ def extract_required_experience_years(description: object) -> int | None:
         if not _EXPERIENCE_TERM_PATTERN.search(context):
             continue
 
+        clause = clause_around(text, match.start(), match.end())
+
+        if _TENURE_CONTEXT_PATTERN.search(clause):
+            continue
+
+        if _CLEARANCE_CONTEXT_PATTERN.search(clause):
+            continue
+
         has_requirement_cue = bool(_REQUIREMENT_CUE_PATTERN.search(context))
         has_non_requirement_cue = bool(_NON_REQUIREMENT_CUE_PATTERN.search(context))
 
         if has_requirement_cue or not has_non_requirement_cue:
-            required_years.append(year_value)
+            years_by_clause.setdefault(clause, []).append(year_value)
 
-    if not required_years:
+    if not years_by_clause:
         return None
 
-    return max(required_years)
+    # A clause offering alternatives states one bar per route in, not several
+    # bars to clear: "a degree and 0 years of experience OR a minimum of 4
+    # years" asks the lower of the two from anyone holding the degree.
+    clause_requirements = [
+        min(years) if re.search(r"\bor\b", clause, re.IGNORECASE) else max(years)
+        for clause, years in years_by_clause.items()
+    ]
+
+    return max(clause_requirements)
 
 
 def infer_required_experience_from_level(
@@ -163,16 +220,24 @@ def get_experience_requirement(
     description: object,
     experience_level: object,
 ) -> ExperienceRequirement:
+    declared_requirement = infer_required_experience_from_level(experience_level)
     explicit_years = extract_required_experience_years(description)
 
-    if explicit_years is not None:
-        return ExperienceRequirement(
-            years=explicit_years,
-            label=f"{explicit_years}+ years",
-            source="description",
-        )
+    if explicit_years is None:
+        return declared_requirement
 
-    return infer_required_experience_from_level(experience_level)
+    # A posting that declares itself early career has already answered this.
+    # A larger figure mined from its prose is describing something else, and
+    # letting it win turned "Entry Level Software Developer" into a ten-year
+    # stretch for the reader it was written for.
+    if declared_requirement.years == 0 and explicit_years > 0:
+        return declared_requirement
+
+    return ExperienceRequirement(
+        years=explicit_years,
+        label=f"{explicit_years}+ years",
+        source="description",
+    )
 
 
 def evaluate_experience_fit(

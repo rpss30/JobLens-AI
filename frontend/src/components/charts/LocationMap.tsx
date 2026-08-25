@@ -1,12 +1,14 @@
 /*
- * Posting counts as pins on a map of Canada.
+ * Posting counts as pins on a map of the United States and Canada.
  *
- * The outline is a MapSVG export drawn as one path per province; the pins are
- * placed from the export's own geoViewBox, so no mapping library is involved.
+ * The outline is a MapSVG export drawn as one path per state and province;
+ * the pins are placed from the export's own geoViewBox, so no mapping library
+ * is involved.
  *
- * The frame is cropped to the places that actually have postings. Drawn whole,
- * Canada is mostly arctic: two thirds of the height carries no posting at all
- * and squeezes every real city into a sliver along the bottom edge.
+ * The frame is cropped to the band the postings sit in. Drawn whole, the
+ * export runs from the Aleutians to Newfoundland and from the high arctic to
+ * southern Mexico: Alaska alone takes two fifths of the width, and most of
+ * the height carries no posting at all.
  *
  * Two crowding problems are solved deterministically, so the same data always
  * draws the same map: circles that would cover each other are displaced and
@@ -20,12 +22,11 @@ import type { CSSProperties } from "react";
 import Link from "next/link";
 
 import {
-  MAP_HEIGHT,
   MAP_WIDTH,
-  PROVINCES,
+  REGIONS,
   type Point,
   project,
-} from "@/lib/geo/canadaMap";
+} from "@/lib/geo/northAmericaMap";
 
 export interface MapPin {
   label: string;
@@ -38,11 +39,15 @@ export interface MapPin {
 /** Room around the edge for circles and labels. */
 const MARGIN = 26;
 /*
- * Everything above this parallel is high arctic: a third of the drawing's
- * height, no postings in it, and it pushes the cities that do have postings
- * into a strip along the bottom. The rest of the country is kept whole.
+ * The corners the map is cropped to. North of this parallel is arctic and
+ * west of this meridian is the Alaskan panhandle and the Aleutians, neither
+ * of which carries postings; south of it is open water and the Gulf. The
+ * frame still opens up around a pin that lands outside, so cropping can
+ * never drop one.
  */
-const TOP_LATITUDE = 79;
+const CROP_NORTH = 54;
+const CROP_SOUTH = 24;
+const CROP_WEST = -128;
 
 /** Sizes are quoted against this width and scaled with the crop. */
 const REFERENCE_WIDTH = 800;
@@ -100,11 +105,14 @@ export function LocationMap({ pins }: { pins: MapPin[] }) {
   // A fixed crop, not one fitted to the data, so the country keeps its shape
   // and the map does not redraw itself at a new scale for every dataset. It
   // still opens up if a posting lands outside, so no pin can fall off.
+  const cropNorthWest = project([CROP_WEST, CROP_NORTH]);
+  const cropSouth = project([CROP_WEST, CROP_SOUTH]);
+
   const frame = {
-    minX: Math.min(-MARGIN, ...anchors.map((a) => a.x - MARGIN)),
-    minY: Math.min(project([0, TOP_LATITUDE]).y, ...anchors.map((a) => a.y - MARGIN)),
+    minX: Math.min(cropNorthWest.x, ...anchors.map((a) => a.x - MARGIN)),
+    minY: Math.min(cropNorthWest.y, ...anchors.map((a) => a.y - MARGIN)),
     maxX: Math.max(MAP_WIDTH + MARGIN, ...anchors.map((a) => a.x + MARGIN)),
-    maxY: Math.max(MAP_HEIGHT + MARGIN, ...anchors.map((a) => a.y + MARGIN)),
+    maxY: Math.max(cropSouth.y, ...anchors.map((a) => a.y + MARGIN)),
   };
 
   const frameWidth = frame.maxX - frame.minX;
@@ -263,24 +271,29 @@ export function LocationMap({ pins }: { pins: MapPin[] }) {
   return (
     <svg
       viewBox={`${frame.minX} ${frame.minY} ${frameWidth} ${frameHeight}`}
-      className="h-full w-full"
+      /* Height follows the drawing's own proportions. The Canadian outline
+         this replaced was taller than it was wide and filled a card stretched
+         by the ranking beside it; North America is nearly twice as wide as it
+         is tall, and filling the same card letterboxed it into a thin band
+         with half the card empty above and below. */
+      className="h-auto w-full"
       preserveAspectRatio="xMidYMid meet"
       role="img"
       style={{ ["--pin-label" as string]: `${labelSize}px` } as CSSProperties}
-      aria-label={`Postings by location on a map of Canada. ${placed
+      aria-label={`Postings by location on a map of the United States and Canada. ${placed
         .map((pin) => `${pin.label}, ${pin.value}`)
         .join(". ")}`}
     >
-      {PROVINCES.map((province) => (
+      {REGIONS.map((region) => (
         <path
-          key={province.id}
-          d={province.d}
+          key={region.id}
+          d={region.d}
           fill="var(--color-surface-muted)"
           stroke="var(--color-border)"
           strokeWidth={unit}
           strokeLinejoin="round"
         >
-          <title>{province.title}</title>
+          <title>{region.title}</title>
         </path>
       ))}
 

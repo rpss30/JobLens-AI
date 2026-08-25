@@ -649,8 +649,12 @@ def get_role_weighted_top_skills(
             ]
         )
 
+    # Ranked by posting count for the same reason the recommendations are:
+    # weighted_importance is deliberately never shown, so ordering by it left
+    # the panel listing a skill above one that more postings asked for with
+    # nothing on screen to explain the order.
     ranked_df = pd.DataFrame(rows).sort_values(
-        by="weighted_importance",
+        by=["count", "weighted_importance"],
         ascending=False,
     )
 

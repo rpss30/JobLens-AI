@@ -1075,8 +1075,14 @@ def get_recommended_skills(
             columns=["skill", "score", "job_count", "avg_weight"]
         )
 
+    # Ranked by the number of postings asking for the skill, which is the
+    # figure the chart draws and labels. Ranking by the weighted score put a
+    # skill twelve postings ask for above one fifteen ask for, so the leading
+    # bar was not the tallest and the ranking read as though it came from a
+    # different dataset than the counts. The score still breaks ties, so a
+    # skill a posting requires outranks one it merely prefers.
     recommendations_df = recommendations_df.sort_values(
-        by=["score", "job_count", "avg_weight"],
+        by=["job_count", "score", "avg_weight"],
         ascending=False,
     ).head(top_n)
 

@@ -708,6 +708,13 @@ def test_get_recommended_skills_excludes_user_skills() -> None:
     assert "sql" not in recommended_skills
     assert "docker" in recommended_skills
 
+    # Ranked by the count the chart draws. Ranking by the weighted score put
+    # a skill twelve postings asked for above one fifteen asked for, so the
+    # leading bar was not the tallest one.
+    job_counts = recommended_skills_df["job_count"].tolist()
+
+    assert job_counts == sorted(job_counts, reverse=True)
+
 def test_score_roles_returns_zero_for_empty_user_skills() -> None:
     jobs_df = make_sample_jobs_df()
 

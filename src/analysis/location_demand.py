@@ -235,6 +235,38 @@ class LocationDemandSummary:
     postings_without_location: int = 0
 
 
+def text_or_blank(value: object) -> str:
+    """Return a cell's text, reading a missing value as no text at all.
+
+    pandas fills a blank column with NaN, and NaN is truthy, so the usual
+    `value or ""` guard hands it straight to str() and the word "nan" comes
+    out the other side. That is how "nan" came to head the workplace-type
+    rollup with 294 postings behind it on a dataset that never declares one.
+    """
+    if value is None:
+        return ""
+
+    if isinstance(value, float) and pd.isna(value):
+        return ""
+
+    return str(value)
+
+
+def flag_or_false(value: object) -> bool:
+    """Return a cell's boolean, reading a missing value as false.
+
+    bool(NaN) is True, so a blank column would otherwise mark every posting
+    in it remote.
+    """
+    if value is None:
+        return False
+
+    if isinstance(value, float) and pd.isna(value):
+        return False
+
+    return bool(value)
+
+
 def split_sites(location: str) -> list[str]:
     """Split a location field into the individual sites it lists."""
     fragments = SITE_SEPARATORS.split(PARENTHETICAL.sub(" ", location))
@@ -509,7 +541,7 @@ def places_by_row(jobs_df: pd.DataFrame) -> list[list[LocationParts]]:
     rows: list[list[LocationParts]] = []
 
     for _, row in jobs_df.iterrows():
-        location = str(row.get("location") or "").strip()
+        location = text_or_blank(row.get("location")).strip()
         places = [
             parts
             for fragment in split_sites(location)
@@ -587,16 +619,16 @@ def summarize_location_demand(
     has_remote_column = "is_remote" in jobs_df.columns
 
     for (_, row), places in zip(jobs_df.iterrows(), places_by_row(jobs_df)):
-        location = str(row.get("location") or "").strip()
+        location = text_or_blank(row.get("location")).strip()
 
         # The Canada snapshot carries these outright; the Greenhouse feeds
         # only imply them through the location text, and often not at all.
         workplace_type = resolve_workplace_type(
             location,
             declared_type=(
-                str(row.get("workplace_type") or "") if has_workplace_column else ""
+                text_or_blank(row.get("workplace_type")) if has_workplace_column else ""
             ),
-            is_remote=bool(row.get("is_remote")) if has_remote_column else False,
+            is_remote=flag_or_false(row.get("is_remote")) if has_remote_column else False,
         )
         workplace_counts[workplace_type] += 1
 

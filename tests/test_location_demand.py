@@ -101,6 +101,24 @@ def test_declared_workplace_columns_win_over_the_location_text():
     assert counts(summary) == {"Vancouver, BC": 1, "Toronto, ON": 1}
 
 
+def test_a_blank_workplace_column_is_not_the_word_nan():
+    # pandas reads an all-blank column as NaN, and NaN is truthy, so the
+    # `value or ""` guard passed it through and str() spelled it "nan". It
+    # headed the rollup with 294 postings behind it on the early-career
+    # snapshot, which declares a workplace type for none of them.
+    summary = summarize(
+        ["Austin, TX", "Seattle, WA"],
+        workplace_type=[float("nan"), float("nan")],
+        is_remote=[float("nan"), float("nan")],
+    )
+
+    workplace = {row["workplace_type"]: row["job_count"] for row in summary.workplace_types}
+
+    assert workplace == {"Not stated": 2}
+    # NaN is truthy here too, and would have marked both of them remote.
+    assert counts(summary) == {"Austin, TX": 1, "Seattle, WA": 1}
+
+
 def test_a_region_written_without_a_comma_still_counts():
     # The local sample writes "Toronto ON"; the Canada snapshot writes
     # "Toronto, ON". They are the same place and must not rank separately.

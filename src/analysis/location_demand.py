@@ -592,6 +592,7 @@ def resolve_workplace_type(
     *,
     declared_type: str = "",
     is_remote: bool = False,
+    names_a_place: bool = False,
 ) -> str:
     """Return how the work is done, or that the posting never says."""
     declared = normalize_search_text(declared_type).replace("-", " ")
@@ -607,6 +608,13 @@ def resolve_workplace_type(
     for term, workplace_type in WORKPLACE_LOCATION_TERMS.items():
         if has_term(normalized_location, term):
             return workplace_type
+
+    # A posting that names the city you would work in and never mentions
+    # remote or hybrid is asking you to come in. Reporting that as "Not
+    # stated" put 294 of the 298 early-career postings into a bucket that
+    # told the reader nothing, when what they have in common is an address.
+    if names_a_place:
+        return "On-site"
 
     return WORKPLACE_TYPE_UNKNOWN
 
@@ -642,6 +650,7 @@ def summarize_location_demand(
                 text_or_blank(row.get("workplace_type")) if has_workplace_column else ""
             ),
             is_remote=flag_or_false(row.get("is_remote")) if has_remote_column else False,
+            names_a_place=bool(places),
         )
         workplace_counts[workplace_type] += 1
 

@@ -51,8 +51,13 @@ const CROP_WEST = -128;
 
 /** Sizes are quoted against this width and scaled with the crop. */
 const REFERENCE_WIDTH = 800;
-const MIN_RADIUS = 13;
-const MAX_RADIUS = 44;
+/*
+ * Sized against a map that is now wider than it is tall. At the old maximum
+ * the leading city drew a circle a fifth of the drawing's height, and the
+ * Bay Area cluster covered the names of the cities around it.
+ */
+const MIN_RADIUS = 10;
+const MAX_RADIUS = 28;
 const STEP_COUNT = 5;
 const LABEL_SIZE = 15;
 const LABEL_HEIGHT = 20;

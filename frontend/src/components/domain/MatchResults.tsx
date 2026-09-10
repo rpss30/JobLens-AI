@@ -89,9 +89,18 @@ function MatchRow({
           <span className="block truncate text-sm text-text-muted">
             {job.company}
           </span>
+          {/* The row is one line wide, so it names the first place and
+              counts the rest, the same way the Jobs list does. */}
           <span className="mt-1 flex items-center gap-1 text-xs text-text-muted">
             <PinIcon />
-            <span className="truncate">{job.location}</span>
+            <span className="truncate">
+              {job.locations[0] ?? job.location}
+            </span>
+            {job.locations.length > 1 ? (
+              <span className="shrink-0 text-text-subtle">
+                +{job.locations.length - 1}
+              </span>
+            ) : null}
           </span>
           {/* The badge leads: how far out of reach a job is is what the
               reader is scanning for, and most of this dataset never recorded

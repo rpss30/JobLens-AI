@@ -217,9 +217,19 @@ function JobRow({
           <span className="block truncate text-sm text-text-muted">
             {job.company}
           </span>
+          {/* The row is one line wide, so it names the first place and
+              counts the rest rather than truncating twelve of them
+              mid-word. */}
           <span className="mt-1 flex items-center gap-1 text-xs text-text-muted">
             <PinIcon />
-            <span className="truncate">{job.location}</span>
+            <span className="truncate">
+              {job.locations[0] ?? job.location}
+            </span>
+            {job.locations.length > 1 ? (
+              <span className="shrink-0 text-text-subtle">
+                +{job.locations.length - 1}
+              </span>
+            ) : null}
           </span>
           {job.date_posted ? (
             <span className="mt-0.5 block text-xs text-text-subtle">
@@ -297,12 +307,17 @@ async function JobDetailPane({
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {job.location ? (
-            <Pill>
-              <PinIcon />
-              {job.location}
-            </Pill>
-          ) : null}
+          {/* One tag per place. A posting open in twelve cities wrote them
+              into a single field, and a single tag holding all of them ran
+              past the edge of the card and could not be read or filtered on. */}
+          {(job.locations.length > 0 ? job.locations : [job.location])
+            .filter(Boolean)
+            .map((place) => (
+              <Pill key={place}>
+                <PinIcon />
+                {place}
+              </Pill>
+            ))}
           {job.date_posted ? (
             <Pill>Posted {formatDate(job.date_posted)}</Pill>
           ) : null}

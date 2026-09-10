@@ -16,6 +16,7 @@ function match(overrides: Partial<JobMatch>): JobMatch {
     company: "Acme",
     company_domain: "acme.com",
     location: "Toronto, ON",
+    locations: ["Toronto, ON"],
     experience_level: "Mid",
     role_category: "Software Engineering",
     date_posted: "",

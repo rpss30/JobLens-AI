@@ -8,6 +8,7 @@ from src.dashboard.services import (
     MAX_UPLOADED_CSV_BYTES,
     MAX_UPLOADED_CSV_ROWS,
     filter_jobs,
+    get_available_locations,
     generate_candidate_report_markdown,
     generate_candidate_report_pdf,
     get_candidate_fit_summary,
@@ -104,6 +105,7 @@ def test_filter_jobs_matches_a_place_exactly_not_by_word() -> None:
             {"title": "C", "location": "Ontario, Canada"},
             {"title": "D", "location": "Toronto, ON"},
             {"title": "E", "location": "Montreal, QC"},
+            {"title": "F", "location": "Madison, WI; Seattle, WA; Austin, TX"},
         ]
     )
 
@@ -123,6 +125,18 @@ def test_filter_jobs_matches_a_place_exactly_not_by_word() -> None:
     assert locations_for("Toronto, ON") == ["Toronto, ON"]
     # Free text nobody counted still falls back to the looser match.
     assert locations_for("Toronto") == ["Toronto, ON"]
+
+    # A posting open in three cities is selected by any of them. The options
+    # are the places, not the string that listed them: offering the whole
+    # string meant picking it matched on the words inside it, and "in" is a
+    # substring of "Austin, TX".
+    offered = get_available_locations(jobs_df)
+
+    assert "Madison, WI; Seattle, WA; Austin, TX" not in offered
+    assert {"Madison, WI", "Seattle, WA", "Austin, TX"}.issubset(offered)
+
+    for city in ("Madison, WI", "Seattle, WA", "Austin, TX"):
+        assert locations_for(city) == ["Madison, WI; Seattle, WA; Austin, TX"]
 
 
 def test_filter_jobs_matches_an_employer_in_full() -> None:

@@ -8,6 +8,7 @@ from src.api.services.analysis_service import clean_optional_text, load_jobs_for
 from src.api.services.listing import paginate_items, sort_items
 from src.analysis.companies import company_domain
 from src.analysis.job_services import filter_jobs
+from src.analysis.location_demand import place_label_lists_by_row
 from src.database import repository as database_repository
 
 
@@ -28,7 +29,7 @@ def clean_optional_flag(value: object) -> bool:
     return clean_optional_text(value).lower() in {"true", "yes", "1"}
 
 
-def build_job_listing_row(row: pd.Series) -> dict:
+def build_job_listing_row(row: pd.Series, locations: list[str] | None = None) -> dict:
     """Map one processed job posting to its browse-friendly listing fields."""
     skills = row.get("extracted_skills", [])
 
@@ -44,6 +45,7 @@ def build_job_listing_row(row: pd.Series) -> dict:
             [row.get("source_url", "")],
         ),
         "location": clean_optional_text(row.get("location", "")),
+        "locations": list(locations or []),
         "experience_level": clean_optional_text(row.get("experience_level", "")),
         "role_category": clean_optional_text(row.get("role_category", "")),
         "employment_type": clean_optional_text(row.get("employment_type", "")),
@@ -182,7 +184,14 @@ def list_jobs(
         role_category=role_category,
     )
 
-    jobs = [build_job_listing_row(row) for _, row in filtered_jobs.iterrows()]
+    # Parsed over the whole result, because folding a spelling back to its
+    # canonical form ("SF" to "San Francisco, CA") reads the other postings
+    # to decide which spelling wins.
+    row_locations = place_label_lists_by_row(filtered_jobs)
+    jobs = [
+        build_job_listing_row(row, locations)
+        for (_, row), locations in zip(filtered_jobs.iterrows(), row_locations)
+    ]
     jobs = sort_items(jobs, sort_by=sort_by, sort_order=sort_order)
 
     return JobListResponse(
@@ -211,9 +220,13 @@ def get_job(*, dataset_name: str | None, job_id: str) -> dict:
         raise ApiError(status_code=404, detail="That job posting was not found.")
 
     row = matches.iloc[0]
+    # Folded against the whole dataset, so a posting read on its own is
+    # tagged with the same labels the browse list gave it.
+    row_locations = place_label_lists_by_row(jobs_df)
+    position = jobs_df.index.get_loc(matches.index[0])
 
     return {
-        **build_job_listing_row(row),
+        **build_job_listing_row(row, row_locations[position]),
         "dataset_name": resolved_dataset_name,
         "description": clean_optional_text(row.get("description", "")),
         # Cleaned only for the NaN a missing value arrives from pandas as:

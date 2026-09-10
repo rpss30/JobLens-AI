@@ -554,13 +554,12 @@ def places_by_row(jobs_df: pd.DataFrame) -> list[list[LocationParts]]:
     return rows
 
 
-def place_labels_by_row(jobs_df: pd.DataFrame) -> list[set[str]]:
-    """Return the place labels each posting is counted under, in row order.
+def place_label_lists_by_row(jobs_df: pd.DataFrame) -> list[list[str]]:
+    """Return the place labels each posting names, in the order it names them.
 
-    The same parsing and folding the ranked list uses, so a filter built on
-    these labels selects exactly the postings a count promised. Matching on
-    words instead lets "Canada" pull in "Remote, Canada" and "Ontario,
-    Canada", and "Toronto, ON" pull in every location holding "on".
+    The ranked list and the filter only need to know which labels a posting
+    carries. A posting showing its places as tags needs them in the order it
+    wrote them, so this keeps that order and the set view is built from it.
     """
     rows = places_by_row(jobs_df)
     counts: dict[LocationParts, int] = defaultdict(int)
@@ -571,7 +570,21 @@ def place_labels_by_row(jobs_df: pd.DataFrame) -> list[set[str]]:
 
     canonical = canonical_spellings(counts)
 
-    return [{canonical.get(parts, parts).label for parts in places} for places in rows]
+    return [
+        list(dict.fromkeys(canonical.get(parts, parts).label for parts in places))
+        for places in rows
+    ]
+
+
+def place_labels_by_row(jobs_df: pd.DataFrame) -> list[set[str]]:
+    """Return the place labels each posting is counted under, in row order.
+
+    The same parsing and folding the ranked list uses, so a filter built on
+    these labels selects exactly the postings a count promised. Matching on
+    words instead lets "Canada" pull in "Remote, Canada" and "Ontario,
+    Canada", and "Toronto, ON" pull in every location holding "on".
+    """
+    return [set(labels) for labels in place_label_lists_by_row(jobs_df)]
 
 
 def resolve_workplace_type(

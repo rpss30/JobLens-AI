@@ -185,12 +185,15 @@ export function MatchDetail({
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {job.location ? (
-            <Pill>
-              <PinIcon />
-              {job.location}
-            </Pill>
-          ) : null}
+          {/* One tag per place, as on the Jobs tab. */}
+          {(job.locations.length > 0 ? job.locations : [job.location])
+            .filter(Boolean)
+            .map((place) => (
+              <Pill key={place}>
+                <PinIcon />
+                {place}
+              </Pill>
+            ))}
           {job.date_posted ? (
             <Pill>Posted {formatDate(job.date_posted)}</Pill>
           ) : null}

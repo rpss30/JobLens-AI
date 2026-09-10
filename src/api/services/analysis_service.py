@@ -386,6 +386,7 @@ def build_analyze_response(
                 [row.get("source_url", "")],
             ),
             "location": str(row["location"]),
+            "locations": list(row.get("locations", []) or []),
             "experience_level": str(row["experience_level"]),
             "role_category": str(row["role_category"]),
             "date_posted": clean_optional_text(row.get("date_posted", "")),

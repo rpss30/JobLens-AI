@@ -377,6 +377,10 @@ class JobListing(BaseModel):
     # Best-effort employer domain, used only to look up a logo.
     company_domain: str = ""
     location: str
+    # The places the posting names, parsed apart. One field routinely lists
+    # several sites, and a single tag holding all of them could not be read
+    # or filtered on.
+    locations: list[str] = Field(default_factory=list)
     experience_level: str
     role_category: str
     employment_type: str = ""
@@ -588,6 +592,8 @@ class JobMatch(BaseModel):
     """Best-effort employer domain, used only to look up a logo."""
     company_domain: str = ""
     location: str
+    # The places the posting names, parsed apart from the one location field.
+    locations: list[str] = Field(default_factory=list)
     experience_level: str
     role_category: str
     date_posted: str = ""

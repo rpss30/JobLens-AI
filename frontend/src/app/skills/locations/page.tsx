@@ -251,7 +251,7 @@ function RankRow({
 
 async function JobLocations({ datasetName }: { datasetName: string }) {
   // 25 is the API's ceiling, and enough for a map and a ranking.
-  const insights = await getMarketInsights({ datasetName, topN: 25 });
+  const insights = await getMarketInsights({ datasetName, topN: 10 });
   const locations = insights.jobs_by_location;
 
   const pins: MapPin[] = [];

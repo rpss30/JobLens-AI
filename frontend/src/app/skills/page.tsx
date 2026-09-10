@@ -78,7 +78,7 @@ function RankRow({
 
 async function SkillsDemand({ datasetName }: { datasetName: string }) {
   // 25 is the API's ceiling for this call, and enough to rank meaningfully.
-  const insights = await getMarketInsights({ datasetName, topN: 25 });
+  const insights = await getMarketInsights({ datasetName, topN: 10 });
 
   const ranked = insights.skill_demand.map((item) => ({
     label: formatSkill(item.skill),

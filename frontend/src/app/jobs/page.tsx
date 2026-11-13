@@ -17,7 +17,12 @@ import {
 } from "@/lib/api/endpoints";
 import type { JobListing, SearchMode } from "@/lib/api/types";
 import { resolveDataset } from "@/lib/datasets";
-import { formatCount, formatDate, formatDatasetLabel } from "@/lib/format";
+import {
+  formatCount,
+  formatDate,
+  formatDatasetLabel,
+  locationTag,
+} from "@/lib/format";
 import { pageWindow } from "@/lib/pagination";
 import { PageHeader } from "@/components/layout/PageHeader";
 
@@ -190,11 +195,15 @@ function JobRow({
   job,
   href,
   isSelected,
+  selectedLocation,
 }: {
   job: JobListing;
   href: string;
   isSelected: boolean;
+  /** The place the reader filtered on, so the row leads with it. */
+  selectedLocation: string;
 }) {
+  const place = locationTag(job.locations, job.location, selectedLocation);
   return (
     <li>
       <Link
@@ -217,20 +226,17 @@ function JobRow({
           <span className="block truncate text-sm text-text-muted">
             {job.company}
           </span>
-          {/* The row is one line wide, so it names the first place and
-              counts the rest rather than truncating twelve of them
-              mid-word. */}
-          <span className="mt-1 flex items-center gap-1 text-xs text-text-muted">
-            <PinIcon />
-            <span className="truncate">
-              {job.locations[0] ?? job.location}
+          {place ? (
+            <span className="mt-1 flex items-center gap-1 text-xs text-text-muted">
+              <PinIcon />
+              <span className="truncate">{place.lead}</span>
+              {place.extraCount > 0 ? (
+                <span className="shrink-0 text-text-subtle">
+                  +{place.extraCount}
+                </span>
+              ) : null}
             </span>
-            {job.locations.length > 1 ? (
-              <span className="shrink-0 text-text-subtle">
-                +{job.locations.length - 1}
-              </span>
-            ) : null}
-          </span>
+          ) : null}
           {job.date_posted ? (
             <span className="mt-0.5 block text-xs text-text-subtle">
               {formatDate(job.date_posted)}
@@ -249,11 +255,15 @@ function JobDetailSkeleton() {
 async function JobDetailPane({
   jobId,
   datasetName,
+  selectedLocation,
 }: {
   jobId: string;
   datasetName: string;
+  /** The place the reader filtered on, so the tag leads with it. */
+  selectedLocation: string;
 }) {
   const job = await getJob(jobId, datasetName);
+  const place = locationTag(job.locations, job.location, selectedLocation);
 
   // Saved jobs need PostgreSQL. Browsing should not stop when it is down, so
   // an unreachable list only means nothing is known to be saved.
@@ -307,17 +317,15 @@ async function JobDetailPane({
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {/* One tag per place. A posting open in twelve cities wrote them
-              into a single field, and a single tag holding all of them ran
-              past the edge of the card and could not be read or filtered on. */}
-          {(job.locations.length > 0 ? job.locations : [job.location])
-            .filter(Boolean)
-            .map((place) => (
-              <Pill key={place}>
-                <PinIcon />
-                {place}
-              </Pill>
-            ))}
+          {/* One tag, not one per place: twelve of them wrapped over three
+              lines and pushed the rest of the header off the card. */}
+          {place ? (
+            <Pill>
+              <PinIcon />
+              {place.lead}
+              {place.extraCount > 0 ? ` +${place.extraCount} more` : ""}
+            </Pill>
+          ) : null}
           {job.date_posted ? (
             <Pill>Posted {formatDate(job.date_posted)}</Pill>
           ) : null}
@@ -375,6 +383,8 @@ async function JobResults({
   // Carried by every link on the page: opening a posting or turning a page is
   // not a reason for the panel someone just opened to shut itself.
   const filtersParam = filtersOpen ? "open" : "";
+  // "Any" is the absence of a choice, so it never leads a tag.
+  const activeLocation = values.location === "Any" ? "" : values.location;
   const jobList = await getJobs({
     datasetName,
     searchQuery: values.q,
@@ -446,6 +456,7 @@ async function JobResults({
             <JobRow
               key={job.job_id || `${job.title}-${job.company}-${index}`}
               job={job}
+              selectedLocation={activeLocation}
               href={buildJobsHref(
                 datasetName,
                 values,
@@ -574,7 +585,11 @@ async function JobResults({
 
         <div className="lg:absolute lg:inset-0 lg:overflow-hidden">
           <Suspense key={selectedJob.job_id} fallback={<JobDetailSkeleton />}>
-            <JobDetailPane jobId={selectedJob.job_id} datasetName={datasetName} />
+            <JobDetailPane
+              jobId={selectedJob.job_id}
+              datasetName={datasetName}
+              selectedLocation={activeLocation}
+            />
           </Suspense>
         </div>
       </div>

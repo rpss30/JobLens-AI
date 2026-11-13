@@ -6,6 +6,7 @@ import {
   formatDatasetLabel,
   formatPercent,
   formatSkill,
+  locationTag,
 } from "@/lib/format";
 
 describe("formatCount", () => {
@@ -72,5 +73,41 @@ describe("formatDatasetLabel", () => {
 
   it("shows an uploaded dataset's own name", () => {
     expect(formatDatasetLabel("my_upload")).toBe("my_upload");
+  });
+});
+
+describe("locationTag", () => {
+  const places = ["Madison, WI", "Seattle, WA", "Austin, TX"];
+
+  it("names the first place and counts the rest", () => {
+    expect(locationTag(places, "")).toEqual({
+      lead: "Madison, WI",
+      extraCount: 2,
+    });
+  });
+
+  it("leads with the place the reader asked for", () => {
+    expect(locationTag(places, "", "Seattle, WA")).toEqual({
+      lead: "Seattle, WA",
+      extraCount: 2,
+    });
+  });
+
+  it("ignores a filter the posting does not answer", () => {
+    expect(locationTag(places, "", "Toronto, ON")).toEqual({
+      lead: "Madison, WI",
+      extraCount: 2,
+    });
+  });
+
+  it("falls back to the raw field when nothing was parsed", () => {
+    expect(locationTag([], "Somewhere odd")).toEqual({
+      lead: "Somewhere odd",
+      extraCount: 0,
+    });
+  });
+
+  it("gives nothing when the posting names nowhere", () => {
+    expect(locationTag([], "")).toBeNull();
   });
 });

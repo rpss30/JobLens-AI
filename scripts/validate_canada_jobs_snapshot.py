@@ -219,21 +219,33 @@ def main(
         baseline_df=baseline_df,
     )
 
-    if errors:
-        formatted_errors = "\n".join(f"- {error}" for error in errors)
-        raise ValueError(
-            f"Canada snapshot validation failed:\n{formatted_errors}"
-        )
-
     summary = build_markdown_summary(
         metrics,
         baseline_count=len(baseline_df) if baseline_df is not None else None,
     )
+
+    if errors:
+        formatted_errors = "\n".join(f"- {error}" for error in errors)
+        # Written before raising, so a failed refresh still says which gate it
+        # missed and by how much. Raising first left the numbers only in the
+        # raw job log: the failure notification named no cause at all, and a
+        # refresh that had been broken for ten weeks looked the same every
+        # week from the outside.
+        summary = (
+            f"{summary}\n\n### Gates not met\n\n{formatted_errors}\n"
+        )
+
     print(summary)
 
     if summary_path is not None:
         summary_path.parent.mkdir(parents=True, exist_ok=True)
         summary_path.write_text(summary, encoding="utf-8")
+
+    if errors:
+        formatted_errors = "\n".join(f"- {error}" for error in errors)
+        raise ValueError(
+            f"Canada snapshot validation failed:\n{formatted_errors}"
+        )
 
 
 if __name__ == "__main__":

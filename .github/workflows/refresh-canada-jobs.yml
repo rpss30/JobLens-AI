@@ -23,12 +23,12 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: main
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           cache: "pip"
@@ -78,6 +78,17 @@ jobs:
             --summary-path /tmp/snapshot-quality.md
           cp /tmp/canada_jobs_snapshot.csv \
             data/processed/canada_jobs_snapshot.csv
+
+      # Runs even when the gate above stopped the job, so the run's own
+      # summary names which gate was missed and by how much. Until this
+      # existed the numbers lived only in the raw log, and ten consecutive
+      # failures looked identical from the notification email.
+      - name: Publish snapshot quality summary
+        if: always() && steps.groq_config.outputs.configured == 'true'
+        run: |
+          if [ -f /tmp/snapshot-quality.md ]; then
+            cat /tmp/snapshot-quality.md >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Run test suite
         if: steps.groq_config.outputs.configured == 'true'

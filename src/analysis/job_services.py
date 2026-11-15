@@ -41,7 +41,10 @@ from src.matching.skill_requirements import (
     classify_job_skill_requirements,
     requirement_weight_multiplier,
 )
-from src.analysis.location_demand import place_labels_by_row
+from src.analysis.location_demand import (
+    place_label_lists_by_row,
+    place_labels_by_row,
+)
 from src.processing.job_processor import process_jobs
 from src.search.semantic_search import (
     HYBRID_SEARCH_MODE,
@@ -55,6 +58,7 @@ from src.search.semantic_search import (
 RAW_DATA_PATH = "data/raw/sample_jobs.csv"
 PROCESSED_DATA_PATH = "data/processed/processed_jobs.csv"
 CANADA_JOBS_SNAPSHOT_PATH = "data/processed/canada_jobs_snapshot.csv"
+EARLY_CAREER_GLOBAL_PATH = "data/processed/early_career_global_jobs.csv"
 MAX_UPLOADED_CSV_BYTES = 2 * 1024 * 1024
 MAX_UPLOADED_CSV_ROWS = 5_000
 ALLOWED_UPLOAD_EXTENSIONS = {".csv"}
@@ -762,13 +766,17 @@ def get_available_locations(df: pd.DataFrame) -> list[str]:
     if df.empty or "location" not in df.columns:
         return []
 
-    return sorted(
-        df["location"]
-        .dropna()
-        .astype(str)
-        .unique()
-        .tolist()
-    )
+    # The places a posting names, not the string it wrote them in. One field
+    # routinely lists several sites, and offering the whole string as a single
+    # option meant picking "Alberta, Canada; Remote in Canada" selected on the
+    # words in it: "in" is a substring of "Austin, TX", so a Canadian filter
+    # returned 56 American postings. These are the same labels the ranked list
+    # counts under, so choosing one selects exactly the postings behind it.
+    return sorted({
+        label
+        for labels in place_label_lists_by_row(df)
+        for label in labels
+    })
 
 
 def get_dataset_snapshot_summary(df: pd.DataFrame) -> dict[str, object]:
@@ -858,9 +866,12 @@ def get_job_match_details(
         required_skills=all_required_skills,
     )
 
+    # Parsed over the whole result, because folding a spelling back to its
+    # canonical form reads the other postings to decide which spelling wins.
+    row_locations = place_label_lists_by_row(filtered_jobs)
     rows = []
 
-    for _, row in filtered_jobs.iterrows():
+    for (_, row), job_locations in zip(filtered_jobs.iterrows(), row_locations):
         job_skills_raw = row.get("extracted_skills", [])
         job_skills = []
 
@@ -901,6 +912,7 @@ def get_job_match_details(
             "title": row["title"],
             "company": row["company"],
             "location": row["location"],
+            "locations": list(job_locations),
             "experience_level": row["experience_level"],
             "role_category": role_category,
             "date_posted": str(row.get("date_posted", "") or ""),
@@ -1074,8 +1086,14 @@ def get_recommended_skills(
             columns=["skill", "score", "job_count", "avg_weight"]
         )
 
+    # Ranked by the number of postings asking for the skill, which is the
+    # figure the chart draws and labels. Ranking by the weighted score put a
+    # skill twelve postings ask for above one fifteen ask for, so the leading
+    # bar was not the tallest and the ranking read as though it came from a
+    # different dataset than the counts. The score still breaks ties, so a
+    # skill a posting requires outranks one it merely prefers.
     recommendations_df = recommendations_df.sort_values(
-        by=["score", "job_count", "avg_weight"],
+        by=["job_count", "score", "avg_weight"],
         ascending=False,
     ).head(top_n)
 

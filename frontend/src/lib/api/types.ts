@@ -60,6 +60,8 @@ export interface JobListing {
   /** Best-effort employer domain, used only to look up a logo. */
   company_domain: string;
   location: string;
+  /** The places the posting names, parsed apart from the one location field. */
+  locations: string[];
   experience_level: string;
   role_category: string;
   employment_type: string;
@@ -218,6 +220,8 @@ export interface JobMatch {
   /** Best-effort employer domain, used only to look up a logo. */
   company_domain: string;
   location: string;
+  /** The places the posting names, parsed apart from the one location field. */
+  locations: string[];
   experience_level: string;
   role_category: string;
   date_posted: string;

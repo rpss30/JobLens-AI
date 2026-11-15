@@ -19,11 +19,16 @@ from src.skill_extraction.schema import (
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_GROQ_MODEL = "openai/gpt-oss-20b"
+# Measured over 16 postings from the committed snapshot: gpt-oss-120b
+# extracted skills from all 16 and averaged 11.3 per posting, while
+# gpt-oss-20b failed 6 of them outright and averaged 8.7 on the rest. The
+# smaller model was also slower overall, spending 88s against 35s, because a
+# failing call burns reasoning tokens before giving up.
+DEFAULT_GROQ_MODEL = "openai/gpt-oss-120b"
 # Providers retire models on their own schedule. When the configured model is
 # gone the whole ingestion run silently degrades to dictionary extraction, so a
 # second model is tried before giving up.
-DEFAULT_GROQ_MODEL_FALLBACKS = ("openai/gpt-oss-120b",)
+DEFAULT_GROQ_MODEL_FALLBACKS = ("openai/gpt-oss-20b",)
 
 # Models this process has already seen reported as retired. Without this, every
 # posting in a run would pay for the same failed call.
@@ -74,6 +79,20 @@ def is_model_unavailable_error(error: Exception) -> bool:
     return "model_not_found" in message or "does not exist" in message
 
 
+def is_schema_failure_error(error: Exception) -> bool:
+    """True when the model answered but not in the shape the schema requires.
+
+    Groq rejects its own generation with 400 `json_validate_failed`, often with
+    an empty `failed_generation`, when a model cannot hold the structured
+    contract. Unlike a retirement this says nothing about the model's
+    availability, so the model keeps its place for later postings, but there is
+    no point asking it again for this one.
+    """
+    message = str(error).lower()
+
+    return "json_validate_failed" in message or "failed to validate json" in message
+
+
 @dataclass(frozen=True)
 class GroqSkillExtractionResult:
     """Structured result returned by the Groq skill extractor."""
@@ -114,6 +133,7 @@ def extract_skills_with_groq(
     candidates = get_groq_model_candidates(model)
     client = Groq(api_key=api_key)
     attempted: list[str] = []
+    schema_failures: list[str] = []
 
     for candidate in candidates:
         if candidate in _unavailable_models:
@@ -145,15 +165,26 @@ def extract_skills_with_groq(
                 response_format={"type": "json_object"},
             )
         except Exception as error:
-            if not is_model_unavailable_error(error):
-                raise
+            if is_model_unavailable_error(error):
+                _unavailable_models.add(candidate)
+                logger.warning(
+                    "Groq model %s is unavailable; falling back to the next model.",
+                    candidate,
+                )
+                continue
 
-            _unavailable_models.add(candidate)
-            logger.warning(
-                "Groq model %s is unavailable; falling back to the next model.",
-                candidate,
-            )
-            continue
+            if is_schema_failure_error(error):
+                # Kept out of _unavailable_models deliberately: the same model
+                # answers other postings fine, so disqualifying it for the rest
+                # of the run would cost far more than one retry.
+                schema_failures.append(f"{candidate}: {error}")
+                logger.warning(
+                    "Groq model %s could not answer in schema; trying the next model.",
+                    candidate,
+                )
+                continue
+
+            raise
 
         raw_response = completion.choices[0].message.content or ""
         parsed_response = parse_skill_extraction_json(
@@ -169,6 +200,12 @@ def extract_skills_with_groq(
             # the snapshot records which model produced each extraction.
             model=candidate,
             prompt_version=parsed_response.prompt_version,
+        )
+
+    if schema_failures:
+        raise RuntimeError(
+            "No configured Groq model could answer in the required schema. "
+            + " | ".join(schema_failures)
         )
 
     raise RuntimeError(

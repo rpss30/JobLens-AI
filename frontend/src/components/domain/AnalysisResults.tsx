@@ -236,6 +236,7 @@ export function AnalysisResults({
               jobs={matchedJobs}
               datasetName={datasetName}
               savedJobIds={savedJobIds}
+              selectedLocation={filters.location === "Any" ? "" : filters.location}
               isReadingOne={isReadingOne}
               onReadingOneChange={onReadingOneChange}
               filtersPanel={

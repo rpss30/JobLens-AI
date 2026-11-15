@@ -7,7 +7,7 @@ import { MatchDetail } from "@/components/domain/MatchDetail";
 import { ExperienceFitBadge } from "@/components/domain/MatchMarks";
 import { Card } from "@/components/ui/Card";
 import type { JobMatch } from "@/lib/api/types";
-import { formatCount, formatDate } from "@/lib/format";
+import { formatCount, formatDate, locationTag } from "@/lib/format";
 import { pageWindow } from "@/lib/pagination";
 
 const PAGE_SIZE = 12;
@@ -54,11 +54,16 @@ function MatchRow({
   job,
   isSelected,
   onSelect,
+  selectedLocation,
 }: {
   job: JobMatch;
   isSelected: boolean;
   onSelect: () => void;
+  /** The place the reader filtered on, so the row leads with it. */
+  selectedLocation: string;
 }) {
+  const place = locationTag(job.locations, job.location, selectedLocation);
+
   return (
     <li>
       <button
@@ -89,10 +94,17 @@ function MatchRow({
           <span className="block truncate text-sm text-text-muted">
             {job.company}
           </span>
-          <span className="mt-1 flex items-center gap-1 text-xs text-text-muted">
-            <PinIcon />
-            <span className="truncate">{job.location}</span>
-          </span>
+          {place ? (
+            <span className="mt-1 flex items-center gap-1 text-xs text-text-muted">
+              <PinIcon />
+              <span className="truncate">{place.lead}</span>
+              {place.extraCount > 0 ? (
+                <span className="shrink-0 text-text-subtle">
+                  +{place.extraCount}
+                </span>
+              ) : null}
+            </span>
+          ) : null}
           {/* The badge leads: how far out of reach a job is is what the
               reader is scanning for, and most of this dataset never recorded
               a date to put in front of it. */}
@@ -121,6 +133,7 @@ export function MatchResults({
   jobs,
   datasetName,
   savedJobIds,
+  selectedLocation,
   filtersPanel,
   isReadingOne,
   onReadingOneChange,
@@ -129,6 +142,8 @@ export function MatchResults({
   jobs: JobMatch[];
   datasetName: string;
   savedJobIds: string[];
+  /** The place the reader filtered on, so a tag leads with it. */
+  selectedLocation: string;
   /** Rendered as the top of the shared card, or nothing while it is shut. */
   filtersPanel: ReactNode;
   /*
@@ -226,6 +241,7 @@ export function MatchResults({
                 job={job}
                 isSelected={job.job_id === selected?.job_id}
                 onSelect={() => openMatch(job)}
+                selectedLocation={selectedLocation}
               />
             ))}
           </ul>
@@ -322,6 +338,7 @@ export function MatchResults({
                 job={selected}
                 datasetName={datasetName}
                 isSaved={savedIds.has(selected.job_id)}
+                selectedLocation={selectedLocation}
               />
             ) : null}
           </div>

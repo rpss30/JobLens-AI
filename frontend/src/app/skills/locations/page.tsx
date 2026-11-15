@@ -251,7 +251,7 @@ function RankRow({
 
 async function JobLocations({ datasetName }: { datasetName: string }) {
   // 25 is the API's ceiling, and enough for a map and a ranking.
-  const insights = await getMarketInsights({ datasetName, topN: 25 });
+  const insights = await getMarketInsights({ datasetName, topN: 10 });
   const locations = insights.jobs_by_location;
 
   const pins: MapPin[] = [];
@@ -272,10 +272,10 @@ async function JobLocations({ datasetName }: { datasetName: string }) {
     }
   }
 
-  // Only cities are ranked. A country-wide or province-wide row is not a
-  // place you could take a job in, and "Canada" heading the list above
-  // Toronto told the reader nothing. Those rows keep their counts in the
-  // cards under the map instead.
+  // Only cities are ranked. A country-wide or region-wide row is not a
+  // place you could take a job in, and "United States" heading the list above
+  // San Francisco tells the reader nothing. Those rows keep their counts in
+  // the cards under the map instead.
   const ranked = locations.filter((row) => row.city);
   const topValue = ranked[0]?.job_count ?? 0;
 
@@ -297,14 +297,19 @@ async function JobLocations({ datasetName }: { datasetName: string }) {
               Map view
             </h2>
 
-            <div className="relative min-h-64 flex-1">
+            {/* The legend sat over the top-right corner of the map, which
+                worked while the outline was Canada and taller than it was
+                wide. North America is a wide, short drawing and the panel
+                covered the northeast, so it reads underneath now and takes
+                the space the shorter map leaves behind. */}
+            <div className="flex min-h-64 flex-1 flex-col gap-3">
               <LocationMap pins={pins} />
 
               {unplaceable.length > 0 ||
               insights.postings_without_location > 0 ? (
-                <div className="absolute right-0 top-0 w-44 rounded-lg border border-border bg-surface/95 p-2.5">
+                <div className="w-44 self-end rounded-lg border border-border bg-surface/95 p-2.5">
                   <p className="mb-1.5 text-[0.6875rem] font-medium uppercase tracking-wide text-text-subtle">
-                    Not tied to a city
+                    Others
                   </p>
                   <ul className="space-y-1">
                     {unplaceable.map((row) => (

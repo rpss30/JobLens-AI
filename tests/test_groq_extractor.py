@@ -57,9 +57,15 @@ def test_parse_groq_skill_response_requires_skills_list():
 class FakeCompletions:
     """Minimal stand-in for the Groq chat completions client."""
 
-    def __init__(self, retired_models: set[str], response_text: str) -> None:
+    def __init__(
+        self,
+        retired_models: set[str],
+        response_text: str,
+        schema_failure_models: set[str] | None = None,
+    ) -> None:
         self.retired_models = retired_models
         self.response_text = response_text
+        self.schema_failure_models = schema_failure_models or set()
         self.requested_models: list[str] = []
 
     def create(self, *, model: str, **_: object):
@@ -72,13 +78,28 @@ class FakeCompletions:
                 "'code': 'model_not_found'}}"
             )
 
+        if model in self.schema_failure_models:
+            raise RuntimeError(
+                "Error code: 400 - {'error': {'message': 'Failed to validate "
+                "JSON. Please adjust your prompt.', 'code': "
+                "'json_validate_failed', 'failed_generation': ''}}"
+            )
+
         message = type("Message", (), {"content": self.response_text})
         choice = type("Choice", (), {"message": message()})
         return type("Completion", (), {"choices": [choice()]})()
 
 
-def build_fake_groq(monkeypatch, retired_models: set[str]) -> FakeCompletions:
-    completions = FakeCompletions(retired_models, '{"skills": ["Python", "SQL"]}')
+def build_fake_groq(
+    monkeypatch,
+    retired_models: set[str],
+    schema_failure_models: set[str] | None = None,
+) -> FakeCompletions:
+    completions = FakeCompletions(
+        retired_models,
+        '{"skills": ["Python", "SQL"]}',
+        schema_failure_models,
+    )
 
     class FakeGroq:
         def __init__(self, **_: object) -> None:
@@ -189,3 +210,68 @@ def test_configured_fallbacks_override_the_defaults(monkeypatch):
 
     assert result.model == "second-choice"
     assert completions.requested_models == ["first-choice", "second-choice"]
+
+
+def test_a_model_that_cannot_answer_in_schema_falls_through(monkeypatch):
+    """Groq answers 400 json_validate_failed when a model breaks the contract.
+
+    This used to re-raise, so the configured fallback was never reached and
+    both attempts spent themselves on the same broken model. It is why the
+    weekly refresh sat at 77.6% Groq coverage against a 95% gate.
+    """
+    completions = build_fake_groq(
+        monkeypatch,
+        retired_models=set(),
+        schema_failure_models={groq_extractor.DEFAULT_GROQ_MODEL},
+    )
+
+    result = groq_extractor.extract_skills_with_groq(
+        title="Data Engineer",
+        description="Python and SQL pipelines.",
+    )
+
+    assert result.skills == ["python", "sql"]
+    assert result.model == groq_extractor.DEFAULT_GROQ_MODEL_FALLBACKS[0]
+    assert completions.requested_models == [
+        groq_extractor.DEFAULT_GROQ_MODEL,
+        groq_extractor.DEFAULT_GROQ_MODEL_FALLBACKS[0],
+    ]
+
+
+def test_a_schema_failure_does_not_disqualify_the_model_for_later_postings(monkeypatch):
+    # Unlike a retirement, this says nothing about availability: the same model
+    # answered 10 of 16 sampled postings. Disqualifying it for the whole run
+    # would cost far more than one retry.
+    completions = build_fake_groq(
+        monkeypatch,
+        retired_models=set(),
+        schema_failure_models={groq_extractor.DEFAULT_GROQ_MODEL},
+    )
+
+    for _ in range(3):
+        groq_extractor.extract_skills_with_groq(
+            title="Data Engineer",
+            description="Python and SQL pipelines.",
+        )
+
+    asked = completions.requested_models.count(groq_extractor.DEFAULT_GROQ_MODEL)
+
+    assert asked == 3
+
+
+def test_every_model_failing_the_schema_names_that_as_the_cause(monkeypatch):
+    every_model = {
+        groq_extractor.DEFAULT_GROQ_MODEL,
+        *groq_extractor.DEFAULT_GROQ_MODEL_FALLBACKS,
+    }
+    build_fake_groq(
+        monkeypatch,
+        retired_models=set(),
+        schema_failure_models=every_model,
+    )
+
+    with pytest.raises(RuntimeError, match="could answer in the required schema"):
+        groq_extractor.extract_skills_with_groq(
+            title="Data Engineer",
+            description="Python and SQL pipelines.",
+        )

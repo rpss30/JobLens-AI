@@ -96,7 +96,41 @@ export function formatDatasetLabel(datasetName: string): string {
   const labels: Record<string, string> = {
     local_sample: "Local sample",
     canada_snapshot: "Canada snapshot",
+    early_career_global: "Global early career",
   };
 
   return labels[datasetName] ?? datasetName;
+}
+
+export interface LocationTag {
+  /** The place the tag names outright. */
+  lead: string;
+  /** How many further places the posting lists. */
+  extraCount: number;
+}
+
+/**
+ * Reduces the places a posting names to one tag.
+ *
+ * A posting open in twelve cities gets one tag rather than twelve: the row of
+ * them wrapped over three lines and pushed everything else out of the header.
+ *
+ * The lead is the place the reader asked for, where they asked for one. A
+ * posting that answers a search for Seattle should say so, not name whichever
+ * city the board happened to list first.
+ */
+export function locationTag(
+  locations: string[],
+  fallback: string,
+  selected?: string,
+): LocationTag | null {
+  const places = (locations.length > 0 ? locations : [fallback]).filter(Boolean);
+
+  if (places.length === 0) {
+    return null;
+  }
+
+  const asked = selected && places.includes(selected) ? selected : places[0];
+
+  return { lead: asked, extraCount: places.length - 1 };
 }

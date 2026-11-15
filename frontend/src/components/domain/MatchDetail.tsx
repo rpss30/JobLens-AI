@@ -8,7 +8,7 @@ import { JobDescription } from "@/components/domain/JobDescription";
 import { ExperienceFitBadge, SkillTag } from "@/components/domain/MatchMarks";
 import { CardSkeleton } from "@/components/ui/States";
 import type { JobDetail, JobMatch } from "@/lib/api/types";
-import { formatDate } from "@/lib/format";
+import { formatDate, locationTag } from "@/lib/format";
 
 function BuildingIcon() {
   return (
@@ -69,11 +69,15 @@ export function MatchDetail({
   job,
   datasetName,
   isSaved,
+  selectedLocation,
 }: {
   job: JobMatch;
   datasetName: string;
   isSaved: boolean;
+  /** The place the reader filtered on, so the tag leads with it. */
+  selectedLocation: string;
 }) {
+  const place = locationTag(job.locations, job.location, selectedLocation);
   const [detail, setDetail] = useState<JobDetail | null>(null);
   /*
    * Opening another match remounts this panel on its key, so there is no
@@ -185,10 +189,12 @@ export function MatchDetail({
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {job.location ? (
+          {/* One tag, as on the Jobs tab. */}
+          {place ? (
             <Pill>
               <PinIcon />
-              {job.location}
+              {place.lead}
+              {place.extraCount > 0 ? ` +${place.extraCount} more` : ""}
             </Pill>
           ) : null}
           {job.date_posted ? (

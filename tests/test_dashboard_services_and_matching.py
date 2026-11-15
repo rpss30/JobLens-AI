@@ -8,6 +8,7 @@ from src.dashboard.services import (
     MAX_UPLOADED_CSV_BYTES,
     MAX_UPLOADED_CSV_ROWS,
     filter_jobs,
+    get_available_locations,
     generate_candidate_report_markdown,
     generate_candidate_report_pdf,
     get_candidate_fit_summary,
@@ -104,6 +105,7 @@ def test_filter_jobs_matches_a_place_exactly_not_by_word() -> None:
             {"title": "C", "location": "Ontario, Canada"},
             {"title": "D", "location": "Toronto, ON"},
             {"title": "E", "location": "Montreal, QC"},
+            {"title": "F", "location": "Madison, WI; Seattle, WA; Austin, TX"},
         ]
     )
 
@@ -123,6 +125,18 @@ def test_filter_jobs_matches_a_place_exactly_not_by_word() -> None:
     assert locations_for("Toronto, ON") == ["Toronto, ON"]
     # Free text nobody counted still falls back to the looser match.
     assert locations_for("Toronto") == ["Toronto, ON"]
+
+    # A posting open in three cities is selected by any of them. The options
+    # are the places, not the string that listed them: offering the whole
+    # string meant picking it matched on the words inside it, and "in" is a
+    # substring of "Austin, TX".
+    offered = get_available_locations(jobs_df)
+
+    assert "Madison, WI; Seattle, WA; Austin, TX" not in offered
+    assert {"Madison, WI", "Seattle, WA", "Austin, TX"}.issubset(offered)
+
+    for city in ("Madison, WI", "Seattle, WA", "Austin, TX"):
+        assert locations_for(city) == ["Madison, WI; Seattle, WA; Austin, TX"]
 
 
 def test_filter_jobs_matches_an_employer_in_full() -> None:
@@ -501,6 +515,47 @@ def test_get_job_match_details_explains_experience_fit() -> None:
                 "extracted_skills": ["Python", "REST APIs", "PostgreSQL"],
                 "skills_text": "Python, REST APIs, PostgreSQL",
             },
+            {
+                "title": "Entry Level Software Developer",
+                "company": "TenureCo",
+                "location": "Toronto ON",
+                "experience_level": "Entry Level",
+                "role_category": "Software Engineering",
+                "description": (
+                    "Come experience why so many employees have been with us "
+                    "for 5 to 10+ years and continue to make it their home."
+                ),
+                "extracted_skills": ["Python", "REST APIs", "PostgreSQL"],
+                "skills_text": "Python, REST APIs, PostgreSQL",
+            },
+            {
+                "title": "Cleared Software Engineer",
+                "company": "ClearedCo",
+                "location": "Toronto ON",
+                "experience_level": "Entry Level",
+                "role_category": "Software Engineering",
+                "description": (
+                    "Required skills: must hold an active clearance with "
+                    "polygraph (within last 5 years). No demonstrated "
+                    "experience is required."
+                ),
+                "extracted_skills": ["Python", "REST APIs", "PostgreSQL"],
+                "skills_text": "Python, REST APIs, PostgreSQL",
+            },
+            {
+                "title": "Cloud Engineer 1",
+                "company": "LadderCo",
+                "location": "Toronto ON",
+                "experience_level": "Any",
+                "role_category": "Software Engineering",
+                "description": (
+                    "A bachelor's degree and 0 years of experience in cloud "
+                    "engineering, or a minimum of 4 years of experience in a "
+                    "related technical field."
+                ),
+                "extracted_skills": ["Python", "REST APIs", "PostgreSQL"],
+                "skills_text": "Python, REST APIs, PostgreSQL",
+            },
         ]
     )
 
@@ -523,6 +578,27 @@ def test_get_job_match_details_explains_experience_fit() -> None:
     assert junior_job["required_experience"] == "Entry Level inferred"
     assert junior_job["experience_requirement_source"] == "experience_level"
     assert junior_job["experience_fit"] == "Meets requirement"
+
+    # How long the staff have stayed is not what the opening asks of the
+    # reader. Read as a requirement, it turned an entry-level posting into a
+    # ten-year stretch.
+    tenure_job = job_match_df[job_match_df["company"] == "TenureCo"].iloc[0]
+
+    assert tenure_job["required_experience_years"] == 0
+    assert tenure_job["experience_fit"] == "Meets requirement"
+
+    # A recency window on a credential, sitting beside a sentence saying the
+    # role wants no experience at all.
+    cleared_job = job_match_df[job_match_df["company"] == "ClearedCo"].iloc[0]
+
+    assert cleared_job["required_experience_years"] == 0
+    assert cleared_job["experience_fit"] == "Meets requirement"
+
+    # Alternative routes in state one bar each, not several to clear at once.
+    ladder_job = job_match_df[job_match_df["company"] == "LadderCo"].iloc[0]
+
+    assert ladder_job["required_experience_years"] == 0
+    assert ladder_job["experience_requirement_source"] == "description"
 
 
 def test_get_job_match_details_explains_required_and_preferred_skills() -> None:
@@ -645,6 +721,13 @@ def test_get_recommended_skills_excludes_user_skills() -> None:
     assert "python" not in recommended_skills
     assert "sql" not in recommended_skills
     assert "docker" in recommended_skills
+
+    # Ranked by the count the chart draws. Ranking by the weighted score put
+    # a skill twelve postings asked for above one fifteen asked for, so the
+    # leading bar was not the tallest one.
+    job_counts = recommended_skills_df["job_count"].tolist()
+
+    assert job_counts == sorted(job_counts, reverse=True)
 
 def test_score_roles_returns_zero_for_empty_user_skills() -> None:
     jobs_df = make_sample_jobs_df()

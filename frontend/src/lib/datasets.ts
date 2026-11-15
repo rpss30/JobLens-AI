@@ -7,6 +7,11 @@ export const LOCAL_DATASETS = [
     group: "Bundled datasets",
   },
   {
+    value: "early_career_global",
+    label: "Global early career",
+    group: "Bundled datasets",
+  },
+  {
     value: "local_sample",
     label: "Local sample",
     group: "Bundled datasets",

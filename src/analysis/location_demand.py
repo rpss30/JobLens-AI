@@ -235,6 +235,38 @@ class LocationDemandSummary:
     postings_without_location: int = 0
 
 
+def text_or_blank(value: object) -> str:
+    """Return a cell's text, reading a missing value as no text at all.
+
+    pandas fills a blank column with NaN, and NaN is truthy, so the usual
+    `value or ""` guard hands it straight to str() and the word "nan" comes
+    out the other side. That is how "nan" came to head the workplace-type
+    rollup with 294 postings behind it on a dataset that never declares one.
+    """
+    if value is None:
+        return ""
+
+    if isinstance(value, float) and pd.isna(value):
+        return ""
+
+    return str(value)
+
+
+def flag_or_false(value: object) -> bool:
+    """Return a cell's boolean, reading a missing value as false.
+
+    bool(NaN) is True, so a blank column would otherwise mark every posting
+    in it remote.
+    """
+    if value is None:
+        return False
+
+    if isinstance(value, float) and pd.isna(value):
+        return False
+
+    return bool(value)
+
+
 def split_sites(location: str) -> list[str]:
     """Split a location field into the individual sites it lists."""
     fragments = SITE_SEPARATORS.split(PARENTHETICAL.sub(" ", location))
@@ -509,7 +541,7 @@ def places_by_row(jobs_df: pd.DataFrame) -> list[list[LocationParts]]:
     rows: list[list[LocationParts]] = []
 
     for _, row in jobs_df.iterrows():
-        location = str(row.get("location") or "").strip()
+        location = text_or_blank(row.get("location")).strip()
         places = [
             parts
             for fragment in split_sites(location)
@@ -522,13 +554,12 @@ def places_by_row(jobs_df: pd.DataFrame) -> list[list[LocationParts]]:
     return rows
 
 
-def place_labels_by_row(jobs_df: pd.DataFrame) -> list[set[str]]:
-    """Return the place labels each posting is counted under, in row order.
+def place_label_lists_by_row(jobs_df: pd.DataFrame) -> list[list[str]]:
+    """Return the place labels each posting names, in the order it names them.
 
-    The same parsing and folding the ranked list uses, so a filter built on
-    these labels selects exactly the postings a count promised. Matching on
-    words instead lets "Canada" pull in "Remote, Canada" and "Ontario,
-    Canada", and "Toronto, ON" pull in every location holding "on".
+    The ranked list and the filter only need to know which labels a posting
+    carries. A posting showing its places as tags needs them in the order it
+    wrote them, so this keeps that order and the set view is built from it.
     """
     rows = places_by_row(jobs_df)
     counts: dict[LocationParts, int] = defaultdict(int)
@@ -539,7 +570,21 @@ def place_labels_by_row(jobs_df: pd.DataFrame) -> list[set[str]]:
 
     canonical = canonical_spellings(counts)
 
-    return [{canonical.get(parts, parts).label for parts in places} for places in rows]
+    return [
+        list(dict.fromkeys(canonical.get(parts, parts).label for parts in places))
+        for places in rows
+    ]
+
+
+def place_labels_by_row(jobs_df: pd.DataFrame) -> list[set[str]]:
+    """Return the place labels each posting is counted under, in row order.
+
+    The same parsing and folding the ranked list uses, so a filter built on
+    these labels selects exactly the postings a count promised. Matching on
+    words instead lets "Canada" pull in "Remote, Canada" and "Ontario,
+    Canada", and "Toronto, ON" pull in every location holding "on".
+    """
+    return [set(labels) for labels in place_label_lists_by_row(jobs_df)]
 
 
 def resolve_workplace_type(
@@ -547,6 +592,7 @@ def resolve_workplace_type(
     *,
     declared_type: str = "",
     is_remote: bool = False,
+    names_a_place: bool = False,
 ) -> str:
     """Return how the work is done, or that the posting never says."""
     declared = normalize_search_text(declared_type).replace("-", " ")
@@ -562,6 +608,13 @@ def resolve_workplace_type(
     for term, workplace_type in WORKPLACE_LOCATION_TERMS.items():
         if has_term(normalized_location, term):
             return workplace_type
+
+    # A posting that names the city you would work in and never mentions
+    # remote or hybrid is asking you to come in. Reporting that as "Not
+    # stated" put 294 of the 298 early-career postings into a bucket that
+    # told the reader nothing, when what they have in common is an address.
+    if names_a_place:
+        return "On-site"
 
     return WORKPLACE_TYPE_UNKNOWN
 
@@ -587,16 +640,17 @@ def summarize_location_demand(
     has_remote_column = "is_remote" in jobs_df.columns
 
     for (_, row), places in zip(jobs_df.iterrows(), places_by_row(jobs_df)):
-        location = str(row.get("location") or "").strip()
+        location = text_or_blank(row.get("location")).strip()
 
         # The Canada snapshot carries these outright; the Greenhouse feeds
         # only imply them through the location text, and often not at all.
         workplace_type = resolve_workplace_type(
             location,
             declared_type=(
-                str(row.get("workplace_type") or "") if has_workplace_column else ""
+                text_or_blank(row.get("workplace_type")) if has_workplace_column else ""
             ),
-            is_remote=bool(row.get("is_remote")) if has_remote_column else False,
+            is_remote=flag_or_false(row.get("is_remote")) if has_remote_column else False,
+            names_a_place=bool(places),
         )
         workplace_counts[workplace_type] += 1
 

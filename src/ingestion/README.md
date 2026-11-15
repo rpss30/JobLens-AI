@@ -85,6 +85,8 @@ commands.
 - `scripts/fetch_canada_jobs.py` builds the Canada-only raw posting set.
 - `scripts/build_canada_jobs_snapshot.py` creates the packaged Groq-enriched snapshot.
 - `scripts/validate_canada_jobs_snapshot.py` blocks low-quality snapshot replacements.
+- `scripts/fetch_simplify_new_grad_jobs.py` builds the global early-career raw posting set.
+- `scripts/build_early_career_jobs_snapshot.py` creates the packaged early-career dataset.
 - `src/ingestion/pipeline_runs.py` validates normalized records and builds run summaries.
 - `scripts/process_greenhouse_jobs.py` applies deterministic processing.
 - `scripts/process_greenhouse_jobs_ai_first.py` runs the AI-first extraction experiment.
@@ -94,3 +96,41 @@ commands.
 External APIs and LLMs are not required at dashboard runtime. The committed
 snapshot keeps the application stable while retaining current first-party
 source URLs, refresh metadata, and realistic job descriptions.
+
+### Global Early-Career Discovery
+
+`scripts/fetch_simplify_new_grad_jobs.py` fetches active listings from the
+public SimplifyJobs/New-Grad-Positions index. This source is global by default:
+it keeps target technical roles from every listed location and writes normalized
+rows that preserve the original apply URL, Simplify source record, listing age,
+new-grad signal, and entry-level signal.
+
+```bash
+python scripts/fetch_simplify_new_grad_jobs.py \
+  --output-path data/raw/simplify_new_grad_jobs.csv \
+  --summary-path tmp/simplify-fetch-summary.json \
+  --summary-markdown-path tmp/simplify-fetch-summary.md
+python scripts/build_early_career_jobs_snapshot.py \
+  --input-path data/raw/simplify_new_grad_jobs.csv \
+  --output-path data/processed/early_career_global_jobs.csv \
+  --summary-path tmp/early-career-build-summary.json \
+  --summary-markdown-path tmp/early-career-build-summary.md
+```
+
+Use `--canada-only` only for compatibility checks against Canada-specific
+location normalization:
+
+```bash
+python scripts/fetch_simplify_new_grad_jobs.py \
+  --canada-only \
+  --output-path tmp/simplify_canada_jobs.csv
+```
+
+The `early_career_global` bundled dataset is available in the app's dataset
+selector. It is intentionally separate from `canada_snapshot`: it keeps global
+locations and does not use Canada-specific quality gates. The builder
+opportunistically hydrates apply pages into fuller descriptions and falls back
+to the Simplify index text when a page is JavaScript-only, blocked, or too
+thin. The committed dataset records the hydration provider per row so future
+work can tighten quality gates or add source-specific hydrators without hiding
+which rows came from fallback text.

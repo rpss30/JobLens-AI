@@ -101,6 +101,26 @@ def test_declared_workplace_columns_win_over_the_location_text():
     assert counts(summary) == {"Vancouver, BC": 1, "Toronto, ON": 1}
 
 
+def test_a_blank_workplace_column_is_not_the_word_nan():
+    # pandas reads an all-blank column as NaN, and NaN is truthy, so the
+    # `value or ""` guard passed it through and str() spelled it "nan". It
+    # headed the rollup with 294 postings behind it on the early-career
+    # snapshot, which declares a workplace type for none of them.
+    summary = summarize(
+        ["Austin, TX", "Seattle, WA"],
+        workplace_type=[float("nan"), float("nan")],
+        is_remote=[float("nan"), float("nan")],
+    )
+
+    workplace = {row["workplace_type"]: row["job_count"] for row in summary.workplace_types}
+
+    # Both name a city, so they read as on-site; the point is that neither
+    # reads as the word "nan".
+    assert workplace == {"On-site": 2}
+    # NaN is truthy here too, and would have marked both of them remote.
+    assert counts(summary) == {"Austin, TX": 1, "Seattle, WA": 1}
+
+
 def test_a_region_written_without_a_comma_still_counts():
     # The local sample writes "Toronto ON"; the Canada snapshot writes
     # "Toronto, ON". They are the same place and must not rank separately.
@@ -112,7 +132,17 @@ def test_a_region_written_without_a_comma_still_counts():
     assert counts(summary)["Kitchener on the lake"] == 1
 
 
-def test_a_posting_that_never_says_is_not_called_on_site():
+def test_a_posting_that_names_a_place_and_nothing_else_is_on_site():
+    # This used to report "Not stated". It put 294 of the 298 early-career
+    # postings into a bucket that said nothing about them, when what they
+    # have in common is an address you are expected to turn up at.
     summary = summarize(["Bengaluru, India"])
+
+    assert summary.workplace_types == [{"workplace_type": "On-site", "job_count": 1}]
+
+
+def test_a_posting_with_no_place_at_all_is_still_unstated():
+    # Nothing to turn up to, so there is nothing to infer.
+    summary = summarize(["TBD"])
 
     assert summary.workplace_types == [{"workplace_type": "Not stated", "job_count": 1}]

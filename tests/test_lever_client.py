@@ -104,3 +104,42 @@ def test_normalize_lever_posting_maps_to_raw_job_schema():
     assert normalized["source"] == "lever"
     assert normalized["source_url"] == "https://jobs.lever.co/example/abc123"
     assert normalized["fetched_at"] == "2026-06-10T00:00:00+00:00"
+
+
+def test_normalize_lever_posting_reads_a_section_sent_as_one_html_string():
+    """
+    Lever sends lists[].content as a single HTML string. The fixture above
+    uses a list, which is why walking the value a character at a time went
+    unnoticed: against a real posting the join put a space between every
+    letter of the requirements, and the posting reached the snapshot with no
+    skills extracted from it at all.
+    """
+    posting = {
+        "id": "abc123",
+        "text": "Senior Backend Developer",
+        "categories": {"team": "Engineering", "location": "Ottawa, Canada"},
+        "description": "<p>About the company.</p>",
+        "lists": [
+            {
+                "text": "What you bring to the table:",
+                "content": (
+                    "<ul><li>Experience with Kubernetes</li>"
+                    "<li>A strong Python background</li></ul>"
+                ),
+            }
+        ],
+    }
+
+    normalized = normalize_lever_posting(
+        posting,
+        company_slug="example",
+        fetched_at="2026-06-10T00:00:00+00:00",
+    )
+
+    description = normalized["description"]
+
+    assert "What you bring to the table:" in description
+    assert "Experience with Kubernetes" in description
+    assert "A strong Python background" in description
+    # The shape the bug produced, named so a regression is unmistakable.
+    assert "K u b e r n e t e s" not in description

@@ -69,8 +69,21 @@ def normalize_lever_posting(
             for item in part:
                 if isinstance(item, dict):
                     description_text_parts.append(clean_html_text(item.get("text", "")))
-                    for content in item.get("content", []):
+
+                    # Lever sends a section's body as one HTML string, not as
+                    # a list of entries. Iterating it walks the string one
+                    # character at a time, and the join below then puts a
+                    # space between every letter: "W h a t y o u b r i n g".
+                    # It lands on the requirements, which is the only part a
+                    # skill extractor has to read, so the posting comes back
+                    # with no skills at all and the snapshot gate rejects it.
+                    content = item.get("content")
+
+                    if isinstance(content, str):
                         description_text_parts.append(clean_html_text(content))
+                    else:
+                        for entry in content or []:
+                            description_text_parts.append(clean_html_text(entry))
                 else:
                     description_text_parts.append(clean_html_text(item))
         else:

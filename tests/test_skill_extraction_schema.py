@@ -1,6 +1,7 @@
 import pytest
 
 from src.skill_extraction.schema import (
+    DESCRIPTION_CHARACTER_BUDGET,
     SKILL_EXTRACTION_PROMPT_VERSION,
     build_structured_skill_extraction_prompt,
     parse_skill_extraction_json,
@@ -74,3 +75,32 @@ def test_build_structured_skill_extraction_prompt_includes_schema_and_version():
     assert '"confidence"' in prompt
     assert '"evidence"' in prompt
     assert "Do not include soft skills" in prompt
+
+
+def test_build_structured_skill_extraction_prompt_reaches_the_requirements():
+    """
+    Requirements sit after the company preamble, so the budget has to be wide
+    enough to reach them. At 4,000 characters a real posting lost its whole
+    requirements section and the model answered with an empty skills array,
+    exactly as its own rules tell it to when no skills are present.
+    """
+    preamble = "About the company. " * 250  # ~4,750 characters of boilerplate
+    description = f"{preamble}What you bring: experience with Kubernetes."
+
+    prompt = build_structured_skill_extraction_prompt(
+        title="Backend Engineer",
+        description=description,
+    )
+
+    assert len(preamble) > 4_000
+    assert "experience with Kubernetes" in prompt
+
+
+def test_build_structured_skill_extraction_prompt_still_bounds_the_description():
+    prompt = build_structured_skill_extraction_prompt(
+        title="Backend Engineer",
+        description="x" * (DESCRIPTION_CHARACTER_BUDGET * 3),
+    )
+
+    assert "x" * DESCRIPTION_CHARACTER_BUDGET in prompt
+    assert "x" * (DESCRIPTION_CHARACTER_BUDGET + 1) not in prompt

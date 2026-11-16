@@ -140,9 +140,25 @@ def parse_skill_extraction_json(
     return parse_skill_extraction_payload(payload, max_skills=max_skills)
 
 
+# How much of a description the model is shown.
+#
+# Postings open with company boilerplate and close with benefits, so the
+# requirements sit in the middle and a tight budget cuts exactly the part
+# worth reading. At 4,000 characters only 9% of live postings were shown in
+# full and the median lost 2,152 characters; one posting had its entire
+# requirements section discarded and came back with no skills at all, which
+# failed the snapshot gate. 12,000 shows 97% of postings in full for about 4%
+# more tokens than 8,000 would cost, because so few postings run that long.
+#
+# The account allows 8,000 tokens a minute, so a wider budget is paid for in
+# time rather than in failures: extract_skills_groq_first already waits out a
+# 429 without spending one of its extraction attempts.
+DESCRIPTION_CHARACTER_BUDGET = 12_000
+
+
 def build_structured_skill_extraction_prompt(title: str, description: str) -> str:
     """Build a versioned prompt for extracting job-relevant technical skills."""
-    trimmed_description = description[:4000]
+    trimmed_description = description[:DESCRIPTION_CHARACTER_BUDGET]
 
     return f"""
 Extract technical skills from this job posting for a job market dashboard.

@@ -15,6 +15,7 @@ from src.api.services import (
     report_service,
     saved_job_service,
 )
+from src.analysis.job_services import get_available_skills
 from src.api.schemas import AnalyzeRequest
 from src.api.services.analysis_service import load_jobs_for_analysis
 
@@ -622,21 +623,48 @@ def test_resume_skills_reads_dataset_skills_beyond_the_curated_list() -> None:
     Naming a dataset adds the skills its postings list, so the resume box and
     the skills list on the analyze form recognise the same vocabulary.
     """
-    resume_text = "Built pipelines with Delta Lake and Unity Catalog on Databricks."
+    _, jobs = load_jobs_for_analysis("canada_snapshot")
+    dataset_skills = get_available_skills(jobs)
 
-    curated = client.post("/resume/skills", json={"resume_text": resume_text})
-    with_dataset = client.post(
-        "/resume/skills",
-        json={"resume_text": resume_text, "dataset_name": "canada_snapshot"},
+    assert dataset_skills, "the bundled dataset lists no skills at all"
+
+    # Which skill proves the point changes every time the weekly refresh
+    # replaces the snapshot, so it is discovered rather than named. Naming
+    # one broke the refresh: the run extracted a fresh dataset that no
+    # longer mentioned it, and the suite failed on data rather than on
+    # behaviour.
+    case: tuple[str, list[str], list[str]] | None = None
+
+    for candidate in dataset_skills:
+        resume_text = f"Built production systems with {candidate}."
+
+        curated = client.post("/resume/skills", json={"resume_text": resume_text})
+        assert curated.status_code == 200
+        curated_skills = curated.json()["skills"]
+
+        if candidate in curated_skills:
+            continue
+
+        with_dataset = client.post(
+            "/resume/skills",
+            json={"resume_text": resume_text, "dataset_name": "canada_snapshot"},
+        )
+        assert with_dataset.status_code == 200
+        dataset_found = with_dataset.json()["skills"]
+
+        if candidate in dataset_found:
+            case = (candidate, curated_skills, dataset_found)
+            break
+
+    assert case is not None, (
+        "no skill in the bundled dataset sits outside the curated taxonomy, "
+        "so this behaviour is no longer being exercised"
     )
 
-    assert curated.status_code == 200
-    assert with_dataset.status_code == 200
+    candidate, curated_skills, dataset_found = case
 
-    found = with_dataset.json()["skills"]
-
-    assert "delta lake" in found
-    assert "delta lake" not in curated.json()["skills"]
+    assert candidate in dataset_found
+    assert candidate not in curated_skills
 
 
 def test_resume_skills_ignores_words_too_generic_to_infer() -> None:
@@ -1557,21 +1585,36 @@ def test_reading_one_job_returns_its_description() -> None:
     assert client.get("/jobs/does-not-exist").status_code == 404
 
 
-def test_a_posting_missing_its_formatted_description_reads_its_own_words() -> None:
+def test_a_posting_missing_its_formatted_description_reads_its_own_words(
+    monkeypatch,
+    sample_processed_jobs_df,
+) -> None:
     """A missing value reaches the service as NaN rather than as nothing.
 
     Read with `or ""` that survived as the string "nan", and because the
     formatted description is preferred over the plain one, "nan" was what a
     reader saw in place of a posting that did carry its own words.
     """
-    _, jobs = load_jobs_for_analysis("canada_snapshot")
-    missing = jobs[jobs["description_formatted"].isna()]
+    jobs = sample_processed_jobs_df.copy()
+    # Staged rather than hunted for in the bundled dataset. Whether any live
+    # posting happens to arrive without a formatted body changes with every
+    # weekly refresh, and when the snapshot was rebuilt none did, so the
+    # refresh failed on a missing fixture rather than on this behaviour.
+    jobs["description_formatted"] = [
+        "<p>Build REST APIs.</p>",
+        float("nan"),
+        "<p>Build dashboards.</p>",
+    ]
 
-    assert not missing.empty, "the bundled dataset no longer covers this case"
+    monkeypatch.setattr(
+        job_listing_service,
+        "load_jobs_for_analysis",
+        lambda dataset_name: ("canada_snapshot", jobs),
+    )
 
     detail = job_listing_service.get_job(
         dataset_name="canada_snapshot",
-        job_id=str(missing.iloc[0]["job_id"]),
+        job_id="job-ml-1",
     )
 
     assert detail["description_formatted"] == ""

@@ -54,29 +54,73 @@ jobs:
           fi
           echo "configured=true" >> "$GITHUB_OUTPUT"
 
+      # Enrichment is the expensive half of this job and the account allows
+      # 200,000 Groq tokens a day, which one full run very nearly spends. A
+      # run that enriches every posting and then fails a later gate used to
+      # throw all of it away with the runner, so each retry paid full price
+      # and a second attempt the same day could not finish at all.
+      #
+      # The build reuses any posting whose clean_description is unchanged and
+      # checkpoints to its output path after every one, so carrying that file
+      # between runs turns a retry into a handful of calls for the postings
+      # that actually moved.
+      - name: Restore the last enriched candidate
+        if: steps.groq_config.outputs.configured == 'true'
+        uses: actions/cache/restore@v6
+        with:
+          path: /tmp/extraction-cache
+          # Unique per run so each one saves its own, with the prefix falling
+          # back to the most recent earlier candidate.
+          key: canada-snapshot-candidate-${{ github.run_id }}
+          restore-keys: |
+            canada-snapshot-candidate-
+
       - name: Fetch and enrich current Canadian jobs
         if: steps.groq_config.outputs.configured == 'true'
         run: |
-          cp data/processed/canada_jobs_snapshot.csv /tmp/canada_jobs_snapshot.csv
+          mkdir -p /tmp/extraction-cache
+
+          # Seed the output path with whatever already holds extractions for
+          # these postings. A restored candidate is preferred over the
+          # committed snapshot because it is newer and was itself seeded
+          # from it, so it can only ever cover more.
+          if [ -f /tmp/extraction-cache/canada_jobs_snapshot.csv ]; then
+            echo "Reusing extractions from an earlier run's candidate."
+          else
+            echo "No candidate cached; seeding from the committed snapshot."
+            cp data/processed/canada_jobs_snapshot.csv \
+              /tmp/extraction-cache/canada_jobs_snapshot.csv
+          fi
+
           python scripts/fetch_canada_jobs.py \
             --output-path /tmp/canada_jobs.csv \
             --summary-path /tmp/canada-fetch-summary.json \
             --summary-markdown-path /tmp/canada-fetch-summary.md
           python scripts/build_canada_jobs_snapshot.py \
             --input-path /tmp/canada_jobs.csv \
-            --output-path /tmp/canada_jobs_snapshot.csv \
+            --output-path /tmp/extraction-cache/canada_jobs_snapshot.csv \
             --delay-seconds 1 \
             --summary-path /tmp/canada-build-summary.json \
             --summary-markdown-path /tmp/canada-build-summary.md
+
+      # Saved even when enrichment itself failed: the build checkpoints after
+      # each posting, so a run that died partway still has real work to hand
+      # the next one.
+      - name: Keep the enriched candidate for the next run
+        if: always() && steps.groq_config.outputs.configured == 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: /tmp/extraction-cache
+          key: canada-snapshot-candidate-${{ github.run_id }}
 
       - name: Validate refreshed snapshot
         if: steps.groq_config.outputs.configured == 'true'
         run: |
           python scripts/validate_canada_jobs_snapshot.py \
-            --candidate-path /tmp/canada_jobs_snapshot.csv \
+            --candidate-path /tmp/extraction-cache/canada_jobs_snapshot.csv \
             --baseline-path data/processed/canada_jobs_snapshot.csv \
             --summary-path /tmp/snapshot-quality.md
-          cp /tmp/canada_jobs_snapshot.csv \
+          cp /tmp/extraction-cache/canada_jobs_snapshot.csv \
             data/processed/canada_jobs_snapshot.csv
 
       # Runs even when the gate above stopped the job, so the run's own

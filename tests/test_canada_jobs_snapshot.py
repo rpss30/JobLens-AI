@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from src.analysis.location_demand import place_label_lists_by_row
 from src.dashboard.services import (
     CANADA_JOBS_SNAPSHOT_PATH,
     filter_jobs,
@@ -128,12 +129,21 @@ def test_canada_jobs_snapshot_exposes_dataset_locations_and_metadata():
     locations = get_available_locations(jobs_df)
     summary = get_dataset_snapshot_summary(jobs_df)
 
-    assert "Toronto, ON" in locations
-    assert "Vancouver, BC" in locations
-    assert "Montreal, QC" in locations
-    assert "Ottawa, ON" in locations
-    assert "Calgary, AB" in locations
-    assert "Remote, Canada" in locations
+    # Which cities are hiring changes with every weekly refresh, so what is
+    # pinned is that the options are usable rather than that they are a
+    # particular six. Naming them meant a refresh carrying no Calgary posting
+    # failed here instead of on anything the reader would notice.
+    assert len(locations) >= 8
+    assert locations == sorted(set(locations))
+    assert all(location.strip() for location in locations)
+
+    # The property the sidebar depends on: every option offered selects at
+    # least one posting, so choosing one can never come back empty.
+    labels_by_row = place_label_lists_by_row(jobs_df)
+
+    for location in locations:
+        assert any(location in labels for labels in labels_by_row), location
+
     assert summary["job_count"] == len(jobs_df)
     assert summary["company_count"] >= 12
     assert summary["location_count"] >= 8
